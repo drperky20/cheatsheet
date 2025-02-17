@@ -9,7 +9,203 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      assignments: {
+        Row: {
+          canvas_assignment_id: string
+          course_id: string | null
+          created_at: string | null
+          description: string | null
+          due_date: string | null
+          id: string
+          points_possible: number | null
+          requirements: Json | null
+          status: string | null
+          title: string
+        }
+        Insert: {
+          canvas_assignment_id: string
+          course_id?: string | null
+          created_at?: string | null
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          points_possible?: number | null
+          requirements?: Json | null
+          status?: string | null
+          title: string
+        }
+        Update: {
+          canvas_assignment_id?: string
+          course_id?: string | null
+          created_at?: string | null
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          points_possible?: number | null
+          requirements?: Json | null
+          status?: string | null
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "assignments_course_id_fkey"
+            columns: ["course_id"]
+            isOneToOne: false
+            referencedRelation: "courses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      canvas_configs: {
+        Row: {
+          api_key: string
+          created_at: string | null
+          domain: string
+          id: string
+          is_valid: boolean | null
+          last_sync: string | null
+          user_id: string | null
+        }
+        Insert: {
+          api_key: string
+          created_at?: string | null
+          domain: string
+          id?: string
+          is_valid?: boolean | null
+          last_sync?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          api_key?: string
+          created_at?: string | null
+          domain?: string
+          id?: string
+          is_valid?: boolean | null
+          last_sync?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "canvas_configs_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      courses: {
+        Row: {
+          canvas_course_id: string
+          created_at: string | null
+          description: string | null
+          end_date: string | null
+          id: string
+          name: string
+          nickname: string | null
+          start_date: string | null
+          user_id: string | null
+        }
+        Insert: {
+          canvas_course_id: string
+          created_at?: string | null
+          description?: string | null
+          end_date?: string | null
+          id?: string
+          name: string
+          nickname?: string | null
+          start_date?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          canvas_course_id?: string
+          created_at?: string | null
+          description?: string | null
+          end_date?: string | null
+          id?: string
+          name?: string
+          nickname?: string | null
+          start_date?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "courses_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          created_at: string | null
+          email: string | null
+          full_name: string | null
+          id: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          email?: string | null
+          full_name?: string | null
+          id: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          email?: string | null
+          full_name?: string | null
+          id?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      submissions: {
+        Row: {
+          assignment_id: string | null
+          content: string | null
+          created_at: string | null
+          feedback: Json | null
+          id: string
+          status: string | null
+          submitted_at: string | null
+          updated_at: string | null
+          version: number | null
+        }
+        Insert: {
+          assignment_id?: string | null
+          content?: string | null
+          created_at?: string | null
+          feedback?: Json | null
+          id?: string
+          status?: string | null
+          submitted_at?: string | null
+          updated_at?: string | null
+          version?: number | null
+        }
+        Update: {
+          assignment_id?: string | null
+          content?: string | null
+          created_at?: string | null
+          feedback?: Json | null
+          id?: string
+          status?: string | null
+          submitted_at?: string | null
+          updated_at?: string | null
+          version?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "submissions_assignment_id_fkey"
+            columns: ["assignment_id"]
+            isOneToOne: false
+            referencedRelation: "assignments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
