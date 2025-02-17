@@ -18,12 +18,11 @@ serve(async (req) => {
     const baseUrl = `https://${domain}/api/v1${endpoint}`
     const url = new URL(baseUrl)
     
-    // Add query parameters for active courses
-    if (endpoint === '/courses') {
-      url.searchParams.append('enrollment_state', 'active')
-      url.searchParams.append('state[]', 'available')
-      url.searchParams.append('include[]', 'term')
-    }
+    // Add query parameters for active courses regardless of endpoint
+    // since both /courses and /users/self/courses need these parameters
+    url.searchParams.append('enrollment_state', 'active')
+    url.searchParams.append('state[]', 'available')
+    url.searchParams.append('include[]', 'term')
 
     const response = await fetch(url.toString(), {
       method,
