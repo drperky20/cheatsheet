@@ -20,12 +20,33 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>;
 };
 
+const AuthRoute = ({ children }: { children: React.ReactNode }) => {
+  const { profile, isLoading } = useAuth();
+  
+  if (isLoading) {
+    return <div>Loading...</div>;
+  }
+  
+  if (profile) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  return <>{children}</>;
+};
+
 const App = () => {
   return (
     <Router>
       <AuthProvider>
         <Routes>
-          <Route path="/auth" element={<Index />} />
+          <Route
+            path="/auth"
+            element={
+              <AuthRoute>
+                <Index />
+              </AuthRoute>
+            }
+          />
           <Route
             path="/dashboard"
             element={
