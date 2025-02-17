@@ -25,26 +25,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     // Check active session
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) {
-        fetchUserData(session.user.id);
-      } else {
+      if (!session) {
         setState(s => ({ ...s, isLoading: false }));
+        return;
       }
+      fetchUserData(session.user.id);
     });
 
     // Listen for auth changes
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session) {
-        fetchUserData(session.user.id);
-      } else {
+      if (!session) {
         setState({
           profile: null,
           canvasConfig: null,
           isLoading: false,
         });
+        return;
       }
+      fetchUserData(session.user.id);
     });
 
     return () => subscription.unsubscribe();
@@ -57,7 +57,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         .from("profiles")
         .select("*")
         .eq("id", userId)
-        .single();
+        .maybeSingle();
 
       if (profileError) throw profileError;
 
@@ -66,12 +66,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         .from("canvas_configs")
         .select("*")
         .eq("user_id", userId)
-        .single();
+        .maybeSingle();
 
       if (configError && configError.code !== "PGRST116") throw configError;
 
       setState({
-        profile,
+        profile: profile || null,
         canvasConfig: canvasConfig || null,
         isLoading: false,
       });
