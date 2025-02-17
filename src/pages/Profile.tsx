@@ -5,20 +5,20 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ChevronLeft, User, Mail, School, Book } from "lucide-react";
+import { ChevronLeft, User, Mail, School, Key } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 
 const Profile = () => {
   const navigate = useNavigate();
-  const { profile } = useAuth();
+  const { profile, canvasConfig } = useAuth();
   const { toast } = useToast();
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({
     fullName: profile?.full_name || "",
     email: profile?.email || "",
-    school: "Canvas University",
-    major: "Computer Science",
+    canvasDomain: canvasConfig?.domain || "",
+    apiKey: canvasConfig?.api_key || "",
   });
 
   const handleSave = () => {
@@ -54,7 +54,7 @@ const Profile = () => {
         <Card className="bg-card/50 backdrop-blur-sm border-white/10">
           <CardHeader>
             <CardTitle>Personal Information</CardTitle>
-            <CardDescription>Manage your personal details and preferences.</CardDescription>
+            <CardDescription>Manage your personal details and Canvas connection.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="space-y-2">
@@ -86,30 +86,33 @@ const Profile = () => {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="school" className="flex items-center gap-2">
+              <Label htmlFor="canvasDomain" className="flex items-center gap-2">
                 <School className="h-4 w-4" />
-                School
+                Canvas Domain
               </Label>
               <Input
-                id="school"
-                value={formData.school}
-                onChange={(e) => setFormData({ ...formData, school: e.target.value })}
+                id="canvasDomain"
+                value={formData.canvasDomain}
+                onChange={(e) => setFormData({ ...formData, canvasDomain: e.target.value })}
                 disabled={!isEditing}
                 className="bg-black/50"
+                placeholder="e.g., university.instructure.com"
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="major" className="flex items-center gap-2">
-                <Book className="h-4 w-4" />
-                Major
+              <Label htmlFor="apiKey" className="flex items-center gap-2">
+                <Key className="h-4 w-4" />
+                Canvas API Key
               </Label>
               <Input
-                id="major"
-                value={formData.major}
-                onChange={(e) => setFormData({ ...formData, major: e.target.value })}
+                id="apiKey"
+                type="password"
+                value={formData.apiKey}
+                onChange={(e) => setFormData({ ...formData, apiKey: e.target.value })}
                 disabled={!isEditing}
                 className="bg-black/50"
+                placeholder="Enter your Canvas API key"
               />
             </div>
           </CardContent>
