@@ -5,24 +5,24 @@
 
 @layer base {
   :root {
-    --background: 240 10% 3.9%;
+    --background: 240 10% 2%;
     --foreground: 0 0% 98%;
-    --card: 240 10% 3.9%;
+    --card: 240 10% 3%;
     --card-foreground: 0 0% 98%;
-    --popover: 240 10% 3.9%;
+    --popover: 240 10% 2%;
     --popover-foreground: 0 0% 98%;
     --primary: 0 0% 98%;
     --primary-foreground: 240 5.9% 10%;
-    --secondary: 240 3.7% 15.9%;
+    --secondary: 240 3.7% 12%;
     --secondary-foreground: 0 0% 98%;
-    --muted: 240 3.7% 15.9%;
+    --muted: 240 3.7% 12%;
     --muted-foreground: 240 5% 64.9%;
-    --accent: 240 3.7% 15.9%;
+    --accent: 240 3.7% 12%;
     --accent-foreground: 0 0% 98%;
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 0 0% 98%;
-    --border: 240 3.7% 15.9%;
-    --input: 240 3.7% 15.9%;
+    --border: 240 3.7% 12%;
+    --input: 240 3.7% 12%;
     --ring: 240 4.9% 83.9%;
     --radius: 0.75rem;
   }
@@ -39,15 +39,15 @@
 
 @layer components {
   .glass {
-    @apply bg-white/5 backdrop-blur-lg border border-white/10;
+    @apply bg-black/40 backdrop-blur-lg border border-white/5;
   }
 
   .card-gradient {
-    @apply bg-gradient-to-br from-white/5 to-white/10 backdrop-blur-sm;
+    @apply bg-gradient-to-br from-black/60 to-black/40 backdrop-blur-sm;
   }
 
   .input-gradient {
-    @apply bg-gradient-to-br from-white/10 to-transparent backdrop-blur-sm;
+    @apply bg-gradient-to-br from-black/60 to-transparent backdrop-blur-sm;
   }
 }
 
@@ -62,11 +62,11 @@
   }
 
   .glass-morphism {
-    @apply backdrop-blur-xl bg-white/5 border border-white/10 shadow-[0_4px_12px_-2px_rgba(0,0,0,0.3)];
+    @apply backdrop-blur-xl bg-black/40 border border-white/5 shadow-[0_4px_12px_-2px_rgba(0,0,0,0.5)];
   }
   
   .neo-blur {
-    @apply backdrop-blur-2xl bg-black/40 border border-white/10;
+    @apply backdrop-blur-2xl bg-black/60 border border-white/5;
   }
   
   .text-gradient {
