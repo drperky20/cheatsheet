@@ -33,8 +33,12 @@ export const CoursesDashboard = () => {
 
   const fetchCourses = async () => {
     try {
-      if (!canvasConfig) return;
+      if (!canvasConfig) {
+        console.log('No Canvas configuration found');
+        return;
+      }
 
+      console.log('Fetching courses from Canvas...');
       const { data, error } = await supabase.functions.invoke('canvas-proxy', {
         body: {
           endpoint: '/users/self/courses',
@@ -44,26 +48,35 @@ export const CoursesDashboard = () => {
         }
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase function error:', error);
+        throw error;
+      }
 
-      // Filter and map the courses
-      const activeCourses = data
-        .filter((course: any) => course.enrollment_state === 'active')
-        .map((course: any) => ({
-          id: course.id,
-          name: course.name,
-          course_code: course.course_code,
-          assignments_count: 0,
-          pending_assignments: 0,
-          term: course.term
-        }));
+      console.log('Raw Canvas response:', data);
 
+      if (!Array.isArray(data)) {
+        console.error('Unexpected response format:', data);
+        throw new Error('Invalid response format from Canvas API');
+      }
+
+      // Map the courses
+      const activeCourses = data.map((course: any) => ({
+        id: course.id,
+        name: course.name,
+        course_code: course.course_code,
+        assignments_count: 0,
+        pending_assignments: 0,
+        term: course.term
+      }));
+
+      console.log('Processed courses:', activeCourses);
       setCourses(activeCourses);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching courses:', error);
       toast({
         title: "Error fetching courses",
-        description: "Please check your Canvas configuration",
+        description: error.message || "Please check your Canvas configuration",
         variant: "destructive"
       });
     } finally {
@@ -77,6 +90,17 @@ export const CoursesDashboard = () => {
         {[1, 2, 3].map((i) => (
           <Skeleton key={i} className="h-[200px] rounded-xl" />
         ))}
+      </div>
+    );
+  }
+
+  if (courses.length === 0) {
+    return (
+      <div className="text-center p-8">
+        <h3 className="text-xl font-semibold mb-2">No Active Courses Found</h3>
+        <p className="text-gray-400">
+          We couldn't find any active courses. If you believe this is an error, please check your Canvas configuration.
+        </p>
       </div>
     );
   }

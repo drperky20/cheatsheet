@@ -18,11 +18,12 @@ serve(async (req) => {
     const baseUrl = `https://${domain}/api/v1${endpoint}`
     const url = new URL(baseUrl)
     
-    // Add query parameters for active courses regardless of endpoint
-    // since both /courses and /users/self/courses need these parameters
-    url.searchParams.append('enrollment_state', 'active')
-    url.searchParams.append('state[]', 'available')
+    // Add query parameters for active courses
     url.searchParams.append('include[]', 'term')
+    url.searchParams.append('enrollment_state[]', 'active')
+    url.searchParams.append('state[]', 'available')
+    
+    console.log('Requesting URL:', url.toString())
 
     const response = await fetch(url.toString(), {
       method,
@@ -32,14 +33,21 @@ serve(async (req) => {
       },
     })
 
+    if (!response.ok) {
+      console.error('Canvas API Error:', {
+        status: response.status,
+        statusText: response.statusText,
+      })
+      throw new Error(`Canvas API error: ${response.status} ${response.statusText}`)
+    }
+
     const data = await response.json()
     
-    // Log the response for debugging
-    console.log('Canvas API Response:', data)
+    console.log('Canvas API Response:', JSON.stringify(data, null, 2))
 
     return new Response(JSON.stringify(data), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: response.status,
+      status: 200,
     })
   } catch (error) {
     console.error('Edge Function Error:', error)
