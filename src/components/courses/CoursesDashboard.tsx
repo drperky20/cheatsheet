@@ -30,23 +30,26 @@ export const CoursesDashboard = () => {
     try {
       if (!canvasConfig) return;
 
-      const response = await fetch(`https://${canvasConfig.domain}/api/v1/courses`, {
-        headers: {
-          'Authorization': `Bearer ${canvasConfig.api_key}`
+      const { data, error } = await supabase.functions.invoke('canvas-proxy', {
+        body: {
+          endpoint: '/courses',
+          method: 'GET',
+          domain: canvasConfig.domain,
+          apiKey: canvasConfig.api_key
         }
       });
 
-      if (!response.ok) throw new Error('Failed to fetch courses');
+      if (error) throw error;
 
-      const data = await response.json();
       setCourses(data.map((course: any) => ({
         id: course.id,
         name: course.name,
         course_code: course.course_code,
-        assignments_count: 0, // We'll fetch this separately
+        assignments_count: 0,
         pending_assignments: 0
       })));
     } catch (error) {
+      console.error('Error fetching courses:', error);
       toast({
         title: "Error fetching courses",
         description: "Please check your Canvas configuration",
