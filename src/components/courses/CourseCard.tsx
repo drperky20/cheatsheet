@@ -2,8 +2,9 @@
 import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { BookOpen, Clock, Edit2 } from "lucide-react";
+import { BookOpen, Clock, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { CourseRename } from "./CourseRename";
 
 interface CourseCardProps {
   course: {
@@ -13,55 +14,67 @@ interface CourseCardProps {
     course_code: string;
     assignments_count: number;
     pending_assignments: number;
+    term?: {
+      name: string;
+      start_at: string;
+      end_at: string;
+    };
   };
 }
 
 export const CourseCard = ({ course }: CourseCardProps) => {
   const [isHovered, setIsHovered] = useState(false);
+  const [nickname, setNickname] = useState(course.nickname);
+  
   const progressValue = course.assignments_count > 0 
     ? ((course.assignments_count - course.pending_assignments) / course.assignments_count) * 100
     : 0;
 
   const getRandomGradient = () => {
     const gradients = [
-      'from-blue-400 to-indigo-500',
-      'from-green-400 to-emerald-500',
-      'from-purple-400 to-pink-500',
-      'from-orange-400 to-red-500',
-      'from-teal-400 to-cyan-500',
+      'from-blue-500/10 to-indigo-500/10',
+      'from-green-500/10 to-emerald-500/10',
+      'from-purple-500/10 to-pink-500/10',
+      'from-orange-500/10 to-red-500/10',
+      'from-teal-500/10 to-cyan-500/10',
     ];
     return gradients[Math.floor(Math.random() * gradients.length)];
   };
 
+  const handleViewAssignments = () => {
+    // This will be implemented in the next step
+    console.log("View assignments for course:", course.id);
+  };
+
   return (
     <Card 
-      className={`relative overflow-hidden transition-all duration-300 backdrop-blur-lg bg-white/80 dark:bg-gray-800/80 
+      className={`group relative overflow-hidden transition-all duration-300 backdrop-blur-lg bg-black/40 
+        border-white/5 hover:border-white/10
         ${isHovered ? 'transform scale-[1.02]' : ''}`}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      <div className={`absolute inset-0 opacity-10 bg-gradient-to-br ${getRandomGradient()}`} />
+      <div className={`absolute inset-0 bg-gradient-to-br ${getRandomGradient()} opacity-100`} />
       
       <div className="relative p-6 space-y-4">
         <div className="flex items-start justify-between">
-          <div>
-            <h3 className="text-lg font-semibold">{course.nickname || course.name}</h3>
-            <p className="text-sm text-gray-600 dark:text-gray-300">{course.course_code}</p>
-          </div>
-          <Button variant="ghost" size="icon" className="text-gray-600 hover:text-gray-900">
-            <Edit2 className="w-4 h-4" />
-          </Button>
+          <CourseRename 
+            courseId={course.id}
+            currentName={course.name}
+            nickname={nickname}
+            onUpdate={setNickname}
+          />
         </div>
 
         <div className="space-y-2">
           <div className="flex items-center justify-between text-sm">
-            <span>Progress</span>
-            <span>{Math.round(progressValue)}%</span>
+            <span className="text-gray-400">Progress</span>
+            <span className="text-gray-400">{Math.round(progressValue)}%</span>
           </div>
-          <Progress value={progressValue} className="h-2" />
+          <Progress value={progressValue} className="h-1" />
         </div>
 
-        <div className="flex items-center justify-between text-sm text-gray-600 dark:text-gray-300">
+        <div className="flex items-center justify-between text-sm text-gray-400">
           <div className="flex items-center space-x-1">
             <BookOpen className="w-4 h-4" />
             <span>{course.assignments_count} assignments</span>
@@ -73,9 +86,13 @@ export const CourseCard = ({ course }: CourseCardProps) => {
         </div>
 
         {isHovered && (
-          <div className="absolute inset-0 flex items-center justify-center bg-black/5 dark:bg-white/5 backdrop-blur-sm transition-opacity duration-200">
-            <Button className="bg-white/90 dark:bg-gray-800/90 hover:bg-white dark:hover:bg-gray-800">
+          <div className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-sm transition-opacity duration-200">
+            <Button 
+              onClick={handleViewAssignments}
+              className="bg-white/10 hover:bg-white/20 text-white flex items-center gap-2"
+            >
               View Assignments
+              <ArrowRight className="w-4 h-4" />
             </Button>
           </div>
         )}
