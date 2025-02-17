@@ -1,4 +1,3 @@
-
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 
 const corsHeaders = {
@@ -21,6 +20,7 @@ serve(async (req) => {
     // Add query parameters for active courses
     url.searchParams.append('include[]', 'term')
     url.searchParams.append('enrollment_state[]', 'active')
+    url.searchParams.append('enrollment_type[]', 'student')
     url.searchParams.append('state[]', 'available')
     
     console.log('Requesting URL:', url.toString())
@@ -43,9 +43,26 @@ serve(async (req) => {
 
     const data = await response.json()
     
-    console.log('Canvas API Response:', JSON.stringify(data, null, 2))
+    console.log('Raw Canvas response:', JSON.stringify(data, null, 2))
 
-    return new Response(JSON.stringify(data), {
+    // Filter to only show current courses
+    const now = new Date()
+    const currentCourses = Array.isArray(data) ? data.filter((course: any) => {
+      // If the course has a term, check its dates
+      if (course.term) {
+        const termEndDate = course.term.end_at ? new Date(course.term.end_at) : null
+        // Keep courses that either:
+        // 1. Have no end date (ongoing courses)
+        // 2. End date is in the future
+        return !termEndDate || termEndDate > now
+      }
+      // If no term info, check if course is marked as concluded
+      return !course.concluded
+    }) : []
+
+    console.log('Filtered current courses:', JSON.stringify(currentCourses, null, 2))
+
+    return new Response(JSON.stringify(currentCourses), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,
     })
