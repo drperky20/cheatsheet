@@ -14,6 +14,11 @@ interface Course {
   course_code: string;
   assignments_count: number;
   pending_assignments: number;
+  term?: {
+    name: string;
+    start_at: string;
+    end_at: string;
+  };
 }
 
 export const CoursesDashboard = () => {
@@ -32,7 +37,7 @@ export const CoursesDashboard = () => {
 
       const { data, error } = await supabase.functions.invoke('canvas-proxy', {
         body: {
-          endpoint: '/courses',
+          endpoint: '/users/self/courses',
           method: 'GET',
           domain: canvasConfig.domain,
           apiKey: canvasConfig.api_key
@@ -41,13 +46,19 @@ export const CoursesDashboard = () => {
 
       if (error) throw error;
 
-      setCourses(data.map((course: any) => ({
-        id: course.id,
-        name: course.name,
-        course_code: course.course_code,
-        assignments_count: 0,
-        pending_assignments: 0
-      })));
+      // Filter and map the courses
+      const activeCourses = data
+        .filter((course: any) => course.enrollment_state === 'active')
+        .map((course: any) => ({
+          id: course.id,
+          name: course.name,
+          course_code: course.course_code,
+          assignments_count: 0,
+          pending_assignments: 0,
+          term: course.term
+        }));
+
+      setCourses(activeCourses);
     } catch (error) {
       console.error('Error fetching courses:', error);
       toast({
