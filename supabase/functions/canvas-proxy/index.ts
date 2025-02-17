@@ -23,7 +23,6 @@ serve(async (req) => {
     const baseUrl = `https://${domain}/api/v1${endpoint}`
     const url = new URL(baseUrl)
     
-    // Add different query parameters based on the endpoint type
     if (endpoint === '/courses') {
       // Parameters for courses endpoint
       url.searchParams.append('enrollment_type', 'student')
@@ -31,10 +30,13 @@ serve(async (req) => {
       url.searchParams.append('state[]', 'available')
       url.searchParams.append('include[]', 'term')
     } else if (endpoint.includes('/assignments')) {
-      // Parameters for assignments endpoint - removing filters to see all assignments
+      // Parameters for assignments endpoint
+      url.searchParams.append('order_by', 'due_at')
       url.searchParams.append('include[]', 'submission')
       url.searchParams.append('include[]', 'overrides')
-      url.searchParams.append('per_page', '50')
+      url.searchParams.append('per_page', '100') // Increased to get more assignments
+      url.searchParams.append('sort', 'due_at')
+      url.searchParams.append('order', 'desc') // Newest first
     }
     
     console.log('Requesting Canvas API URL:', url.toString())
@@ -76,11 +78,39 @@ serve(async (req) => {
         status: 200,
       })
     } else {
-      // Filter assignments
+      // Filter assignments to show relevant ones
+      const now = new Date()
+      const threeMonthsAgo = new Date(now)
+      threeMonthsAgo.setMonth(now.getMonth() - 3)
+      
       const activeAssignments = Array.isArray(data) ? data.filter((assignment: any) => {
         if (!assignment) return false
-        return assignment.published !== false
+        
+        // Only show published assignments
+        if (!assignment.published) return false
+        
+        // Parse the due date
+        const dueDate = assignment.due_at ? new Date(assignment.due_at) : null
+        
+        // Include assignments that:
+        // 1. Are due in the future, or
+        // 2. Were due within the last 3 months and aren't submitted yet
+        return (
+          assignment.published && 
+          (
+            (dueDate && dueDate > now) || // Future assignments
+            (dueDate && dueDate > threeMonthsAgo && 
+             (!assignment.submission || assignment.submission.workflow_state !== 'graded'))
+          )
+        )
       }) : []
+      
+      // Sort by due date (newest first)
+      activeAssignments.sort((a: any, b: any) => {
+        const dateA = a.due_at ? new Date(a.due_at) : new Date(0)
+        const dateB = b.due_at ? new Date(b.due_at) : new Date(0)
+        return dateB.getTime() - dateA.getTime()
+      })
       
       console.log('Filtered active assignments:', JSON.stringify(activeAssignments, null, 2))
       return new Response(JSON.stringify(activeAssignments), {
