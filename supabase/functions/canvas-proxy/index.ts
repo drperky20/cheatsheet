@@ -31,12 +31,10 @@ serve(async (req) => {
       url.searchParams.append('state[]', 'available')
       url.searchParams.append('include[]', 'term')
     } else if (endpoint.includes('/assignments')) {
-      // Parameters for assignments endpoint
-      url.searchParams.append('order_by', 'due_at')
+      // Parameters for assignments endpoint - removing filters to see all assignments
       url.searchParams.append('include[]', 'submission')
       url.searchParams.append('include[]', 'overrides')
       url.searchParams.append('per_page', '50')
-      url.searchParams.append('bucket', 'upcoming')
     }
     
     console.log('Requesting Canvas API URL:', url.toString())
@@ -81,7 +79,7 @@ serve(async (req) => {
       // Filter assignments
       const activeAssignments = Array.isArray(data) ? data.filter((assignment: any) => {
         if (!assignment) return false
-        return assignment.published !== false && !assignment.locked_for_user
+        return assignment.published !== false
       }) : []
       
       console.log('Filtered active assignments:', JSON.stringify(activeAssignments, null, 2))
