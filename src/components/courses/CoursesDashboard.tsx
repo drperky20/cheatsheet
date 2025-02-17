@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { CourseCard } from "./CourseCard";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -51,7 +50,7 @@ export const CoursesDashboard = () => {
       console.log('Fetching courses from Canvas...');
       const { data, error } = await supabase.functions.invoke('canvas-proxy', {
         body: {
-          endpoint: '/users/self/courses',
+          endpoint: '/courses',
           method: 'GET',
           domain: canvasConfig.domain,
           apiKey: canvasConfig.api_key
@@ -64,10 +63,10 @@ export const CoursesDashboard = () => {
         id: course.id,
         name: course.name,
         course_code: course.course_code,
-        assignments_count: 0, // Will be updated when we implement assignment fetching
+        assignments_count: 0,
         pending_assignments: 0,
         term: course.term,
-        nickname: null // Will be fetched from our database
+        nickname: null
       })) : [];
 
       setCourses(sortCourses(activeCourses, sortBy));

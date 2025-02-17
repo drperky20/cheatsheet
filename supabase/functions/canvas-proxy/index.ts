@@ -24,9 +24,11 @@ serve(async (req) => {
     const url = new URL(baseUrl)
     
     // Add different query parameters based on the endpoint type
-    if (endpoint.includes('/courses') && !endpoint.includes('/assignments')) {
+    if (endpoint === '/courses') {
       // Parameters for courses endpoint
+      url.searchParams.append('enrollment_type', 'student')
       url.searchParams.append('enrollment_state', 'active')
+      url.searchParams.append('state[]', 'available')
       url.searchParams.append('include[]', 'term')
     } else if (endpoint.includes('/assignments')) {
       // Parameters for assignments endpoint
@@ -63,9 +65,8 @@ serve(async (req) => {
     // Parse the response text as JSON
     const data = JSON.parse(responseText)
     
-    // Apply different filters based on the endpoint
-    if (endpoint.includes('/courses') && !endpoint.includes('/assignments')) {
-      // Filter courses
+    if (endpoint === '/courses') {
+      // Filter courses to only include current courses
       const currentCourses = Array.isArray(data) ? data.filter((course: any) => {
         if (!course) return false
         return course.workflow_state === 'available'
