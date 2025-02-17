@@ -19,13 +19,18 @@ serve(async (req) => {
       throw new Error('Missing required parameters: domain or apiKey')
     }
 
-    // Build the URL with query parameters for active courses
+    // Build the URL with query parameters for active assignments
     const baseUrl = `https://${domain}/api/v1${endpoint}`
     const url = new URL(baseUrl)
     
-    // Simplified query parameters to reduce potential issues
-    url.searchParams.append('enrollment_state', 'active')
-    url.searchParams.append('include[]', 'term')
+    // Add query parameters to ensure we get published and available assignments
+    if (endpoint.includes('/assignments')) {
+      url.searchParams.append('order_by', 'due_at')
+      url.searchParams.append('include[]', 'submission')
+      url.searchParams.append('include[]', 'overrides')
+      url.searchParams.append('bucket', 'upcoming')
+      url.searchParams.append('per_page', '50')
+    }
     
     console.log('Requesting Canvas API URL:', url.toString())
 
@@ -53,16 +58,15 @@ serve(async (req) => {
     // Parse the response text as JSON
     const data = JSON.parse(responseText)
     
-    // Filter to only show current courses
-    const now = new Date()
-    const currentCourses = Array.isArray(data) ? data.filter((course: any) => {
-      if (!course) return false
-      return course.workflow_state === 'available'
-    }) : []
+    // Filter to only show published assignments
+    const activeAssignments = Array.isArray(data) ? data.filter((assignment: any) => {
+      if (!assignment) return false
+      return assignment.published !== false && !assignment.locked_for_user
+    }) : data
 
-    console.log('Filtered current courses:', JSON.stringify(currentCourses, null, 2))
+    console.log('Filtered active assignments:', JSON.stringify(activeAssignments, null, 2))
 
-    return new Response(JSON.stringify(currentCourses), {
+    return new Response(JSON.stringify(activeAssignments), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,
     })
