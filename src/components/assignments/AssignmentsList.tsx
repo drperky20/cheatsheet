@@ -6,6 +6,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Clock, BookOpen, CheckCircle, AlertCircle } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface Assignment {
   id: string;
@@ -27,18 +28,27 @@ export const AssignmentsList = ({ courseId, onStartAssignment }: AssignmentsList
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [loading, setLoading] = useState(true);
   const [analyzing, setAnalyzing] = useState<string | null>(null);
+  const { canvasConfig } = useAuth();
 
   useEffect(() => {
-    fetchAssignments();
-  }, [courseId]);
+    if (canvasConfig) {
+      fetchAssignments();
+    }
+  }, [courseId, canvasConfig]);
 
   const fetchAssignments = async () => {
     try {
+      if (!canvasConfig) {
+        throw new Error('Canvas configuration not found');
+      }
+
       console.log('Fetching assignments for course:', courseId);
       const { data: { data }, error } = await supabase.functions.invoke('canvas-proxy', {
         body: {
           endpoint: `/courses/${courseId}/assignments`,
-          method: 'GET'
+          method: 'GET',
+          domain: canvasConfig.domain,
+          apiKey: canvasConfig.api_key
         }
       });
 
