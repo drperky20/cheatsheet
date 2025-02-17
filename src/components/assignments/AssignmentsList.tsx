@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -27,6 +27,32 @@ export const AssignmentsList = ({ courseId, onStartAssignment }: AssignmentsList
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [loading, setLoading] = useState(true);
   const [analyzing, setAnalyzing] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetchAssignments();
+  }, [courseId]);
+
+  const fetchAssignments = async () => {
+    try {
+      console.log('Fetching assignments for course:', courseId);
+      const { data: { data }, error } = await supabase.functions.invoke('canvas-proxy', {
+        body: {
+          endpoint: `/courses/${courseId}/assignments`,
+          method: 'GET'
+        }
+      });
+
+      if (error) throw error;
+
+      console.log('Fetched assignments:', data);
+      setAssignments(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error('Error fetching assignments:', error);
+      toast.error("Failed to load assignments");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const analyzeRequirements = async (assignment: Assignment) => {
     try {
@@ -115,7 +141,7 @@ export const AssignmentsList = ({ courseId, onStartAssignment }: AssignmentsList
       {assignments.length === 0 && (
         <div className="text-center p-8 glass rounded-lg">
           <AlertCircle className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-          <h3 className="text-xl font-semibold mb-2">No Active Assignments</h3>
+          <h3 className="text-xl font-semibold mb-2">No Active Assignments Found</h3>
           <p className="text-gray-400">
             There are no pending assignments for this course at the moment.
           </p>
