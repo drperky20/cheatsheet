@@ -12,9 +12,11 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
+import { useNavigate } from "react-router-dom";
 
 const Dashboard = () => {
   const { profile, canvasConfig, signOut } = useAuth();
+  const navigate = useNavigate();
 
   if (!canvasConfig) {
     return (
@@ -46,24 +48,36 @@ const Dashboard = () => {
                 <User className="h-5 w-5 text-white" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent className="w-56" align="end">
+            <DropdownMenuContent 
+              className="w-56 bg-black/90 backdrop-blur-lg border border-white/10" 
+              align="end"
+            >
               <DropdownMenuLabel>
                 <div className="flex flex-col space-y-1">
-                  <p className="text-sm font-medium leading-none">{profile?.full_name}</p>
-                  <p className="text-xs leading-none text-muted-foreground">{profile?.email}</p>
+                  <p className="text-sm font-medium leading-none text-white">{profile?.full_name}</p>
+                  <p className="text-xs leading-none text-gray-400">{profile?.email}</p>
                 </div>
               </DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem>
+              <DropdownMenuSeparator className="bg-white/10" />
+              <DropdownMenuItem 
+                className="text-white hover:bg-white/10 cursor-pointer"
+                onClick={() => navigate('/profile')}
+              >
                 <User className="mr-2 h-4 w-4" />
                 <span>Profile</span>
               </DropdownMenuItem>
-              <DropdownMenuItem>
+              <DropdownMenuItem 
+                className="text-white hover:bg-white/10 cursor-pointer"
+                onClick={() => navigate('/settings')}
+              >
                 <Settings className="mr-2 h-4 w-4" />
                 <span>Settings</span>
               </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => signOut()}>
+              <DropdownMenuSeparator className="bg-white/10" />
+              <DropdownMenuItem 
+                className="text-white hover:bg-white/10 cursor-pointer"
+                onClick={() => signOut()}
+              >
                 <LogOut className="mr-2 h-4 w-4" />
                 <span>Sign out</span>
               </DropdownMenuItem>
