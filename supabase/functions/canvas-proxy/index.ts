@@ -1,5 +1,4 @@
 
-// Follow Deno standard for imports
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 
 const corsHeaders = {
@@ -32,23 +31,15 @@ serve(async (req) => {
       },
     })
 
-    const responseData = await response.text()
-    console.log('Canvas API response status:', response.status)
-
     if (!response.ok) {
+      console.error('Canvas API error:', response.status, response.statusText)
       throw new Error(`Canvas API error: ${response.status} ${response.statusText}`)
     }
 
-    // Try to parse as JSON, if it fails return the raw text
-    let data
-    try {
-      data = JSON.parse(responseData)
-    } catch (e) {
-      console.error('Failed to parse JSON response:', e)
-      data = responseData
-    }
+    const responseData = await response.json()
+    console.log('Successfully retrieved data from Canvas API')
 
-    return new Response(JSON.stringify(data), {
+    return new Response(JSON.stringify(responseData), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,
     })
