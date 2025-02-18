@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { CourseCard } from "./CourseCard";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -50,7 +51,7 @@ export const CoursesDashboard = () => {
       console.log(`Fetching assignments page ${page} for course ${courseId}...`);
       const { data: assignments, error } = await supabase.functions.invoke('canvas-proxy', {
         body: {
-          endpoint: `/courses/${courseId}/assignments?page=${page}&per_page=${PER_PAGE}`,
+          endpoint: `/courses/${courseId}/assignments?include[]=submission&page=${page}&per_page=${PER_PAGE}`,
           method: 'GET',
           domain: canvasConfig?.domain,
           apiKey: canvasConfig?.api_key
@@ -100,18 +101,27 @@ export const CoursesDashboard = () => {
         (Array.isArray(coursesData) ? coursesData : []).map(async (course) => {
           const assignments = await fetchAllAssignments(course.id);
           
+          const startDate = new Date('2024-01-01');
           const totalAssignments = assignments.length;
-          const pendingAssignments = assignments.filter(a => 
-            new Date(a.due_at) > new Date() && 
-            !a.has_submitted_submissions
-          ).length;
+          const missingAssignments = assignments.filter(a => {
+            // Check if the assignment has a due date and it's after Jan 1st, 2024
+            const dueDate = a.due_at ? new Date(a.due_at) : null;
+            if (!dueDate || dueDate < startDate) return false;
+
+            // Check if the assignment has points possible and if the submission score is 0
+            const hasSubmission = a.submission && typeof a.submission.score === 'number';
+            const isZeroScore = hasSubmission && a.submission.score === 0;
+            const hasPointsPossible = a.points_possible > 0;
+
+            return hasPointsPossible && isZeroScore;
+          }).length;
 
           return {
             id: course.id,
             name: course.name,
             course_code: course.course_code || course.name,
             assignments_count: totalAssignments,
-            pending_assignments: pendingAssignments,
+            pending_assignments: missingAssignments,
             term: course.term,
             nickname: undefined
           } as Course;
