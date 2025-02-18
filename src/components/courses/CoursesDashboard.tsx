@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { CourseCard } from "./CourseCard";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -40,6 +41,22 @@ export const CoursesDashboard = () => {
     fetchCourses();
   }, [canvasConfig]);
 
+  const isCurrentCourse = (course: any): boolean => {
+    // If no term data is available, consider it a current course
+    if (!course.term?.start_at || !course.term?.end_at) {
+      return true;
+    }
+
+    const now = new Date();
+    const startDate = new Date(course.term.start_at);
+    const endDate = new Date(course.term.end_at);
+
+    // Add a buffer of 2 weeks after end date to ensure access to recent courses
+    endDate.setDate(endDate.getDate() + 14);
+
+    return now >= startDate && now <= endDate;
+  };
+
   const fetchCourses = async () => {
     try {
       if (!canvasConfig) {
@@ -59,16 +76,33 @@ export const CoursesDashboard = () => {
 
       if (error) throw error;
 
-      const activeCourses = Array.isArray(data) ? data.map((course: any) => ({
-        id: course.id,
-        name: course.name,
-        course_code: course.course_code,
-        assignments_count: 0,
-        pending_assignments: 0,
-        term: course.term,
-        nickname: null
-      })) : [];
+      // Ensure data is an array
+      const coursesArray = Array.isArray(data) ? data : [];
+      console.log('Raw courses data:', coursesArray);
 
+      // Filter and process courses
+      const activeCourses = coursesArray
+        .filter(course => {
+          // Basic validation
+          if (!course || typeof course !== 'object') return false;
+          
+          // Filter out courses that don't have required fields
+          if (!course.id || !course.name) return false;
+          
+          // Check if course is current
+          return isCurrentCourse(course);
+        })
+        .map(course => ({
+          id: course.id,
+          name: course.name,
+          course_code: course.course_code || course.name,
+          assignments_count: 0,
+          pending_assignments: 0,
+          term: course.term,
+          nickname: null
+        }));
+
+      console.log('Processed courses:', activeCourses);
       setCourses(sortCourses(activeCourses, sortBy));
     } catch (error: any) {
       console.error('Error fetching courses:', error);
