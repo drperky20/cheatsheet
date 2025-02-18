@@ -18,8 +18,8 @@ import {
   Save,
   Upload,
   FileText,
-  Expand,
-  Compress,
+  ArrowBigUpDash,
+  ArrowBigDownDash,
   GraduationCap,
   Smile,
   History,
@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { Card } from "@/components/ui/card";
+import { supabase } from "@/integrations/supabase/client";
 
 interface Version {
   content: string;
@@ -204,11 +205,11 @@ export const AssignmentEditor = ({
               </DropdownMenuTrigger>
               <DropdownMenuContent>
                 <DropdownMenuItem onClick={() => adjustLength('expand')}>
-                  <Expand className="w-4 h-4 mr-2" />
+                  <ArrowBigUpDash className="w-4 h-4 mr-2" />
                   Expand
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => adjustLength('shorten')}>
-                  <Compress className="w-4 h-4 mr-2" />
+                  <ArrowBigDownDash className="w-4 h-4 mr-2" />
                   Shorten
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
