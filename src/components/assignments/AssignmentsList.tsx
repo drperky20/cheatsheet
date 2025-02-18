@@ -108,27 +108,38 @@ export const AssignmentsList = ({ courseId, onStartAssignment }: AssignmentsList
 
   const cacheAssignments = async (assignments: Assignment[]) => {
     try {
-      // Using raw insert instead of typed insert since the table is new
-      const { error } = await supabase
-        .from('assignments')
-        .upsert(
-          assignments.map(a => ({
-            canvas_assignment_id: a.id,
-            course_id: courseId,
-            title: a.name,
-            description: a.description || null,
-            due_date: a.due_at ? new Date(a.due_at).toISOString() : null,
-            points_possible: a.points_possible || null,
-            status: 'pending',
-            requirements: null
-          })),
-          {
-            onConflict: 'canvas_assignment_id'
-          }
-        );
+      // Split into chunks to avoid potential payload size limits
+      const chunkSize = 50;
+      const chunks = [];
+      
+      for (let i = 0; i < assignments.length; i += chunkSize) {
+        chunks.push(assignments.slice(i, i + chunkSize));
+      }
 
-      if (error) {
-        console.error('Error caching assignments:', error);
+      for (const chunk of chunks) {
+        const { error } = await supabase
+          .from('assignments')
+          .upsert(
+            chunk.map(a => ({
+              canvas_assignment_id: a.id,
+              course_id: courseId,
+              title: a.name,
+              description: a.description || null,
+              due_date: a.due_at ? new Date(a.due_at).toISOString() : null,
+              points_possible: a.points_possible || null,
+              status: 'pending',
+              requirements: null
+            })),
+            {
+              onConflict: 'canvas_assignment_id',
+              ignoreDuplicates: false
+            }
+          );
+
+        if (error) {
+          console.error('Error caching assignments chunk:', error);
+          // Continue with other chunks even if one fails
+        }
       }
     } catch (error) {
       console.error('Error in cacheAssignments:', error);
