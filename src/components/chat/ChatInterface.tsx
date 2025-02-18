@@ -61,26 +61,6 @@ export const ChatInterface = ({ onBack, initialQuestion = '', initialFile = null
     });
   };
 
-  const processWithGemini = async (content: string, type: string) => {
-    console.log('Calling Gemini processor with:', { content, type });
-    
-    const { data, error } = await supabase.functions.invoke('gemini-processor', {
-      body: { content, type }
-    });
-
-    if (error) {
-      console.error('Supabase function error:', error);
-      throw new Error(error.message || 'Failed to process with Gemini');
-    }
-
-    if (!data?.result) {
-      console.error('Invalid response from Gemini processor:', data);
-      throw new Error('Invalid response from AI processor');
-    }
-
-    return data.result;
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim() && !uploadedFile) return;
@@ -97,19 +77,23 @@ export const ChatInterface = ({ onBack, initialQuestion = '', initialFile = null
       if (uploadedFile) {
         const formData = new FormData();
         formData.append('file', uploadedFile);
-        if (input.trim()) {
-          formData.append('question', input);
-        }
+        formData.append('question', input || '');
         
         const { data, error } = await supabase.functions.invoke('gemini-processor', {
-          body: formData
+          body: formData,
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
         });
 
         if (error) throw error;
         response = data.result;
       } else {
         const { data, error } = await supabase.functions.invoke('gemini-processor', {
-          body: { content: input, type: 'generate_content' }
+          body: JSON.stringify({ content: input, type: 'generate_content' }),
+          headers: {
+            'Content-Type': 'application/json',
+          },
         });
 
         if (error) throw error;

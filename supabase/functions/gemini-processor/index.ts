@@ -7,7 +7,6 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Rate limiting implementation
 const RATE_LIMIT_WINDOW = 60000;
 const MAX_REQUESTS = 10;
 const requestLog = new Map<string, number[]>();
@@ -27,7 +26,6 @@ function logRequest(clientIP: string) {
 }
 
 async function fileToGenerativePart(file: File) {
-  // For images, convert to base64
   if (file.type.startsWith('image/')) {
     const arrayBuffer = await file.arrayBuffer();
     const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
@@ -39,7 +37,6 @@ async function fileToGenerativePart(file: File) {
     };
   }
   
-  // For text-based files, extract the text content
   const text = await file.text();
   return { text };
 }
@@ -49,7 +46,6 @@ async function processWithRetry(genAI: any, messages: any[], maxRetries = 3): Pr
   
   for (let attempt = 0; attempt < maxRetries; attempt++) {
     try {
-      // Use flash model for faster responses
       const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
       const result = await model.generateContent(messages);
       const response = await result.response;
@@ -105,12 +101,25 @@ serve(async (req) => {
       throw new Error(`Method ${req.method} not allowed`);
     }
 
-    const formData = await req.formData();
-    const file = formData.get('file') as File | null;
-    const question = formData.get('question') as string | null;
+    const contentType = req.headers.get('content-type') || '';
+    let data;
+    let file: File | null = null;
+    let question = '';
 
-    if (!file) {
-      throw new Error('No file provided');
+    if (contentType.includes('multipart/form-data')) {
+      const formData = await req.formData();
+      file = formData.get('file') as File;
+      question = formData.get('question') as string;
+
+      if (!file) {
+        throw new Error('No file provided in form data');
+      }
+    } else {
+      // Handle JSON request for text-only messages
+      data = await req.json();
+      if (!data.content || !data.type) {
+        throw new Error('Invalid JSON payload: missing content or type');
+      }
     }
 
     const apiKey = Deno.env.get('GEMINI_API_KEY');
@@ -118,34 +127,36 @@ serve(async (req) => {
       throw new Error('API key configuration error');
     }
 
-    console.log(`Processing file: ${file.name} (${file.type})`);
-
     const genAI = new GoogleGenerativeAI(apiKey);
-    const filePart = await fileToGenerativePart(file);
-
-    const systemPrompt = {
-      role: "system",
-      content: "You are a helpful AI assistant that analyzes files and helps with both general questions and academic assignments. Provide detailed, accurate analysis while maintaining a friendly and helpful tone."
-    };
-
-    const messages = [
-      systemPrompt,
-      {
-        role: "user",
-        parts: [
-          question ? { text: question } : { text: "Please analyze this file and provide insights:" },
-          filePart
-        ]
-      }
-    ];
-
-    const result = await processWithRetry(genAI, messages);
     
-    console.log('Successfully analyzed file');
-    return new Response(
-      JSON.stringify({ result }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    if (file) {
+      console.log(`Processing file: ${file.name} (${file.type})`);
+      const filePart = await fileToGenerativePart(file);
+      const messages = [
+        {
+          role: "system",
+          content: "You are a helpful AI assistant that analyzes files and helps with academic tasks."
+        },
+        {
+          role: "user",
+          parts: [
+            question ? { text: question } : { text: "Please analyze this file and provide insights:" },
+            filePart
+          ]
+        }
+      ];
+      const result = await processWithRetry(genAI, messages);
+      return new Response(
+        JSON.stringify({ result }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    } else {
+      const result = await processWithRetry(genAI, [{ text: data.content }]);
+      return new Response(
+        JSON.stringify({ result }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
   } catch (error) {
     console.error('Edge Function Error:', error);
