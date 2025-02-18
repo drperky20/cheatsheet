@@ -1,7 +1,8 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Slider } from "@/components/ui/slider";
 import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 
 interface AdjustmentSliderProps {
   type: 'length' | 'grade';
@@ -11,6 +12,8 @@ interface AdjustmentSliderProps {
 }
 
 export const AdjustmentSlider = ({ type, value, onChange, onClose }: AdjustmentSliderProps) => {
+  const [localValue, setLocalValue] = useState(value);
+  
   const getLengthLabel = (value: number) => {
     if (value <= 2.5) return "Shortest";
     if (value <= 5) return "Shorter";
@@ -27,24 +30,46 @@ export const AdjustmentSlider = ({ type, value, onChange, onClose }: AdjustmentS
 
   const getLabel = type === 'length' ? getLengthLabel : getGradeLabel;
 
+  const handleSubmit = () => {
+    onChange(localValue);
+    onClose();
+  };
+
   return (
-    <Card className="fixed right-24 top-1/2 -translate-y-1/2 h-96 w-20 neo-blur p-3 rounded-full flex flex-col items-center justify-center">
-      <div className="relative h-full w-full flex items-center justify-center">
+    <Card className="fixed right-20 top-1/2 -translate-y-1/2 h-[500px] w-24 neo-blur p-4 rounded-[32px] flex flex-col items-center justify-between gap-4">
+      <div className="flex-1 relative w-full flex items-center justify-center">
         <Slider
           orientation="vertical"
           defaultValue={[value]}
           max={10}
           step={1}
-          value={[value]}
-          onValueChange={([newValue]) => onChange(newValue)}
-          className="h-72"
+          value={[localValue]}
+          onValueChange={([newValue]) => setLocalValue(newValue)}
+          className="h-[360px]"
         />
-        <div className="absolute -left-32 select-none">
-          <div className="px-4 py-2 rounded-lg bg-black text-white text-sm font-medium">
-            {getLabel(value)}
+        <div className="absolute -left-48 top-1/2 -translate-y-1/2 select-none">
+          <div className="px-4 py-2 rounded-xl bg-black/80 backdrop-blur-sm text-white text-sm font-medium">
+            {getLabel(localValue)}
           </div>
         </div>
-        <div className="absolute -right-2 top-0 bottom-0 w-[2px] bg-white/10" />
+      </div>
+      
+      <div className="w-full space-y-2">
+        <Button 
+          onClick={handleSubmit}
+          className="w-full rounded-xl bg-[#9b87f5] hover:bg-[#8b77e5] text-white"
+          size="sm"
+        >
+          Keep changes
+        </Button>
+        <Button 
+          onClick={onClose}
+          variant="outline"
+          className="w-full rounded-xl border-white/10 hover:bg-white/5"
+          size="sm"
+        >
+          Cancel
+        </Button>
       </div>
     </Card>
   );
