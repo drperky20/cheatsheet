@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft, Send, Loader2, Upload } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 interface ChatInterfaceProps {
   onBack: () => void;
@@ -34,6 +35,15 @@ export const ChatInterface = ({ onBack, initialQuestion = '' }: ChatInterfacePro
     }
   };
 
+  const processWithGemini = async (content: string, type: string) => {
+    const { data, error } = await supabase.functions.invoke('gemini-processor', {
+      body: { content, type }
+    });
+
+    if (error) throw new Error(error.message);
+    return data.result;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim() && !uploadedFile) return;
@@ -46,17 +56,23 @@ export const ChatInterface = ({ onBack, initialQuestion = '' }: ChatInterfacePro
     setIsLoading(true);
 
     try {
-      // Simulated AI response for now
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      const response = uploadedFile
-        ? `I've analyzed ${uploadedFile.name}. Here's what I found...`
-        : `Here's my response to your question: "${input}"`;
+      let response;
+      if (uploadedFile) {
+        // Read file content
+        const text = await uploadedFile.text();
+        response = await processWithGemini(
+          `${input}\n\nFile Content:\n${text}`,
+          'analyze_requirements'
+        );
+      } else {
+        response = await processWithGemini(input, 'generate_content');
+      }
 
       setMessages(prev => [...prev, { role: 'assistant', content: response }]);
       setInput('');
       setUploadedFile(null);
     } catch (error) {
+      console.error('Error:', error);
       toast({
         title: "Error",
         description: "Failed to get a response. Please try again.",
