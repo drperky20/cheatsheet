@@ -35,8 +35,10 @@ export const AdjustmentSlider = ({ type, value, onChange, onClose }: AdjustmentS
     onClose();
   };
 
+  const labelPosition = `${Math.max(5, Math.min(95, (localValue / 10) * 100))}%`;
+
   return (
-    <Card className="fixed right-20 top-1/2 -translate-y-1/2 h-[500px] w-24 neo-blur p-4 rounded-[32px] flex flex-col items-center justify-between gap-4">
+    <Card className="fixed right-20 top-1/2 -translate-y-1/2 h-[520px] w-28 bg-[#222222]/90 backdrop-blur-md p-4 rounded-[32px] flex flex-col items-center justify-between gap-4 border border-white/10">
       <div className="flex-1 relative w-full flex items-center justify-center">
         <Slider
           orientation="vertical"
@@ -45,10 +47,16 @@ export const AdjustmentSlider = ({ type, value, onChange, onClose }: AdjustmentS
           step={1}
           value={[localValue]}
           onValueChange={([newValue]) => setLocalValue(newValue)}
-          className="h-[360px]"
+          className="h-[380px]"
         />
-        <div className="absolute -left-48 top-1/2 -translate-y-1/2 select-none">
-          <div className="px-4 py-2 rounded-xl bg-black/80 backdrop-blur-sm text-white text-sm font-medium">
+        <div 
+          className="absolute -left-48 select-none transition-all duration-200 ease-out"
+          style={{ 
+            top: labelPosition,
+            transform: 'translateY(-50%)' 
+          }}
+        >
+          <div className="px-4 py-2 rounded-xl bg-[#333333]/95 backdrop-blur-sm text-white/90 text-sm font-medium border border-white/10">
             {getLabel(localValue)}
           </div>
         </div>
@@ -57,7 +65,7 @@ export const AdjustmentSlider = ({ type, value, onChange, onClose }: AdjustmentS
       <div className="w-full space-y-2">
         <Button 
           onClick={handleSubmit}
-          className="w-full rounded-xl bg-[#9b87f5] hover:bg-[#8b77e5] text-white"
+          className="w-full rounded-xl bg-[#9b87f5] hover:bg-[#8b77e5] text-white font-medium"
           size="sm"
         >
           Keep changes
@@ -65,7 +73,7 @@ export const AdjustmentSlider = ({ type, value, onChange, onClose }: AdjustmentS
         <Button 
           onClick={onClose}
           variant="outline"
-          className="w-full rounded-xl border-white/10 hover:bg-white/5"
+          className="w-full rounded-xl border-white/10 hover:bg-white/5 text-white/80"
           size="sm"
         >
           Cancel
