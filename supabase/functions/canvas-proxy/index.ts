@@ -47,8 +47,29 @@ serve(async (req) => {
     })
 
     if (!response.ok) {
-      // Add more detailed error logging
       const errorText = await response.text()
+      let errorMessage = `Canvas API error: ${response.status} ${response.statusText}`
+      
+      // Try to parse the error response
+      try {
+        const errorJson = JSON.parse(errorText)
+        if (errorJson.errors && errorJson.errors.length > 0) {
+          errorMessage = `Canvas API error: ${errorJson.errors[0].message}`
+          
+          // If it's an authorization error, add helpful message
+          if (response.status === 403) {
+            errorMessage += "\n\nPlease check that your Canvas API key has the following permissions:\n" +
+                          "- View grades\n" +
+                          "- Read course content\n" +
+                          "- Read course list\n" +
+                          "- Read student enrollments"
+          }
+        }
+      } catch (e) {
+        // If we can't parse the JSON, use the raw error text
+        errorMessage += `\nDetails: ${errorText}`
+      }
+
       console.error('Canvas API error details:', {
         status: response.status,
         statusText: response.statusText,
@@ -56,7 +77,7 @@ serve(async (req) => {
         url: baseUrl,
       })
       
-      throw new Error(`Canvas API error: ${response.status} ${response.statusText}\nDetails: ${errorText}`)
+      throw new Error(errorMessage)
     }
 
     const responseData = await response.json()
