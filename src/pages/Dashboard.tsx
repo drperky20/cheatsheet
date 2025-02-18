@@ -2,7 +2,7 @@
 import { useAuth } from "@/contexts/AuthContext";
 import { CanvasSetup } from "@/components/canvas/CanvasSetup";
 import { CoursesDashboard } from "@/components/courses/CoursesDashboard";
-import { Settings, LogOut, User } from "lucide-react";
+import { Settings, LogOut, User, Send } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -12,6 +12,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { useNavigate } from "react-router-dom";
 
 const Dashboard = () => {
@@ -20,9 +21,16 @@ const Dashboard = () => {
 
   if (!canvasConfig) {
     return (
-      <div className="min-h-screen w-full flex flex-col items-center justify-center p-4 bg-black">
-        <div className="w-full max-w-md">
-          <h1 className="text-2xl font-bold text-center mb-6 text-white">
+      <div className="min-h-screen w-full flex flex-col items-center justify-center p-4 relative overflow-hidden bg-black">
+        {/* Background gradients */}
+        <div className="absolute inset-0">
+          <div className="absolute inset-0 bg-gradient-to-br from-[#1A1F2C] to-black" />
+          <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-[#9b87f5]/20 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-float" />
+          <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-[#D6BCFA]/20 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-float" />
+        </div>
+        
+        <div className="relative z-10 w-full max-w-md">
+          <h1 className="text-2xl font-bold text-center mb-6 text-gradient">
             Connect to Canvas
           </h1>
           <CanvasSetup />
@@ -32,19 +40,27 @@ const Dashboard = () => {
   }
 
   return (
-    <div className="min-h-screen w-full p-4 bg-black">
-      <div className="max-w-7xl mx-auto">
+    <div className="min-h-screen w-full relative overflow-hidden bg-black">
+      {/* Background gradients */}
+      <div className="absolute inset-0">
+        <div className="absolute inset-0 bg-gradient-to-br from-[#1A1F2C] to-black" />
+        <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-[#9b87f5]/20 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-float" />
+        <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-[#D6BCFA]/20 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-float" />
+      </div>
+
+      {/* Content */}
+      <div className="relative z-10 w-full max-w-7xl mx-auto p-4">
         <header className="mb-8 flex justify-between items-center">
-          <div>
-            <h1 className="text-3xl font-bold text-white">
+          <div className="glass-morphism rounded-xl p-6">
+            <h1 className="text-3xl font-bold bg-gradient-to-br from-white via-white/90 to-[#D6BCFA] bg-clip-text text-transparent">
               Welcome, {profile?.full_name}
             </h1>
-            <p className="text-gray-400">Your AI-powered academic workspace</p>
+            <p className="text-[#E5DEFF] mt-2">Your AI-powered academic workspace</p>
           </div>
           
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="relative h-10 w-10 rounded-full">
+              <Button variant="ghost" className="relative h-12 w-12 rounded-full glass-morphism hover:bg-white/10">
                 <User className="h-5 w-5 text-white" />
               </Button>
             </DropdownMenuTrigger>
@@ -84,7 +100,33 @@ const Dashboard = () => {
             </DropdownMenuContent>
           </DropdownMenu>
         </header>
-        <CoursesDashboard />
+
+        {/* Quick Actions */}
+        <div className="mb-8">
+          <div className="glass-morphism rounded-xl p-2">
+            <div className="relative">
+              <Input
+                type="text"
+                placeholder="Ask anything... Or upload a file and ask about it"
+                className="w-full h-16 pl-6 pr-24 bg-white/5 border-0 text-white placeholder:text-gray-400 rounded-xl focus:ring-2 focus:ring-[#9b87f5] transition-all"
+              />
+              <div className="absolute right-2 top-1/2 -translate-y-1/2">
+                <Button
+                  type="submit"
+                  size="icon"
+                  className="h-12 w-12 rounded-xl bg-[#9b87f5] hover:bg-[#8b5cf6] transition-all duration-200 hover:scale-105"
+                >
+                  <Send className="h-5 w-5" />
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Courses Dashboard */}
+        <div className="glass-morphism rounded-xl p-6 animate-fadeIn">
+          <CoursesDashboard />
+        </div>
       </div>
     </div>
   );
