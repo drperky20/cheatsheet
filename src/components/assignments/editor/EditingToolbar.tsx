@@ -9,7 +9,7 @@ import {
 import {
   BookOpen,
   GraduationCap,
-  ArrowsUpDown,
+  ArrowUpDown,
   Sparkles,
   PencilRuler
 } from "lucide-react";
@@ -73,7 +73,7 @@ export const EditingToolbar = ({
                 onClick={onLengthClick}
                 className="text-white/70 hover:text-[#9b87f5] hover:bg-white/5"
               >
-                <ArrowsUpDown className="h-5 w-5" />
+                <ArrowUpDown className="h-5 w-5" />
               </Button>
             </TooltipTrigger>
             <TooltipContent side="left" className="neo-blur">
