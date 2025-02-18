@@ -1,5 +1,2 @@
 
 project_id = "tzdjisezjmmrjvfnvint"
-
-[functions.canvas-proxy]
-verify_jwt = false
