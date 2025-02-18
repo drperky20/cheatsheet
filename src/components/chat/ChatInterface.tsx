@@ -16,7 +16,6 @@ interface Message {
   content: string;
 }
 
-// Updated supported formats with image types
 const SUPPORTED_FORMATS = {
   'application/pdf': 'PDF documents',
   'text/plain': 'Text files (.txt)',
@@ -45,7 +44,6 @@ export const ChatInterface = ({ onBack, initialQuestion = '', initialFile = null
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Check if file type is supported
     if (!Object.keys(SUPPORTED_FORMATS).includes(file.type)) {
       toast({
         title: "Unsupported file format",
@@ -97,17 +95,25 @@ export const ChatInterface = ({ onBack, initialQuestion = '', initialFile = null
     try {
       let response;
       if (uploadedFile) {
-        const text = await uploadedFile.text().catch(error => {
-          console.error('Error reading file:', error);
-          throw new Error('Failed to read uploaded file');
-        });
+        const formData = new FormData();
+        formData.append('file', uploadedFile);
+        if (input.trim()) {
+          formData.append('question', input);
+        }
         
-        response = await processWithGemini(
-          `${input}\n\nFile Content:\n${text}`,
-          'analyze_requirements'
-        );
+        const { data, error } = await supabase.functions.invoke('gemini-processor', {
+          body: formData
+        });
+
+        if (error) throw error;
+        response = data.result;
       } else {
-        response = await processWithGemini(input, 'generate_content');
+        const { data, error } = await supabase.functions.invoke('gemini-processor', {
+          body: { content: input, type: 'generate_content' }
+        });
+
+        if (error) throw error;
+        response = data.result;
       }
 
       setMessages(prev => [...prev, { role: 'assistant', content: response }]);
@@ -116,7 +122,6 @@ export const ChatInterface = ({ onBack, initialQuestion = '', initialFile = null
     } catch (error) {
       console.error('Error in handleSubmit:', error);
       
-      // Handle rate limit errors specially
       const isRateLimit = error.message?.toLowerCase().includes('rate limit') || 
                          error.message?.includes('429');
       
@@ -132,12 +137,10 @@ export const ChatInterface = ({ onBack, initialQuestion = '', initialFile = null
     }
   };
 
-  // Generate the accept string for file input
   const acceptedFileTypes = Object.keys(SUPPORTED_FORMATS).join(',');
 
   return (
     <div className="min-h-screen flex flex-col relative overflow-hidden bg-black">
-      {/* Background gradients */}
       <div className="absolute inset-0">
         <div className="absolute inset-0 bg-gradient-to-br from-[#1A1F2C] to-black" />
         <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-[#9b87f5]/20 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-float" />
@@ -145,7 +148,6 @@ export const ChatInterface = ({ onBack, initialQuestion = '', initialFile = null
       </div>
 
       <div className="relative z-10 flex-1 flex flex-col max-w-4xl mx-auto w-full p-4">
-        {/* Header */}
         <div className="glass-morphism rounded-xl p-4 mb-4 flex items-center">
           <Button
             variant="ghost"
@@ -157,7 +159,6 @@ export const ChatInterface = ({ onBack, initialQuestion = '', initialFile = null
           <h1 className="text-xl font-bold text-gradient">Chat Assistant</h1>
         </div>
 
-        {/* Messages */}
         <div className="flex-1 glass-morphism rounded-xl p-4 mb-4 overflow-auto">
           <div className="space-y-4">
             {messages.map((message, index) => (
@@ -188,7 +189,6 @@ export const ChatInterface = ({ onBack, initialQuestion = '', initialFile = null
           </div>
         </div>
 
-        {/* Input */}
         <form onSubmit={handleSubmit} className="glass-morphism rounded-xl p-2">
           <div className="relative">
             <Textarea
