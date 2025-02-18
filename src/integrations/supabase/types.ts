@@ -56,6 +56,45 @@ export type Database = {
           },
         ]
       }
+      cached_assignments: {
+        Row: {
+          canvas_assignment_id: string
+          course_id: string
+          created_at: string | null
+          description: string | null
+          due_at: string | null
+          id: string
+          name: string
+          points_possible: number | null
+          published: boolean | null
+          updated_at: string | null
+        }
+        Insert: {
+          canvas_assignment_id: string
+          course_id: string
+          created_at?: string | null
+          description?: string | null
+          due_at?: string | null
+          id?: string
+          name: string
+          points_possible?: number | null
+          published?: boolean | null
+          updated_at?: string | null
+        }
+        Update: {
+          canvas_assignment_id?: string
+          course_id?: string
+          created_at?: string | null
+          description?: string | null
+          due_at?: string | null
+          id?: string
+          name?: string
+          points_possible?: number | null
+          published?: boolean | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       canvas_configs: {
         Row: {
           api_key: string
