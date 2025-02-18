@@ -44,7 +44,7 @@ export const AssignmentsList = ({ courseId, onStartAssignment }: AssignmentsList
       }
 
       console.log('Fetching assignments for course:', courseId);
-      const { data: { data }, error } = await supabase.functions.invoke('canvas-proxy', {
+      const { data, error } = await supabase.functions.invoke('canvas-proxy', {
         body: {
           endpoint: `/courses/${courseId}/assignments`,
           method: 'GET',
@@ -55,18 +55,27 @@ export const AssignmentsList = ({ courseId, onStartAssignment }: AssignmentsList
 
       if (error) throw error;
 
-      // Filter and sort assignments
-      const filteredAssignments = Array.isArray(data) ? data
-        .filter(assignment => assignment && assignment.published)
-        .sort((a, b) => {
-          // Sort by due date (newest first)
-          const dateA = a.due_at ? new Date(a.due_at) : new Date(0);
-          const dateB = b.due_at ? new Date(b.due_at) : new Date(0);
-          return dateB.getTime() - dateA.getTime();
-        }) : [];
+      // Ensure data is an array and filter/sort assignments
+      let assignmentsData = Array.isArray(data) ? data : [];
+      console.log('Raw assignments data:', assignmentsData);
 
-      console.log('Filtered and sorted assignments:', filteredAssignments);
-      setAssignments(filteredAssignments);
+      // Filter out null/undefined assignments and ensure required fields exist
+      assignmentsData = assignmentsData.filter(assignment => 
+        assignment && 
+        assignment.id && 
+        assignment.name && 
+        assignment.published !== undefined
+      );
+
+      // Sort by due date (newest first)
+      const sortedAssignments = assignmentsData.sort((a, b) => {
+        const dateA = a.due_at ? new Date(a.due_at) : new Date(0);
+        const dateB = b.due_at ? new Date(b.due_at) : new Date(0);
+        return dateB.getTime() - dateA.getTime();
+      });
+
+      console.log('Processed assignments:', sortedAssignments);
+      setAssignments(sortedAssignments);
     } catch (error) {
       console.error('Error fetching assignments:', error);
       toast.error("Failed to load assignments");
@@ -120,46 +129,46 @@ export const AssignmentsList = ({ courseId, onStartAssignment }: AssignmentsList
 
   return (
     <div className="space-y-4">
-      {assignments.map((assignment) => {
-        const { text: dueText, color: dueColor } = getDueStatus(assignment.due_at);
-        
-        return (
-          <Card key={assignment.id} className="p-4 glass hover:border-white/10 transition-all">
-            <div className="flex items-start justify-between">
-              <div className="space-y-1">
-                <h3 className="font-semibold text-lg">{assignment.name}</h3>
-                <div className="flex items-center gap-4 text-sm">
-                  <div className="flex items-center gap-1">
-                    <CheckCircle className="w-4 h-4 text-green-400" />
-                    <span>{assignment.points_possible} points</span>
-                  </div>
-                  <div className={`flex items-center gap-1 ${dueColor}`}>
-                    <Clock className="w-4 h-4" />
-                    <span>{dueText}</span>
+      {assignments.length > 0 ? (
+        assignments.map((assignment) => {
+          const { text: dueText, color: dueColor } = getDueStatus(assignment.due_at);
+          
+          return (
+            <Card key={assignment.id} className="p-4 glass hover:border-white/10 transition-all">
+              <div className="flex items-start justify-between">
+                <div className="space-y-1">
+                  <h3 className="font-semibold text-lg">{assignment.name}</h3>
+                  <div className="flex items-center gap-4 text-sm">
+                    <div className="flex items-center gap-1">
+                      <CheckCircle className="w-4 h-4 text-green-400" />
+                      <span>{assignment.points_possible} points</span>
+                    </div>
+                    <div className={`flex items-center gap-1 ${dueColor}`}>
+                      <Clock className="w-4 h-4" />
+                      <span>{dueText}</span>
+                    </div>
                   </div>
                 </div>
+                <Button
+                  variant="ghost"
+                  className="bg-white/5 hover:bg-white/10"
+                  onClick={() => analyzeRequirements(assignment)}
+                  disabled={analyzing === assignment.id}
+                >
+                  {analyzing === assignment.id ? (
+                    <>Analyzing...</>
+                  ) : (
+                    <>
+                      Start Assignment
+                      <BookOpen className="ml-2 w-4 h-4" />
+                    </>
+                  )}
+                </Button>
               </div>
-              <Button
-                variant="ghost"
-                className="bg-white/5 hover:bg-white/10"
-                onClick={() => analyzeRequirements(assignment)}
-                disabled={analyzing === assignment.id}
-              >
-                {analyzing === assignment.id ? (
-                  <>Analyzing...</>
-                ) : (
-                  <>
-                    Start Assignment
-                    <BookOpen className="ml-2 w-4 h-4" />
-                  </>
-                )}
-              </Button>
-            </div>
-          </Card>
-        );
-      })}
-
-      {assignments.length === 0 && (
+            </Card>
+          );
+        })
+      ) : (
         <div className="text-center p-8 glass rounded-lg">
           <AlertCircle className="mx-auto h-12 w-12 text-gray-400 mb-4" />
           <h3 className="text-xl font-semibold mb-2">No Active Assignments Found</h3>

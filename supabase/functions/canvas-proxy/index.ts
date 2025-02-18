@@ -14,82 +14,103 @@ serve(async (req) => {
   try {
     const { endpoint, method, domain, apiKey } = await req.json()
     
-    // Validate required parameters
     if (!domain || !apiKey) {
       throw new Error('Missing required parameters: domain or apiKey')
     }
 
-    // Build the URL with appropriate query parameters
+    // Function to fetch all pages of assignments
+    async function getAllAssignments(baseUrl: string, apiKey: string) {
+      let allAssignments = [];
+      let page = 1;
+      let hasMore = true;
+
+      while (hasMore) {
+        const url = new URL(baseUrl);
+        url.searchParams.append('page', page.toString());
+        url.searchParams.append('per_page', '100');
+        url.searchParams.append('include[]', 'submission');
+        url.searchParams.append('include[]', 'overrides');
+
+        console.log(`Fetching page ${page} from: ${url.toString()}`);
+        
+        const response = await fetch(url.toString(), {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${apiKey}`,
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        
+        if (Array.isArray(data) && data.length > 0) {
+          allAssignments = [...allAssignments, ...data];
+          page++;
+        } else {
+          hasMore = false;
+        }
+
+        // Check the Link header for pagination
+        const linkHeader = response.headers.get('Link');
+        if (!linkHeader || !linkHeader.includes('rel="next"')) {
+          hasMore = false;
+        }
+      }
+
+      return allAssignments;
+    }
+
     const baseUrl = `https://${domain}/api/v1${endpoint}`
-    const url = new URL(baseUrl)
-    
+
     if (endpoint === '/courses') {
-      // Parameters for courses endpoint
-      url.searchParams.append('enrollment_type', 'student')
-      url.searchParams.append('enrollment_state', 'active')
-      url.searchParams.append('state[]', 'available')
-      url.searchParams.append('include[]', 'term')
-    } else if (endpoint.includes('/assignments')) {
-      // Parameters for assignments endpoint - just get all assignments
-      url.searchParams.append('include[]', 'submission')
-      url.searchParams.append('include[]', 'overrides')
-      url.searchParams.append('per_page', '100')
-    }
-    
-    console.log('Requesting Canvas API URL:', url.toString())
+      const url = new URL(baseUrl);
+      url.searchParams.append('enrollment_type', 'student');
+      url.searchParams.append('enrollment_state', 'active');
+      url.searchParams.append('state[]', 'available');
+      url.searchParams.append('include[]', 'term');
 
-    const response = await fetch(url.toString(), {
-      method,
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-    })
+      const response = await fetch(url.toString(), {
+        method,
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+      });
 
-    // Get the response text first to see what the error might be
-    const responseText = await response.text()
-    console.log('Canvas API Raw Response:', responseText)
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
 
-    if (!response.ok) {
-      console.error('Canvas API Error Details:', {
-        status: response.status,
-        statusText: response.statusText,
-        body: responseText
-      })
-      throw new Error(`Canvas API error: ${response.status} ${response.statusText} - ${responseText}`)
-    }
-
-    // Parse the response text as JSON
-    const data = JSON.parse(responseText)
-    
-    if (endpoint === '/courses') {
-      // Filter courses to only include current courses
-      const currentCourses = Array.isArray(data) ? data.filter((course: any) => {
-        if (!course) return false
-        return course.workflow_state === 'available'
-      }) : []
+      const data = await response.json();
+      const currentCourses = Array.isArray(data) ? data.filter(course => course?.workflow_state === 'available') : [];
       
-      console.log('Filtered current courses:', JSON.stringify(currentCourses, null, 2))
       return new Response(JSON.stringify(currentCourses), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200,
-      })
-    } else {
-      // Just return the raw assignments data - we'll handle filtering and sorting in the frontend
-      console.log('Returning assignments data')
-      return new Response(JSON.stringify(data), {
+      });
+    } else if (endpoint.includes('/assignments')) {
+      const allAssignments = await getAllAssignments(baseUrl, apiKey);
+      console.log(`Total assignments fetched: ${allAssignments.length}`);
+      
+      return new Response(JSON.stringify(allAssignments), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200,
-      })
+      });
     }
+
+    throw new Error('Invalid endpoint');
   } catch (error) {
-    console.error('Edge Function Error:', error)
+    console.error('Edge Function Error:', error);
     return new Response(JSON.stringify({ 
       error: error.message,
       details: error.toString()
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 500,
-    })
+    });
   }
-})
+});
