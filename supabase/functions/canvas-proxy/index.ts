@@ -13,6 +13,7 @@ serve(async (req) => {
   }
 
   try {
+    // Parse request body
     const { endpoint, method, domain, apiKey } = await req.json()
     console.log('Received request for endpoint:', endpoint)
 
@@ -20,9 +21,11 @@ serve(async (req) => {
       throw new Error('Missing required parameters: domain or apiKey')
     }
 
+    // Construct Canvas API URL
     const baseUrl = `https://${domain}/api/v1${endpoint}`
     console.log('Making request to:', baseUrl)
 
+    // Make request to Canvas API
     const response = await fetch(baseUrl, {
       method: method || 'GET',
       headers: {
@@ -31,11 +34,16 @@ serve(async (req) => {
       },
     })
 
+    // Check for Canvas API errors
     if (!response.ok) {
       console.error('Canvas API error:', response.status, response.statusText)
-      throw new Error(`Canvas API error: ${response.status} ${response.statusText}`)
+      const errorText = await response.text()
+      console.error('Error details:', errorText)
+      
+      throw new Error(`Canvas API error: ${response.status} ${response.statusText}\n${errorText}`)
     }
 
+    // Parse and return response
     const responseData = await response.json()
     console.log('Successfully retrieved data from Canvas API')
 
@@ -45,14 +53,19 @@ serve(async (req) => {
     })
   } catch (error) {
     console.error('Edge Function Error:', error)
+    
+    // Determine if error is from Canvas API or internal
+    const errorMessage = error.message || 'An unexpected error occurred'
+    const statusCode = errorMessage.includes('Canvas API error') ? 502 : 500
+
     return new Response(
       JSON.stringify({
-        error: error.message || 'An unexpected error occurred',
+        error: errorMessage,
         details: error.toString(),
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 500,
+        status: statusCode,
       }
     )
   }
