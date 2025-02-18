@@ -9,9 +9,7 @@ import { AssignmentQualityControls } from "./AssignmentQualityControls";
 import { AssignmentEditor } from "./AssignmentEditor";
 import { AssignmentQualityConfig } from "@/types/assignment";
 import pdfMake from "pdfmake/build/pdfmake";
-import pdfFonts from "pdfmake/build/vfs_fonts";
-
-pdfMake.vfs = pdfFonts.pdfMake.vfs;
+import "pdfmake/build/vfs_fonts";
 
 interface Assignment {
   id: string;
@@ -83,7 +81,7 @@ export const AssignmentWorkspace = ({ assignment, onClose }: AssignmentWorkspace
         }
       },
       defaultStyle: {
-        font: 'Roboto'
+        font: 'Helvetica'
       }
     };
 
