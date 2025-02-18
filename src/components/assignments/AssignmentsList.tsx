@@ -32,7 +32,7 @@ export const AssignmentsList = ({ courseId, onStartAssignment }: AssignmentsList
   const { canvasConfig } = useAuth();
 
   useEffect(() => {
-    if (canvasConfig) {
+    if (canvasConfig && courseId) {
       fetchAssignments();
     }
   }, [courseId, canvasConfig]);
@@ -59,12 +59,11 @@ export const AssignmentsList = ({ courseId, onStartAssignment }: AssignmentsList
       let assignmentsData = Array.isArray(data) ? data : [];
       console.log('Raw assignments data:', assignmentsData);
 
-      // Filter out null/undefined assignments and ensure required fields exist
+      // Filter active assignments
       assignmentsData = assignmentsData.filter(assignment => 
         assignment && 
-        assignment.id && 
-        assignment.name && 
-        assignment.published !== undefined
+        assignment.workflow_state !== 'deleted' &&
+        assignment.published === true
       );
 
       // Sort by due date (newest first)
@@ -119,7 +118,7 @@ export const AssignmentsList = ({ courseId, onStartAssignment }: AssignmentsList
 
   if (loading) {
     return (
-      <div className="space-y-4">
+      <div className="space-y-4 h-[calc(100vh-12rem)] overflow-y-auto p-4 border border-white/10 rounded-lg">
         {[1, 2, 3].map((i) => (
           <Skeleton key={i} className="h-[100px] rounded-lg" />
         ))}
@@ -128,55 +127,57 @@ export const AssignmentsList = ({ courseId, onStartAssignment }: AssignmentsList
   }
 
   return (
-    <div className="space-y-4">
-      {assignments.length > 0 ? (
-        assignments.map((assignment) => {
-          const { text: dueText, color: dueColor } = getDueStatus(assignment.due_at);
-          
-          return (
-            <Card key={assignment.id} className="p-4 glass hover:border-white/10 transition-all">
-              <div className="flex items-start justify-between">
-                <div className="space-y-1">
-                  <h3 className="font-semibold text-lg">{assignment.name}</h3>
-                  <div className="flex items-center gap-4 text-sm">
-                    <div className="flex items-center gap-1">
-                      <CheckCircle className="w-4 h-4 text-green-400" />
-                      <span>{assignment.points_possible} points</span>
-                    </div>
-                    <div className={`flex items-center gap-1 ${dueColor}`}>
-                      <Clock className="w-4 h-4" />
-                      <span>{dueText}</span>
+    <div className="h-[calc(100vh-12rem)] overflow-y-auto p-4 border border-white/10 rounded-lg">
+      <div className="space-y-4">
+        {assignments.length > 0 ? (
+          assignments.map((assignment) => {
+            const { text: dueText, color: dueColor } = getDueStatus(assignment.due_at);
+            
+            return (
+              <Card key={assignment.id} className="p-4 glass hover:border-white/10 transition-all">
+                <div className="flex items-start justify-between">
+                  <div className="space-y-1">
+                    <h3 className="font-semibold text-lg">{assignment.name}</h3>
+                    <div className="flex items-center gap-4 text-sm">
+                      <div className="flex items-center gap-1">
+                        <CheckCircle className="w-4 h-4 text-green-400" />
+                        <span>{assignment.points_possible} points</span>
+                      </div>
+                      <div className={`flex items-center gap-1 ${dueColor}`}>
+                        <Clock className="w-4 h-4" />
+                        <span>{dueText}</span>
+                      </div>
                     </div>
                   </div>
+                  <Button
+                    variant="ghost"
+                    className="bg-white/5 hover:bg-white/10"
+                    onClick={() => analyzeRequirements(assignment)}
+                    disabled={analyzing === assignment.id}
+                  >
+                    {analyzing === assignment.id ? (
+                      <>Analyzing...</>
+                    ) : (
+                      <>
+                        Start Assignment
+                        <BookOpen className="ml-2 w-4 h-4" />
+                      </>
+                    )}
+                  </Button>
                 </div>
-                <Button
-                  variant="ghost"
-                  className="bg-white/5 hover:bg-white/10"
-                  onClick={() => analyzeRequirements(assignment)}
-                  disabled={analyzing === assignment.id}
-                >
-                  {analyzing === assignment.id ? (
-                    <>Analyzing...</>
-                  ) : (
-                    <>
-                      Start Assignment
-                      <BookOpen className="ml-2 w-4 h-4" />
-                    </>
-                  )}
-                </Button>
-              </div>
-            </Card>
-          );
-        })
-      ) : (
-        <div className="text-center p-8 glass rounded-lg">
-          <AlertCircle className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-          <h3 className="text-xl font-semibold mb-2">No Active Assignments Found</h3>
-          <p className="text-gray-400">
-            There are no pending assignments for this course at the moment.
-          </p>
-        </div>
-      )}
+              </Card>
+            );
+          })
+        ) : (
+          <div className="text-center p-8 glass rounded-lg">
+            <AlertCircle className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+            <h3 className="text-xl font-semibold mb-2">No Active Assignments Found</h3>
+            <p className="text-gray-400">
+              There are no pending assignments for this course at the moment.
+            </p>
+          </div>
+        )}
+      </div>
     </div>
   );
 };
