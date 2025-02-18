@@ -29,7 +29,7 @@ serve(async (req) => {
 
   try {
     const { content, type, level, config } = await req.json();
-    console.log('Received request:', { type, config }); // Add logging
+    console.log('Received request:', { type, config });
 
     const assignment = config?.assignment as Assignment | undefined;
 
@@ -41,69 +41,69 @@ serve(async (req) => {
     let systemPrompt = '';
     
     if (assignment) {
-      systemPrompt = `You are assisting with the following assignment:
+      systemPrompt = `You are a middle school student. When writing, you should:
+        1. Use casual, natural language with occasional slang
+        2. Make common punctuation and grammar mistakes
+        3. Use simpler vocabulary and sometimes repeat words
+        4. Write in a more personal, informal tone
+        5. Include occasional text-speak or abbreviations
+        6. Make some logical leaps without full explanation
+        7. Show basic understanding but avoid complex analysis
+        8. Use "like" and "basically" occasionally
+        9. Start sentences with "And" or "But" sometimes
+        10. Write with enthusiasm but limited sophistication
+
+        Assignment Details:
         Title: ${assignment.name}
         Description: ${assignment.description}
         Points: ${assignment.points_possible}
-        Due: ${new Date(assignment.due_at).toLocaleDateString()}
-        
-        Your goal is to generate B-grade student-quality work that:
-        1. Shows understanding but allows for minor imperfections
-        2. Uses natural, conversational language
-        3. Maintains appropriate length and depth
-        4. Includes occasional simple examples
-        5. Avoids overly complex vocabulary
-        
-        Write as if you are a student completing this assignment.`;
+        Due: ${new Date(assignment.due_at).toLocaleDateString()}`;
     }
 
     switch (type as OperationType) {
       case 'generate_content':
-        prompt = `Given this assignment: "${content}", generate a well-written response that would receive a B grade. 
-                 Include some minor imperfections to sound natural. Use straightforward language and occasional personal insights.`;
+        prompt = `Write a response to this assignment as if you're a real middle school student trying to get a B grade. Be natural and informal, make occasional mistakes, and don't be too sophisticated: "${content}"`;
         break;
       
       case 'adjust_text':
       case 'adjust_length':
         const lengthFactor = config?.lengthFactor || 1;
         const textType = config?.selection ? 'selected section' : 'entire text';
-        prompt = `Adjust the length of this ${textType} by a factor of ${lengthFactor} (where 1 is original length): "${content}"
-                 Maintain the same style and tone, but ${lengthFactor > 1 ? 'expand with relevant details and examples' : 'make more concise while keeping key points'}.`;
+        prompt = `${lengthFactor > 1 ? 'Make this longer' : 'Make this shorter'} while keeping the same casual, student-like style. 
+                 Original text: "${content}"
+                 
+                 Guidelines:
+                 1. Keep the informal, natural tone
+                 2. ${lengthFactor > 1 ? 'Add more examples and personal thoughts' : 'Keep the main points but be more concise'}
+                 3. Maintain any existing mistakes or casual language
+                 4. Stay at a middle school writing level`;
         break;
       
       case 'adjust_reading_level':
-        const levelDescriptions = {
-          'elementary': 'simple words and short sentences suitable for elementary school students',
-          'middle_school': 'clear language appropriate for middle school students',
-          'high_school': 'more sophisticated vocabulary suitable for high school students',
-          'college': 'advanced vocabulary and complex sentence structures suitable for college level'
+        const levelPersonas = {
+          'elementary': 'a 5th grader',
+          'middle_school': 'an 8th grader',
+          'high_school': 'an 11th grader',
+          'college': 'a college sophomore'
         };
-        prompt = `Rewrite this text at a ${level} reading level using ${levelDescriptions[level]}: "${content}"
-                 Maintain the core meaning and key points while adjusting the complexity.`;
+        prompt = `Rewrite this as if you're ${levelPersonas[level]} talking about what you learned in class:
+                 "${content}"
+                 
+                 Make it sound natural and age-appropriate, including typical writing patterns and occasional mistakes for that age group.`;
         break;
       
       case 'improve_writing':
-        prompt = `Improve this text while maintaining a natural student writing style:
+        prompt = `Make this writing better while keeping it realistic for a middle school student:
                  "${content}"
                  
                  Guidelines:
-                 1. Fix obvious grammar errors but leave some minor imperfections
-                 2. Improve flow and clarity
-                 3. Keep the language natural and conversational
-                 4. Maintain the same general tone and complexity level
-                 5. Don't make it sound too polished or professional`;
-        break;
-      
-      case 'analyze_requirements':
-        prompt = `Analyze this assignment description and provide key insights:
-                 "${content}"
-                 
-                 Please identify:
-                 1. Main objectives and deliverables
-                 2. Key requirements and constraints
-                 3. Suggested approach
-                 4. Potential challenges
-                 5. Tips for success`;
+                 1. Fix major errors but leave some natural mistakes
+                 2. Keep the casual, personal tone
+                 3. Use age-appropriate vocabulary
+                 4. Add some filler words like "like" and "basically"
+                 5. Include some incomplete thoughts or tangents
+                 6. Make transitions a bit awkward sometimes
+                 7. Keep explanations simple`;
         break;
       
       default:
@@ -147,7 +147,7 @@ serve(async (req) => {
     );
 
   } catch (error) {
-    console.error('Error in edge function:', error); // Add logging
+    console.error('Error in edge function:', error);
     return new Response(
       JSON.stringify({ error: error.message }),
       { 

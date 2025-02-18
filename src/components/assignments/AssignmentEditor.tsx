@@ -74,6 +74,8 @@ export const AssignmentEditor = ({
     const selection = window.getSelection();
     if (selection && selection.toString()) {
       setSelectedText(selection.toString());
+    } else {
+      setSelectedText('');
     }
   };
 
@@ -98,11 +100,13 @@ export const AssignmentEditor = ({
       const { data, error } = await supabase.functions.invoke('gemini-processor', {
         body: {
           content: textToAdjust,
-          type: 'adjust_text',
+          type: 'adjust_length',
           config: {
             assignment,
             lengthFactor: adjustLength,
-            selection: !!selectedText
+            selection: !!selectedText,
+            currentGrade: 'B',
+            writingStyle: 'middle_school'
           }
         }
       });
@@ -118,6 +122,7 @@ export const AssignmentEditor = ({
       
       toast.success(`Text adjusted successfully`);
     } catch (error) {
+      console.error('Adjust text error:', error);
       toast.error("Failed to adjust text");
     }
   };
@@ -135,7 +140,10 @@ export const AssignmentEditor = ({
           content: textToAdjust,
           type: 'adjust_reading_level',
           level,
-          config: { assignment }
+          config: { 
+            assignment,
+            selection: !!selectedText
+          }
         }
       });
 
@@ -149,6 +157,7 @@ export const AssignmentEditor = ({
       }
       toast.success(`Reading level adjusted to ${level}`);
     } catch (error) {
+      console.error('Reading level error:', error);
       toast.error("Failed to adjust reading level");
     }
   };
@@ -214,7 +223,7 @@ export const AssignmentEditor = ({
         </div>
       </div>
 
-      <div className="relative space-y-4">
+      <div className="relative">
         <Textarea
           value={content}
           onChange={(e) => onChange(e.target.value)}
@@ -302,18 +311,16 @@ export const AssignmentEditor = ({
 
       <div className="flex justify-between items-center">
         <div className="text-sm text-white/60">
-          {selectedText ? `${selectedText.length} characters selected` : `${content.length} characters`}
+          {content.length} characters
         </div>
-        {onSave && (
-          <Button
-            onClick={onSave}
-            disabled={isSubmitting || !content.trim()}
-            className="gap-2 bg-[#9b87f5] hover:bg-[#8b77e5] text-white border-none"
-          >
-            <Send className="w-4 h-4" />
-            {isSubmitting ? "Submitting..." : "Submit to Canvas"}
-          </Button>
-        )}
+        <Button
+          onClick={onSave}
+          disabled={isSubmitting || !content.trim()}
+          className="gap-2 bg-[#9b87f5] hover:bg-[#8b77e5] text-white border-none"
+        >
+          <Send className="w-4 h-4" />
+          {isSubmitting ? "Submitting..." : "Submit to Canvas"}
+        </Button>
       </div>
     </Card>
   );
