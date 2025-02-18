@@ -2,10 +2,11 @@
 import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Clock, BookOpen, CheckCircle, AlertCircle } from "lucide-react";
+import { Clock, BookOpen, CheckCircle, AlertCircle, Search } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
 interface Assignment {
@@ -29,6 +30,7 @@ export const AssignmentsList = ({ courseId, onStartAssignment }: AssignmentsList
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [loading, setLoading] = useState(true);
   const [analyzing, setAnalyzing] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
   const { canvasConfig } = useAuth();
 
   useEffect(() => {
@@ -55,21 +57,25 @@ export const AssignmentsList = ({ courseId, onStartAssignment }: AssignmentsList
 
       if (error) throw error;
 
-      // Ensure data is an array and filter/sort assignments
+      // Ensure data is an array
       let assignmentsData = Array.isArray(data) ? data : [];
       console.log('Raw assignments data:', assignmentsData);
 
-      // Filter active assignments
+      // Filter active and published assignments
       assignmentsData = assignmentsData.filter(assignment => 
         assignment && 
         assignment.workflow_state !== 'deleted' &&
         assignment.published === true
       );
 
-      // Sort by due date (newest first)
+      // Sort by due date (newest first), handling null due dates
       const sortedAssignments = assignmentsData.sort((a, b) => {
-        const dateA = a.due_at ? new Date(a.due_at) : new Date(0);
-        const dateB = b.due_at ? new Date(b.due_at) : new Date(0);
+        // Put assignments without due dates at the end
+        if (!a.due_at) return 1;
+        if (!b.due_at) return -1;
+        
+        const dateA = new Date(a.due_at);
+        const dateB = new Date(b.due_at);
         return dateB.getTime() - dateA.getTime();
       });
 
@@ -106,6 +112,8 @@ export const AssignmentsList = ({ courseId, onStartAssignment }: AssignmentsList
   };
 
   const getDueStatus = (dueDate: string) => {
+    if (!dueDate) return { text: "No due date", color: "text-gray-400" };
+
     const now = new Date();
     const due = new Date(dueDate);
     const daysUntilDue = Math.ceil((due.getTime() - now.getTime()) / (1000 * 3600 * 24));
@@ -115,6 +123,10 @@ export const AssignmentsList = ({ courseId, onStartAssignment }: AssignmentsList
     if (daysUntilDue <= 3) return { text: `Due in ${daysUntilDue} days`, color: "text-orange-400" };
     return { text: `Due in ${daysUntilDue} days`, color: "text-green-400" };
   };
+
+  const filteredAssignments = assignments.filter(assignment =>
+    assignment.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   if (loading) {
     return (
@@ -128,9 +140,22 @@ export const AssignmentsList = ({ courseId, onStartAssignment }: AssignmentsList
 
   return (
     <div className="h-[calc(100vh-12rem)] overflow-y-auto p-4 border border-white/10 rounded-lg">
+      <div className="sticky top-0 z-10 mb-4 bg-black/80 backdrop-blur-lg p-2 rounded-lg">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+          <Input
+            type="text"
+            placeholder="Search assignments..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-10 bg-black/20 border-white/10"
+          />
+        </div>
+      </div>
+
       <div className="space-y-4">
-        {assignments.length > 0 ? (
-          assignments.map((assignment) => {
+        {filteredAssignments.length > 0 ? (
+          filteredAssignments.map((assignment) => {
             const { text: dueText, color: dueColor } = getDueStatus(assignment.due_at);
             
             return (
@@ -171,9 +196,11 @@ export const AssignmentsList = ({ courseId, onStartAssignment }: AssignmentsList
         ) : (
           <div className="text-center p-8 glass rounded-lg">
             <AlertCircle className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-            <h3 className="text-xl font-semibold mb-2">No Active Assignments Found</h3>
+            <h3 className="text-xl font-semibold mb-2">No Assignments Found</h3>
             <p className="text-gray-400">
-              There are no pending assignments for this course at the moment.
+              {searchQuery 
+                ? "No assignments match your search query." 
+                : "There are no pending assignments for this course at the moment."}
             </p>
           </div>
         )}
