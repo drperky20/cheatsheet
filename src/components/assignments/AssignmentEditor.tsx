@@ -1,24 +1,14 @@
+
 import React, { useState } from 'react';
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Slider } from "@/components/ui/slider";
 import { toast } from "sonner";
-import { 
-  Save, 
-  Send,
-  BookOpen,
-  List,
-  ShrinkIcon,
-  ExpandIcon
-} from "lucide-react";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { Send } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { VersionControl } from './editor/VersionControl';
+import { WritingStyleControls } from './editor/WritingStyleControls';
+import { LengthAdjuster } from './editor/LengthAdjuster';
 
 interface Assignment {
   id: string;
@@ -52,11 +42,6 @@ export const AssignmentEditor = ({
   const [isProcessing, setIsProcessing] = useState(false);
   const [quality, setQuality] = useState<'elementary' | 'middle_school' | 'high_school' | 'college'>('middle_school');
   const [lengthFactor, setLengthFactor] = useState(1);
-
-  const saveVersion = () => {
-    setVersions(prev => [...prev, { content, timestamp: new Date() }]);
-    toast.success("Version saved!");
-  };
 
   const handleStyleChange = async (level: 'elementary' | 'middle_school' | 'high_school' | 'college') => {
     if (!content.trim()) {
@@ -200,42 +185,12 @@ export const AssignmentEditor = ({
           )}
         </div>
 
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={saveVersion}
-          >
-            <Save className="w-4 h-4" />
-            Save Version
-          </Button>
-
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm">
-                <List className="w-4 h-4" />
-                Past Versions
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent className="neo-blur w-56">
-              {versions.map((version, index) => (
-                <DropdownMenuItem
-                  key={index}
-                  onClick={() => onChange(version.content)}
-                  className="text-white/90 hover:bg-white/10"
-                >
-                  Version {versions.length - index} • 
-                  {version.timestamp.toLocaleTimeString()}
-                </DropdownMenuItem>
-              ))}
-              {versions.length === 0 && (
-                <DropdownMenuItem disabled className="text-white/60">
-                  No saved versions
-                </DropdownMenuItem>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
+        <VersionControl
+          content={content}
+          versions={versions}
+          onVersionChange={onChange}
+          onVersionSave={setVersions}
+        />
       </div>
 
       <div className="p-4 space-y-4">
@@ -247,64 +202,16 @@ export const AssignmentEditor = ({
             placeholder="Start writing or generate a response..."
           />
 
-          <Card className="absolute bottom-4 right-4 p-2 neo-blur">
-            <div className="flex items-center gap-2">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button 
-                    size="sm" 
-                    variant="ghost"
-                    className="h-8 px-3"
-                  >
-                    <BookOpen className="w-4 h-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent className="neo-blur w-40">
-                  <DropdownMenuItem onClick={() => handleStyleChange('elementary')}>
-                    Elementary
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => handleStyleChange('middle_school')}>
-                    Middle School
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => handleStyleChange('high_school')}>
-                    High School
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => handleStyleChange('college')}>
-                    College Level
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-          </Card>
+          <WritingStyleControls onStyleChange={handleStyleChange} />
         </div>
 
-        <Card className="p-4 neo-blur">
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium text-white">Length Adjustment</span>
-              <div className="flex items-center gap-2">
-                <ShrinkIcon className="w-4 h-4 text-white/60" />
-                <Slider
-                  value={[lengthFactor * 100]}
-                  onValueChange={(value) => setLengthFactor(value[0] / 100)}
-                  min={50}
-                  max={200}
-                  step={10}
-                  className="w-[200px]"
-                />
-                <ExpandIcon className="w-4 h-4 text-white/60" />
-              </div>
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={adjustLength}
-                disabled={isProcessing || !content.trim()}
-              >
-                Adjust Length
-              </Button>
-            </div>
-          </div>
-        </Card>
+        <LengthAdjuster
+          lengthFactor={lengthFactor}
+          onLengthFactorChange={setLengthFactor}
+          onAdjust={adjustLength}
+          isProcessing={isProcessing}
+          hasContent={Boolean(content.trim())}
+        />
 
         <div className="flex justify-between items-center pt-2">
           <div className="flex items-center gap-4">
