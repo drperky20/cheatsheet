@@ -36,11 +36,22 @@ export const ChatInterface = ({ onBack, initialQuestion = '' }: ChatInterfacePro
   };
 
   const processWithGemini = async (content: string, type: string) => {
+    console.log('Calling Gemini processor with:', { content, type });
+    
     const { data, error } = await supabase.functions.invoke('gemini-processor', {
       body: { content, type }
     });
 
-    if (error) throw new Error(error.message);
+    if (error) {
+      console.error('Supabase function error:', error);
+      throw new Error(error.message || 'Failed to process with Gemini');
+    }
+
+    if (!data?.result) {
+      console.error('Invalid response from Gemini processor:', data);
+      throw new Error('Invalid response from AI processor');
+    }
+
     return data.result;
   };
 
@@ -58,8 +69,11 @@ export const ChatInterface = ({ onBack, initialQuestion = '' }: ChatInterfacePro
     try {
       let response;
       if (uploadedFile) {
-        // Read file content
-        const text = await uploadedFile.text();
+        const text = await uploadedFile.text().catch(error => {
+          console.error('Error reading file:', error);
+          throw new Error('Failed to read uploaded file');
+        });
+        
         response = await processWithGemini(
           `${input}\n\nFile Content:\n${text}`,
           'analyze_requirements'
@@ -72,10 +86,10 @@ export const ChatInterface = ({ onBack, initialQuestion = '' }: ChatInterfacePro
       setInput('');
       setUploadedFile(null);
     } catch (error) {
-      console.error('Error:', error);
+      console.error('Error in handleSubmit:', error);
       toast({
         title: "Error",
-        description: "Failed to get a response. Please try again.",
+        description: error.message || "Failed to get a response. Please try again.",
         variant: "destructive"
       });
     } finally {
