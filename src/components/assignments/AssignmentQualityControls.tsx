@@ -54,9 +54,9 @@ export const AssignmentQualityControls = ({
   };
 
   return (
-    <Card className="p-6 space-y-6 bg-black/40 border-white/10">
+    <Card className="p-6 space-y-6 neo-blur">
       <div className="space-y-4">
-        <Label className="text-lg font-semibold">Target Grade Level</Label>
+        <Label className="text-lg font-semibold text-white">Target Grade Level</Label>
         <div className="grid grid-cols-3 gap-2">
           {(['A', 'B', 'C'] as GradeLevel[]).map((grade) => (
             <button
@@ -68,7 +68,7 @@ export const AssignmentQualityControls = ({
               className={`p-3 rounded-lg text-center transition-all ${
                 targetGrade === grade
                   ? 'bg-[#9b87f5] text-white'
-                  : 'bg-white/5 hover:bg-white/10'
+                  : 'bg-white/5 hover:bg-white/10 text-white/80'
               }`}
             >
               {grade}
@@ -78,7 +78,7 @@ export const AssignmentQualityControls = ({
       </div>
 
       <div className="space-y-4">
-        <Label className="text-lg font-semibold">Writing Style</Label>
+        <Label className="text-lg font-semibold text-white">Writing Style</Label>
         <Select
           value={writingStyle}
           onValueChange={(value: 'formal' | 'casual' | 'mixed') => {
@@ -86,34 +86,38 @@ export const AssignmentQualityControls = ({
             updateConfig(targetGrade, selectedFlaws, value, confidenceLevel);
           }}
         >
-          <SelectTrigger className="bg-white/5 border-white/10">
+          <SelectTrigger className="bg-white/5 border-white/10 text-white">
             <SelectValue placeholder="Select style" />
           </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="formal">Formal</SelectItem>
-            <SelectItem value="casual">Casual</SelectItem>
-            <SelectItem value="mixed">Mixed</SelectItem>
+          <SelectContent className="neo-blur border-white/10">
+            <SelectItem value="formal" className="text-white">Formal</SelectItem>
+            <SelectItem value="casual" className="text-white">Casual</SelectItem>
+            <SelectItem value="mixed" className="text-white">Mixed</SelectItem>
           </SelectContent>
         </Select>
       </div>
 
       <div className="space-y-4">
-        <Label className="text-lg font-semibold">Confidence Level</Label>
-        <Slider
-          value={[confidenceLevel]}
-          onValueChange={(value) => {
-            setConfidenceLevel(value[0]);
-            updateConfig(targetGrade, selectedFlaws, writingStyle, value[0]);
-          }}
-          max={100}
-          step={1}
-          className="py-4"
-        />
-        <div className="text-sm text-gray-400 text-right">{confidenceLevel}% Confident</div>
+        <Label className="text-lg font-semibold text-white">Confidence Level</Label>
+        <div className="px-2">
+          <Slider
+            value={[confidenceLevel]}
+            onValueChange={(value) => {
+              setConfidenceLevel(value[0]);
+              updateConfig(targetGrade, selectedFlaws, writingStyle, value[0]);
+            }}
+            max={100}
+            step={1}
+            className="py-4"
+          />
+        </div>
+        <div className="text-sm text-[#9b87f5] text-right font-medium">
+          {confidenceLevel}% Confident
+        </div>
       </div>
 
       <div className="space-y-4">
-        <Label className="text-lg font-semibold">Writing Flaws</Label>
+        <Label className="text-lg font-semibold text-white">Writing Flaws</Label>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           {AVAILABLE_FLAWS.map((flaw) => (
             <div
@@ -124,9 +128,10 @@ export const AssignmentQualityControls = ({
               <Checkbox
                 checked={selectedFlaws.some(f => f.id === flaw.id)}
                 onCheckedChange={() => handleFlawToggle(flaw)}
+                className="border-[#9b87f5] data-[state=checked]:bg-[#9b87f5] data-[state=checked]:border-[#9b87f5]"
               />
               <div className="space-y-1">
-                <Label className="text-sm font-medium">{flaw.label}</Label>
+                <Label className="text-sm font-medium text-white">{flaw.label}</Label>
                 <p className="text-xs text-gray-400">{flaw.description}</p>
               </div>
             </div>

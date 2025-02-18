@@ -25,25 +25,30 @@ export const LengthAdjuster = ({
         <div className="flex items-center justify-between">
           <span className="text-sm font-medium text-white">Length Adjustment</span>
           <div className="flex items-center gap-2">
-            <ShrinkIcon className="w-4 h-4 text-white/60" />
-            <Slider
-              value={[lengthFactor * 100]}
-              onValueChange={(value) => onLengthFactorChange(value[0] / 100)}
-              min={50}
-              max={200}
-              step={10}
-              className="w-[200px]"
-            />
-            <ExpandIcon className="w-4 h-4 text-white/60" />
+            <ShrinkIcon className="w-4 h-4 text-[#9b87f5]" />
+            <div className="w-[200px] px-2">
+              <Slider
+                value={[lengthFactor * 100]}
+                onValueChange={(value) => onLengthFactorChange(value[0] / 100)}
+                min={50}
+                max={200}
+                step={10}
+              />
+            </div>
+            <ExpandIcon className="w-4 h-4 text-[#9b87f5]" />
           </div>
           <Button
             variant="secondary"
             size="sm"
             onClick={onAdjust}
             disabled={isProcessing || !hasContent}
+            className="bg-[#1A1F2C] hover:bg-[#2A2F3C] text-white"
           >
             Adjust Length
           </Button>
+        </div>
+        <div className="text-sm text-[#9b87f5] text-right font-medium">
+          {Math.round(lengthFactor * 100)}% Length
         </div>
       </div>
     </Card>
