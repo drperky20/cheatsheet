@@ -136,6 +136,42 @@ Generate a response that follows these specific configurations while maintaining
 5. Address the assignment requirements while adhering to these parameters`;
 };
 
+async function processTextOperation(genAI: any, content: string, type: string, options: any = {}) {
+  const model = genAI.getGenerativeModel({ model: "gemini-1.0-pro" });
+  
+  let prompt = '';
+  switch (type) {
+    case 'expand_text':
+      prompt = `Expand the following text while maintaining its meaning and style. Make it more detailed and comprehensive:\n\n${content}`;
+      break;
+    case 'shorten_text':
+      prompt = `Summarize the following text while maintaining its key points and style:\n\n${content}`;
+      break;
+    case 'adjust_reading_level':
+      const levelPrompts = {
+        elementary: 'Rewrite at an elementary school reading level (grades 3-5)',
+        high_school: 'Rewrite at a high school reading level (grades 9-12)',
+        college: 'Rewrite at a college reading level'
+      };
+      prompt = `${levelPrompts[options.level] || levelPrompts.high_school}:\n\n${content}`;
+      break;
+    case 'add_emojis':
+      prompt = `Add relevant emojis to enhance this text (place them naturally, don't overuse):\n\n${content}`;
+      break;
+    default:
+      prompt = content;
+  }
+
+  try {
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    return response.text();
+  } catch (error) {
+    console.error(`Error processing ${type}:`, error);
+    throw error;
+  }
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { 

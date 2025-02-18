@@ -1,13 +1,17 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Wand2, Save, Send, RotateCcw, FileText } from "lucide-react";
 import { extractGoogleDocLinks, sanitizeHTML } from "@/utils/docProcessor";
 import { AssignmentQualityControls } from "./AssignmentQualityControls";
+import { AssignmentEditor } from "./AssignmentEditor";
 import { AssignmentQualityConfig } from "@/types/assignment";
+import * as pdfMake from "pdfmake/build/pdfmake";
+import * as pdfFonts from "pdfmake/build/vfs_fonts";
+
+(pdfMake as any).vfs = pdfFonts.pdfMake.vfs;
 
 interface Assignment {
   id: string;
@@ -18,6 +22,7 @@ interface Assignment {
   submission_types: string[];
   workflow_state: string;
   html_url: string;
+  course_id: number;
 }
 
 interface AssignmentWorkspaceProps {
@@ -29,6 +34,7 @@ export const AssignmentWorkspace = ({ assignment, onClose }: AssignmentWorkspace
   const [content, setContent] = useState("");
   const [generating, setGenerating] = useState(false);
   const [improving, setImproving] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [history, setHistory] = useState<string[]>([]);
   const [googleDocs, setGoogleDocs] = useState<string[]>([]);
   const [processingDocs, setProcessingDocs] = useState(false);
@@ -43,6 +49,76 @@ export const AssignmentWorkspace = ({ assignment, onClose }: AssignmentWorkspace
     const links = extractGoogleDocLinks(assignment.description);
     setGoogleDocs(links);
   }, [assignment.description]);
+
+  const generatePDF = async (content: string) => {
+    const docDefinition = {
+      content: [
+        {
+          text: assignment.name,
+          style: 'header'
+        },
+        {
+          text: new Date().toLocaleDateString(),
+          style: 'date'
+        },
+        {
+          text: content,
+          style: 'content'
+        }
+      ],
+      styles: {
+        header: {
+          fontSize: 18,
+          bold: true,
+          marginBottom: 10
+        },
+        date: {
+          fontSize: 12,
+          marginBottom: 20,
+          color: 'grey'
+        },
+        content: {
+          fontSize: 12,
+          lineHeight: 1.5
+        }
+      }
+    };
+
+    return new Promise((resolve) => {
+      pdfMake.createPdf(docDefinition).getBlob((blob) => {
+        resolve(blob);
+      });
+    });
+  };
+
+  const handleSubmit = async () => {
+    try {
+      setSubmitting(true);
+      
+      const pdfBlob = await generatePDF(content);
+      
+      const formData = new FormData();
+      formData.append('file', new File([pdfBlob as Blob], 'submission.pdf', { type: 'application/pdf' }));
+      
+      const { error } = await supabase.functions.invoke('canvas-proxy', {
+        body: {
+          endpoint: `/courses/${assignment.course_id}/assignments/${assignment.id}/submissions`,
+          method: 'POST',
+          formData: formData
+        }
+      });
+
+      if (error) throw error;
+
+      toast.success("Assignment submitted successfully!");
+      onClose();
+    } catch (error) {
+      console.error('Submission error:', error);
+      toast.error("Failed to submit assignment");
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   const processGoogleDocs = async () => {
     if (googleDocs.length === 0) {
@@ -160,7 +236,9 @@ export const AssignmentWorkspace = ({ assignment, onClose }: AssignmentWorkspace
               
               {googleDocs.length > 0 && (
                 <div className="mt-4 p-3 bg-blue-500/10 rounded-lg border border-blue-500/20">
-                  <h3 className="text-sm font-medium text-blue-400 mb-2">Found {googleDocs.length} Google Doc{googleDocs.length > 1 ? 's' : ''}</h3>
+                  <h3 className="text-sm font-medium text-blue-400 mb-2">
+                    Found {googleDocs.length} Google Doc{googleDocs.length > 1 ? 's' : ''}
+                  </h3>
                   <Button
                     onClick={processGoogleDocs}
                     disabled={processingDocs}
@@ -176,46 +254,13 @@ export const AssignmentWorkspace = ({ assignment, onClose }: AssignmentWorkspace
 
           <AssignmentQualityControls onConfigChange={setQualityConfig} />
 
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <label className="text-sm font-medium">Your Response</label>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={undoChanges}
-                  disabled={history.length === 0}
-                >
-                  <RotateCcw className="w-4 h-4 mr-2" />
-                  Undo
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={improveWriting}
-                  disabled={improving || !content}
-                >
-                  <Wand2 className="w-4 h-4 mr-2" />
-                  Improve
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={generateContent}
-                  disabled={generating}
-                >
-                  <Send className="w-4 h-4 mr-2" />
-                  Generate
-                </Button>
-              </div>
-            </div>
-            <Textarea
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-              className="min-h-[400px] bg-black/40"
-              placeholder="Start writing or generate content..."
-            />
-          </div>
+          <AssignmentEditor
+            content={content}
+            onChange={setContent}
+            onImprove={improveWriting}
+            onSave={handleSubmit}
+            isLoading={submitting}
+          />
         </div>
 
         <div className="p-4 border-t border-white/10 flex justify-end gap-2">
