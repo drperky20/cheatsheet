@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { CourseCard } from "./CourseCard";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -6,6 +5,13 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { BookOpen, Clock, ArrowUpDown } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -34,6 +40,8 @@ export const CoursesDashboard = () => {
   const [courses, setCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
   const [sortBy, setSortBy] = useState<SortOption>("name");
+  const [showDisclaimer, setShowDisclaimer] = useState(false);
+  const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
   const { toast } = useToast();
   const { canvasConfig } = useAuth();
 
@@ -45,7 +53,7 @@ export const CoursesDashboard = () => {
     let allAssignments: any[] = [];
     let page = 1;
     let hasMore = true;
-    const PER_PAGE = 100; // Maximum allowed by Canvas API
+    const PER_PAGE = 100;
 
     while (hasMore) {
       console.log(`Fetching assignments page ${page} for course ${courseId}...`);
@@ -66,7 +74,6 @@ export const CoursesDashboard = () => {
       const pageAssignments = Array.isArray(assignments) ? assignments : [];
       allAssignments = [...allAssignments, ...pageAssignments];
 
-      // If we received fewer assignments than the page size, we've reached the end
       if (pageAssignments.length < PER_PAGE) {
         hasMore = false;
       } else {
@@ -96,7 +103,6 @@ export const CoursesDashboard = () => {
 
       if (coursesError) throw coursesError;
 
-      // Fetch assignment counts for each course
       const coursesWithAssignments = await Promise.all(
         (Array.isArray(coursesData) ? coursesData : []).map(async (course) => {
           const assignments = await fetchAllAssignments(course.id);
@@ -104,15 +110,11 @@ export const CoursesDashboard = () => {
           const startDate = new Date('2024-01-01');
           const totalAssignments = assignments.length;
           const missingAssignments = assignments.filter(a => {
-            // Check if the assignment has a due date and it's after Jan 1st, 2024
             const dueDate = a.due_at ? new Date(a.due_at) : null;
             if (!dueDate || dueDate < startDate) return false;
-
-            // Check if the assignment has points possible and if the submission score is 0
             const hasSubmission = a.submission && typeof a.submission.score === 'number';
             const isZeroScore = hasSubmission && a.submission.score === 0;
             const hasPointsPossible = a.points_possible > 0;
-
             return hasPointsPossible && isZeroScore;
           }).length;
 
@@ -165,6 +167,11 @@ export const CoursesDashboard = () => {
     setCourses(sortCourses(courses, option));
   };
 
+  const handleCourseClick = (course: Course) => {
+    setSelectedCourse(course);
+    setShowDisclaimer(true);
+  };
+
   if (loading) {
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -187,44 +194,93 @@ export const CoursesDashboard = () => {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-2">
-          <BookOpen className="w-5 h-5" />
-          <h2 className="text-xl font-semibold">Your Courses</h2>
-        </div>
-        <div className="flex items-center space-x-4">
-          <div className="flex items-center space-x-2 text-sm text-gray-400">
-            <Clock className="w-4 h-4" />
-            <span>Real-time sync enabled</span>
+    <>
+      <Dialog open={showDisclaimer} onOpenChange={setShowDisclaimer}>
+        <DialogContent className="bg-black/90 border border-white/10 text-white">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold text-[#9b87f5]">⚠️ Alpha Feature Warning</DialogTitle>
+            <DialogDescription className="text-white/80 space-y-4">
+              <p className="text-lg font-semibold text-red-400">
+                This feature is currently in ALPHA testing!
+              </p>
+              <div className="space-y-2">
+                <p>Please be aware of the following:</p>
+                <ul className="list-disc pl-5 space-y-1">
+                  <li>The assignment completion feature is experimental and may break unexpectedly</li>
+                  <li>For best results, we recommend using the chat bar above to upload assignment information directly</li>
+                  <li>Some assignments may not be properly processed or may fail to submit</li>
+                  <li>Always review and verify any generated content before submission</li>
+                </ul>
+              </div>
+              <p className="font-medium text-[#9b87f5]">
+                Do you wish to continue anyway?
+              </p>
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end space-x-2">
+            <Button
+              variant="ghost"
+              onClick={() => setShowDisclaimer(false)}
+              className="bg-white/10 hover:bg-white/20"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                setShowDisclaimer(false);
+                if (selectedCourse) {
+                  console.log("Proceeding with course:", selectedCourse);
+                }
+              }}
+              className="bg-[#9b87f5] hover:bg-[#8b5cf6]"
+            >
+              I Understand, Continue
+            </Button>
           </div>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="flex items-center gap-2">
-                <ArrowUpDown className="h-4 w-4" />
-                Sort
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="bg-black/80 backdrop-blur-lg border-white/10">
-              <DropdownMenuItem onClick={() => handleSort("name")}>
-                Sort by Name
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleSort("pending")}>
-                Sort by Missing
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleSort("progress")}>
-                Sort by Progress
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+        </DialogContent>
+      </Dialog>
+
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <BookOpen className="w-5 h-5" />
+            <h2 className="text-xl font-semibold">Your Courses</h2>
+          </div>
+          <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-2 text-sm text-gray-400">
+              <Clock className="w-4 h-4" />
+              <span>Real-time sync enabled</span>
+            </div>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="sm" className="flex items-center gap-2">
+                  <ArrowUpDown className="h-4 w-4" />
+                  Sort
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="bg-black/80 backdrop-blur-lg border-white/10">
+                <DropdownMenuItem onClick={() => handleSort("name")}>
+                  Sort by Name
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleSort("pending")}>
+                  Sort by Missing
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleSort("progress")}>
+                  Sort by Progress
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {courses.map((course) => (
+            <div key={course.id} onClick={() => handleCourseClick(course)} className="cursor-pointer">
+              <CourseCard course={course} />
+            </div>
+          ))}
         </div>
       </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {courses.map((course) => (
-          <CourseCard key={course.id} course={course} />
-        ))}
-      </div>
-    </div>
+    </>
   );
 };

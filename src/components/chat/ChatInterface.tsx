@@ -1,4 +1,3 @@
-
 import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Send, Loader2, Upload } from "lucide-react";
@@ -17,7 +16,7 @@ interface Message {
   content: string;
 }
 
-// Supported file formats and their descriptions
+// Updated supported formats with image types
 const SUPPORTED_FORMATS = {
   'application/pdf': 'PDF documents',
   'text/plain': 'Text files (.txt)',
@@ -27,6 +26,11 @@ const SUPPORTED_FORMATS = {
   'text/rtf': 'Rich Text Format (.rtf)',
   'application/x-latex': 'LaTeX documents (.tex)',
   'text/csv': 'CSV files',
+  'image/jpeg': 'JPEG images',
+  'image/png': 'PNG images',
+  'image/gif': 'GIF images',
+  'image/webp': 'WebP images',
+  'image/heic': 'HEIC images',
 } as const;
 
 export const ChatInterface = ({ onBack, initialQuestion = '', initialFile = null }: ChatInterfaceProps) => {

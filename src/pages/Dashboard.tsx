@@ -26,6 +26,11 @@ const SUPPORTED_FORMATS = {
   'text/rtf': 'Rich Text Format (.rtf)',
   'application/x-latex': 'LaTeX documents (.tex)',
   'text/csv': 'CSV files',
+  'image/jpeg': 'JPEG images',
+  'image/png': 'PNG images',
+  'image/gif': 'GIF images',
+  'image/webp': 'WebP images',
+  'image/heic': 'HEIC images',
 } as const;
 
 const Dashboard = () => {
