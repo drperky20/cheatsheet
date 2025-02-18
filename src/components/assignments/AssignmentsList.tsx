@@ -108,22 +108,24 @@ export const AssignmentsList = ({ courseId, onStartAssignment }: AssignmentsList
 
   const cacheAssignments = async (assignments: Assignment[]) => {
     try {
-      // Convert assignments to the format expected by the cached_assignments table
-      const cacheData = assignments.map(a => ({
-        course_id: courseId,
-        canvas_assignment_id: a.id,
-        name: a.name,
-        description: a.description || null,
-        due_at: a.due_at ? new Date(a.due_at).toISOString() : null,
-        points_possible: a.points_possible || null,
-        published: a.published
-      }));
-
+      // Using raw insert instead of typed insert since the table is new
       const { error } = await supabase
-        .from('cached_assignments')
-        .upsert(cacheData, {
-          onConflict: 'course_id,canvas_assignment_id'
-        });
+        .from('assignments')
+        .upsert(
+          assignments.map(a => ({
+            canvas_assignment_id: a.id,
+            course_id: courseId,
+            title: a.name,
+            description: a.description || null,
+            due_date: a.due_at ? new Date(a.due_at).toISOString() : null,
+            points_possible: a.points_possible || null,
+            status: 'pending',
+            requirements: null
+          })),
+          {
+            onConflict: 'canvas_assignment_id'
+          }
+        );
 
       if (error) {
         console.error('Error caching assignments:', error);
