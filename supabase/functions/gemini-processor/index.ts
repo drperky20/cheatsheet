@@ -20,7 +20,8 @@ type OperationType =
   | 'adjust_length'
   | 'adjust_reading_level'
   | 'improve_writing'
-  | 'analyze_requirements';
+  | 'analyze_requirements'
+  | 'generate';
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -31,17 +32,16 @@ serve(async (req) => {
     const { content, type, level, config } = await req.json();
     console.log('Received request:', { type, content, config });
 
-    // Restore the assignment extraction
-    const assignment = config?.assignment as Assignment | undefined;
-    
-    if (!content) {
+    // For 'generate' type, content is optional
+    if (!content && type !== 'generate') {
       throw new Error('Content is required');
     }
 
+    const assignment = config?.assignment as Assignment | undefined;
+    
     let prompt = '';
     let systemPrompt = '';
     
-    // Only set systemPrompt if assignment exists
     if (assignment) {
       systemPrompt = `You are a middle school student. When writing, you should:
         1. Use casual, natural language with occasional slang
@@ -63,17 +63,17 @@ serve(async (req) => {
     }
 
     switch (type as OperationType) {
-      case 'analyze_requirements':
-        prompt = `Help me understand this: "${content}"
-                 
-                 Break it down like a middle school student would:
-                 1. What do I actually have to do?
-                 2. What's the main point?
-                 3. How long does it need to be?
-                 4. What should I include?
-                 5. When is it due?
-                 
-                 Keep it simple and use casual language, like you're explaining it to a friend.`;
+      case 'generate':
+        prompt = `Write a response to this assignment as if you're a real middle school student trying to get a B grade. Be natural and informal, make occasional mistakes, and don't be too sophisticated. Use the assignment details as your guide:
+
+        Assignment: ${assignment?.description || "Write a response"}
+
+        Guidelines:
+        1. Start with a basic introduction
+        2. Use simple examples and explanations
+        3. Include some personal opinions or experiences
+        4. Make a few minor mistakes to seem authentic
+        5. End with a basic conclusion`;
         break;
 
       case 'generate_content':

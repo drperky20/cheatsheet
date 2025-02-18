@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -160,6 +161,7 @@ export const AssignmentEditor = ({
       setIsProcessing(true);
       const { data, error } = await supabase.functions.invoke('gemini-processor', {
         body: {
+          content: assignment?.description || "",  // Provide assignment description as initial content
           type: 'generate',
           config: { assignment }
         }
