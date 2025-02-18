@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -13,7 +12,7 @@ interface Assignment {
   id: string;
   name: string;
   description: string;
-  due_at: string;
+  due_at: string | null;
   points_possible: number;
   submission_types: string[];
   workflow_state: string;
@@ -35,51 +34,71 @@ export const AssignmentsList = ({ courseId, onStartAssignment }: AssignmentsList
 
   useEffect(() => {
     if (canvasConfig && courseId) {
-      fetchAssignments();
+      fetchAllAssignments();
     }
   }, [courseId, canvasConfig]);
 
-  const fetchAssignments = async () => {
+  const fetchAllAssignments = async () => {
     try {
       if (!canvasConfig) {
         throw new Error('Canvas configuration not found');
       }
 
-      console.log('Fetching assignments for course:', courseId);
-      const { data, error } = await supabase.functions.invoke('canvas-proxy', {
-        body: {
-          endpoint: `/courses/${courseId}/assignments`,
-          method: 'GET',
-          domain: canvasConfig.domain,
-          apiKey: canvasConfig.api_key
+      console.log('Starting to fetch all assignments for course:', courseId);
+      let allAssignments: Assignment[] = [];
+      let page = 1;
+      let hasMore = true;
+
+      // Fetch all pages of assignments
+      while (hasMore) {
+        console.log(`Fetching page ${page} of assignments...`);
+        const { data, error } = await supabase.functions.invoke('canvas-proxy', {
+          body: {
+            endpoint: `/courses/${courseId}/assignments?page=${page}&per_page=100`,
+            method: 'GET',
+            domain: canvasConfig.domain,
+            apiKey: canvasConfig.api_key
+          }
+        });
+
+        if (error) throw error;
+
+        // Ensure data is an array
+        const pageAssignments = Array.isArray(data) ? data : [];
+        console.log(`Received ${pageAssignments.length} assignments on page ${page}`);
+
+        if (pageAssignments.length === 0) {
+          hasMore = false;
+        } else {
+          allAssignments = [...allAssignments, ...pageAssignments];
+          page++;
         }
-      });
+      }
 
-      if (error) throw error;
-
-      // Ensure data is an array
-      let assignmentsData = Array.isArray(data) ? data : [];
-      console.log('Raw assignments data:', assignmentsData);
+      console.log('Total assignments fetched:', allAssignments.length);
 
       // Filter active and published assignments
-      assignmentsData = assignmentsData.filter(assignment => 
+      const filteredAssignments = allAssignments.filter(assignment => 
         assignment && 
         assignment.workflow_state !== 'deleted' &&
         assignment.published === true
       );
 
-      // Sort by due date (newest first), handling null due dates
-      const sortedAssignments = assignmentsData.sort((a, b) => {
-        // Put assignments without due dates at the end
+      console.log('Filtered assignments count:', filteredAssignments.length);
+
+      // Sort assignments by due date (newest first)
+      const sortedAssignments = filteredAssignments.sort((a, b) => {
+        // Handle null values - put them at the end
+        if (!a.due_at && !b.due_at) return 0;
         if (!a.due_at) return 1;
         if (!b.due_at) return -1;
-        
+
         const dateA = new Date(a.due_at);
         const dateB = new Date(b.due_at);
         return dateB.getTime() - dateA.getTime();
       });
 
-      console.log('Processed assignments:', sortedAssignments);
+      console.log('Assignments sorted by due date');
       setAssignments(sortedAssignments);
     } catch (error) {
       console.error('Error fetching assignments:', error);
@@ -111,7 +130,7 @@ export const AssignmentsList = ({ courseId, onStartAssignment }: AssignmentsList
     }
   };
 
-  const getDueStatus = (dueDate: string) => {
+  const getDueStatus = (dueDate: string | null) => {
     if (!dueDate) return { text: "No due date", color: "text-gray-400" };
 
     const now = new Date();
@@ -131,7 +150,7 @@ export const AssignmentsList = ({ courseId, onStartAssignment }: AssignmentsList
   if (loading) {
     return (
       <div className="space-y-4 h-[calc(100vh-12rem)] overflow-y-auto p-4 border border-white/10 rounded-lg">
-        {[1, 2, 3].map((i) => (
+        {[1, 2, 3, 4, 5].map((i) => (
           <Skeleton key={i} className="h-[100px] rounded-lg" />
         ))}
       </div>
@@ -150,6 +169,9 @@ export const AssignmentsList = ({ courseId, onStartAssignment }: AssignmentsList
             onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-10 bg-black/20 border-white/10"
           />
+        </div>
+        <div className="mt-2 text-sm text-gray-400">
+          {assignments.length} assignments found
         </div>
       </div>
 
