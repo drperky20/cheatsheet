@@ -30,12 +30,10 @@ serve(async (req) => {
       url.searchParams.append('state[]', 'available')
       url.searchParams.append('include[]', 'term')
     } else if (endpoint.includes('/assignments')) {
-      // Parameters for assignments endpoint
+      // Parameters for assignments endpoint - just get all assignments
       url.searchParams.append('include[]', 'submission')
       url.searchParams.append('include[]', 'overrides')
       url.searchParams.append('per_page', '100')
-      url.searchParams.append('order_by', 'due_at')
-      url.searchParams.append('order', 'desc')
     }
     
     console.log('Requesting Canvas API URL:', url.toString())
@@ -77,28 +75,9 @@ serve(async (req) => {
         status: 200,
       })
     } else {
-      // Filter assignments to show relevant ones
-      const now = new Date()
-      
-      const activeAssignments = Array.isArray(data) ? data.filter((assignment: any) => {
-        if (!assignment) return false
-        
-        // Only show published assignments
-        if (!assignment.published) return false
-        
-        // Don't filter by submission status - show all assignments
-        return assignment.published
-      }) : []
-      
-      // Sort by due date (newest first)
-      activeAssignments.sort((a: any, b: any) => {
-        const dateA = a.due_at ? new Date(a.due_at) : new Date(0)
-        const dateB = b.due_at ? new Date(b.due_at) : new Date(0)
-        return dateB.getTime() - dateA.getTime()
-      })
-      
-      console.log('Filtered active assignments:', JSON.stringify(activeAssignments, null, 2))
-      return new Response(JSON.stringify(activeAssignments), {
+      // Just return the raw assignments data - we'll handle filtering and sorting in the frontend
+      console.log('Returning assignments data')
+      return new Response(JSON.stringify(data), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200,
       })

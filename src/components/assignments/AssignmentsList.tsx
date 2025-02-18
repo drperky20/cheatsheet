@@ -17,6 +17,7 @@ interface Assignment {
   submission_types: string[];
   workflow_state: string;
   html_url: string;
+  published: boolean;
 }
 
 interface AssignmentsListProps {
@@ -54,8 +55,18 @@ export const AssignmentsList = ({ courseId, onStartAssignment }: AssignmentsList
 
       if (error) throw error;
 
-      console.log('Fetched assignments:', data);
-      setAssignments(Array.isArray(data) ? data : []);
+      // Filter and sort assignments
+      const filteredAssignments = Array.isArray(data) ? data
+        .filter(assignment => assignment && assignment.published)
+        .sort((a, b) => {
+          // Sort by due date (newest first)
+          const dateA = a.due_at ? new Date(a.due_at) : new Date(0);
+          const dateB = b.due_at ? new Date(b.due_at) : new Date(0);
+          return dateB.getTime() - dateA.getTime();
+        }) : [];
+
+      console.log('Filtered and sorted assignments:', filteredAssignments);
+      setAssignments(filteredAssignments);
     } catch (error) {
       console.error('Error fetching assignments:', error);
       toast.error("Failed to load assignments");
