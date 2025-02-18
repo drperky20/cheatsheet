@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -28,6 +27,7 @@ import {
   PenTool,
   RefreshCw,
   BookOpen,
+  Settings,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Card } from "@/components/ui/card";
@@ -68,7 +68,7 @@ export const AssignmentEditor = ({
 }: EditorProps) => {
   const [versions, setVersions] = useState<Version[]>([]);
   const [selectedText, setSelectedText] = useState('');
-  const [adjustLength, setAdjustLength] = useState(1); // 0.5 to 2.0
+  const [adjustLength, setAdjustLength] = useState(1);
 
   const handleTextSelect = () => {
     const selection = window.getSelection();
@@ -154,16 +154,18 @@ export const AssignmentEditor = ({
   };
 
   return (
-    <Card className="p-6 space-y-6 bg-black/40 border-white/10 backdrop-blur-xl">
+    <Card className="p-6 space-y-6 bg-gradient-to-br from-black/60 to-black/40 border-white/10 backdrop-blur-xl shadow-lg">
       <div className="flex items-center justify-between">
-        <Label className="text-lg font-semibold text-gradient">Your Response</Label>
+        <Label className="text-xl font-semibold bg-gradient-to-br from-white via-white/90 to-[#D6BCFA] bg-clip-text text-transparent">
+          Your Response
+        </Label>
         <div className="flex items-center gap-3">
           <Button
             variant="outline"
             size="sm"
             onClick={onGenerate}
             disabled={isGenerating}
-            className="gap-2 bg-white/5 hover:bg-white/10 border-white/10"
+            className="gap-2 bg-white/5 hover:bg-white/10 border-white/10 text-white/90"
           >
             <Wand2 className="w-4 h-4" />
             {isGenerating ? "Generating..." : "Generate Response"}
@@ -174,23 +176,24 @@ export const AssignmentEditor = ({
               <Button 
                 variant="outline" 
                 size="sm" 
-                className="gap-2 bg-white/5 hover:bg-white/10 border-white/10"
+                className="gap-2 bg-white/5 hover:bg-white/10 border-white/10 text-white/90"
               >
                 <History className="w-4 h-4" />
-                Version History
+                History
                 <ChevronDown className="w-4 h-4" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56 bg-black/90 border-white/10">
-              <DropdownMenuLabel>Previous Versions</DropdownMenuLabel>
-              <DropdownMenuSeparator />
+              <DropdownMenuLabel className="text-white/90">Previous Versions</DropdownMenuLabel>
+              <DropdownMenuSeparator className="bg-white/10" />
               {versions.length === 0 ? (
-                <DropdownMenuItem disabled>No versions saved</DropdownMenuItem>
+                <DropdownMenuItem disabled className="text-white/60">No versions saved</DropdownMenuItem>
               ) : (
                 versions.map((version, index) => (
                   <DropdownMenuItem
                     key={index}
                     onClick={() => restoreVersion(version)}
+                    className="text-white/90 hover:bg-white/10"
                   >
                     Version {index + 1} - {version.timestamp.toLocaleTimeString()}
                   </DropdownMenuItem>
@@ -203,99 +206,109 @@ export const AssignmentEditor = ({
             variant="outline"
             size="sm"
             onClick={saveVersion}
-            className="gap-2 bg-white/5 hover:bg-white/10 border-white/10"
+            className="gap-2 bg-white/5 hover:bg-white/10 border-white/10 text-white/90"
           >
             <Save className="w-4 h-4" />
-            Save Version
+            Save
           </Button>
         </div>
       </div>
 
-      <div className="space-y-4">
-        <div className="flex items-center gap-4">
-          <div className="flex-1">
-            <Label className="text-sm text-white/60 mb-2">Adjust Length</Label>
-            <Slider
-              value={[adjustLength]}
-              onValueChange={([value]) => setAdjustLength(value)}
-              min={0.5}
-              max={2}
-              step={0.1}
-              className="my-2"
-            />
-          </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={adjustText}
-            className="gap-2 h-10 bg-white/5 hover:bg-white/10 border-white/10"
-          >
-            <PenTool className="w-4 h-4" />
-            {selectedText ? "Adjust Selection" : "Adjust Text"}
-          </Button>
-        </div>
+      <div className="relative space-y-4">
+        <Textarea
+          value={content}
+          onChange={(e) => onChange(e.target.value)}
+          onSelect={handleTextSelect}
+          className="min-h-[400px] bg-black/20 border-white/10 text-white/90 placeholder-white/50 font-mono rounded-xl resize-none"
+          placeholder="Start writing or generate content..."
+        />
 
-        <div className="relative">
-          <Textarea
-            value={content}
-            onChange={(e) => onChange(e.target.value)}
-            onSelect={handleTextSelect}
-            className="min-h-[400px] bg-black/20 border-white/10 text-white/90 placeholder-white/50 font-mono rounded-xl resize-none"
-            placeholder="Start writing or generate content..."
-          />
+        <Card className="absolute bottom-4 right-4 p-2 bg-black/80 border-white/10 backdrop-blur-md">
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 pr-4 border-r border-white/10">
+              <Label className="text-xs text-white/60">Length</Label>
+              <div className="w-32">
+                <Slider
+                  value={[adjustLength]}
+                  onValueChange={([value]) => setAdjustLength(value)}
+                  min={0.5}
+                  max={2}
+                  step={0.1}
+                  className="my-1.5"
+                />
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={adjustText}
+                className="h-8 px-2 hover:bg-white/10 text-white/90"
+              >
+                <PenTool className="w-4 h-4" />
+              </Button>
+            </div>
 
-          <div className="absolute bottom-4 right-4 flex items-center gap-2">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button 
                   size="sm" 
-                  variant="outline" 
-                  className="gap-2 bg-black/40 hover:bg-black/60 border-white/10"
+                  variant="ghost" 
+                  className="h-8 px-2 hover:bg-white/10 text-white/90"
                 >
                   <BookOpen className="w-4 h-4" />
-                  Reading Level
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-56 bg-black/90 border-white/10">
-                <DropdownMenuItem onClick={() => changeReadingLevel('elementary')}>
-                  <GraduationCap className="w-4 h-4 mr-2" />
+              <DropdownMenuContent className="w-40 bg-black/90 border-white/10">
+                <DropdownMenuLabel className="text-white/60">Reading Level</DropdownMenuLabel>
+                <DropdownMenuSeparator className="bg-white/10" />
+                <DropdownMenuItem 
+                  onClick={() => changeReadingLevel('elementary')}
+                  className="text-white/90 hover:bg-white/10"
+                >
                   Elementary
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => changeReadingLevel('middle_school')}>
-                  <GraduationCap className="w-4 h-4 mr-2" />
+                <DropdownMenuItem 
+                  onClick={() => changeReadingLevel('middle_school')}
+                  className="text-white/90 hover:bg-white/10"
+                >
                   Middle School
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => changeReadingLevel('high_school')}>
-                  <GraduationCap className="w-4 h-4 mr-2" />
+                <DropdownMenuItem 
+                  onClick={() => changeReadingLevel('high_school')}
+                  className="text-white/90 hover:bg-white/10"
+                >
                   High School
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => changeReadingLevel('college')}>
-                  <GraduationCap className="w-4 h-4 mr-2" />
+                <DropdownMenuItem 
+                  onClick={() => changeReadingLevel('college')}
+                  className="text-white/90 hover:bg-white/10"
+                >
                   Graduate Level
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
 
             <Button
-              variant="outline"
+              variant="ghost"
               size="sm"
               onClick={onImprove}
               disabled={isImproving}
-              className="gap-2 bg-black/40 hover:bg-black/60 border-white/10"
+              className="h-8 px-2 hover:bg-white/10 text-white/90"
             >
               <Sparkles className="w-4 h-4" />
-              {isImproving ? "Polishing..." : "Polish Writing"}
             </Button>
           </div>
-        </div>
+        </Card>
       </div>
 
-      <div className="flex justify-end gap-2">
+      <div className="flex justify-between items-center">
+        <div className="text-sm text-white/60">
+          {selectedText ? `${selectedText.length} characters selected` : `${content.length} characters`}
+        </div>
         {onSave && (
           <Button
             onClick={onSave}
             disabled={isSubmitting || !content.trim()}
-            className="gap-2 bg-[#9b87f5] hover:bg-[#8b77e5] text-white"
+            className="gap-2 bg-[#9b87f5] hover:bg-[#8b77e5] text-white border-none"
           >
             <Send className="w-4 h-4" />
             {isSubmitting ? "Submitting..." : "Submit to Canvas"}
