@@ -1,4 +1,5 @@
 
+import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { CanvasSetup } from "@/components/canvas/CanvasSetup";
 import { CoursesDashboard } from "@/components/courses/CoursesDashboard";
@@ -14,10 +15,13 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useNavigate } from "react-router-dom";
+import { ChatInterface } from "@/components/chat/ChatInterface";
 
 const Dashboard = () => {
   const { profile, canvasConfig, signOut } = useAuth();
   const navigate = useNavigate();
+  const [showChat, setShowChat] = useState(false);
+  const [initialQuestion, setInitialQuestion] = useState("");
 
   if (!canvasConfig) {
     return (
@@ -38,6 +42,17 @@ const Dashboard = () => {
       </div>
     );
   }
+
+  if (showChat) {
+    return <ChatInterface onBack={() => setShowChat(false)} initialQuestion={initialQuestion} />;
+  }
+
+  const handleAskQuestion = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (initialQuestion.trim()) {
+      setShowChat(true);
+    }
+  };
 
   return (
     <div className="min-h-screen w-full relative overflow-hidden bg-black">
@@ -103,24 +118,29 @@ const Dashboard = () => {
 
         {/* Quick Actions */}
         <div className="mb-8">
-          <div className="glass-morphism rounded-xl p-2">
-            <div className="relative">
-              <Input
-                type="text"
-                placeholder="Ask anything... Or upload a file and ask about it"
-                className="w-full h-16 pl-6 pr-24 bg-white/5 border-0 text-white placeholder:text-gray-400 rounded-xl focus:ring-2 focus:ring-[#9b87f5] transition-all"
-              />
-              <div className="absolute right-2 top-1/2 -translate-y-1/2">
-                <Button
-                  type="submit"
-                  size="icon"
-                  className="h-12 w-12 rounded-xl bg-[#9b87f5] hover:bg-[#8b5cf6] transition-all duration-200 hover:scale-105"
-                >
-                  <Send className="h-5 w-5" />
-                </Button>
+          <form onSubmit={handleAskQuestion}>
+            <div className="glass-morphism rounded-xl p-2">
+              <div className="relative">
+                <Input
+                  type="text"
+                  placeholder="Ask anything... Or upload a file and ask about it"
+                  value={initialQuestion}
+                  onChange={(e) => setInitialQuestion(e.target.value)}
+                  className="w-full h-16 pl-6 pr-24 bg-white/5 border-0 text-white placeholder:text-gray-400 rounded-xl focus:ring-2 focus:ring-[#9b87f5] transition-all"
+                />
+                <div className="absolute right-2 top-1/2 -translate-y-1/2">
+                  <Button
+                    type="submit"
+                    size="icon"
+                    className="h-12 w-12 rounded-xl bg-[#9b87f5] hover:bg-[#8b5cf6] transition-all duration-200 hover:scale-105 disabled:opacity-50"
+                    disabled={!initialQuestion.trim()}
+                  >
+                    <Send className="h-5 w-5" />
+                  </Button>
+                </div>
               </div>
             </div>
-          </div>
+          </form>
         </div>
 
         {/* Courses Dashboard */}
