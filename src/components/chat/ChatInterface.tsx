@@ -87,9 +87,16 @@ export const ChatInterface = ({ onBack, initialQuestion = '' }: ChatInterfacePro
       setUploadedFile(null);
     } catch (error) {
       console.error('Error in handleSubmit:', error);
+      
+      // Handle rate limit errors specially
+      const isRateLimit = error.message?.toLowerCase().includes('rate limit') || 
+                         error.message?.includes('429');
+      
       toast({
-        title: "Error",
-        description: error.message || "Failed to get a response. Please try again.",
+        title: isRateLimit ? "Too Many Requests" : "Error",
+        description: isRateLimit 
+          ? "Please wait a moment before trying again."
+          : error.message || "Failed to get a response. Please try again.",
         variant: "destructive"
       });
     } finally {

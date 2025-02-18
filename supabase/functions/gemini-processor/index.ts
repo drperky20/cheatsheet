@@ -9,6 +9,30 @@ const corsHeaders = {
   'Content-Type': 'application/json'
 };
 
+// Simple in-memory rate limiting
+const RATE_LIMIT_WINDOW = 60000; // 1 minute
+const MAX_REQUESTS = 10; // 10 requests per minute
+const requestLog = new Map<string, number[]>();
+
+function isRateLimited(clientIP: string): boolean {
+  const now = Date.now();
+  const clientRequests = requestLog.get(clientIP) || [];
+  
+  // Clean up old requests
+  const recentRequests = clientRequests.filter(timestamp => now - timestamp < RATE_LIMIT_WINDOW);
+  
+  // Update request log
+  requestLog.set(clientIP, recentRequests);
+  
+  return recentRequests.length >= MAX_REQUESTS;
+}
+
+function logRequest(clientIP: string) {
+  const requests = requestLog.get(clientIP) || [];
+  requests.push(Date.now());
+  requestLog.set(clientIP, requests);
+}
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -19,6 +43,29 @@ serve(async (req) => {
   }
 
   try {
+    // Get client IP for rate limiting
+    const clientIP = req.headers.get('x-forwarded-for') || 'unknown';
+    
+    // Check rate limit
+    if (isRateLimited(clientIP)) {
+      return new Response(
+        JSON.stringify({
+          error: 'Rate limit exceeded. Please try again in a minute.',
+          retryAfter: RATE_LIMIT_WINDOW / 1000
+        }),
+        { 
+          status: 429,
+          headers: {
+            ...corsHeaders,
+            'Retry-After': `${RATE_LIMIT_WINDOW / 1000}`
+          }
+        }
+      );
+    }
+
+    // Log this request
+    logRequest(clientIP);
+
     // Validate request method
     if (req.method !== 'POST') {
       throw new Error(`Method ${req.method} not allowed`);
@@ -66,30 +113,62 @@ serve(async (req) => {
         throw new Error(`Invalid processing type: ${type}`);
     }
 
-    // Generate content
-    console.log('Generating content with Gemini...');
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const text = response.text();
+    // Generate content with retry logic
+    let attempts = 0;
+    const maxAttempts = 3;
+    let lastError = null;
 
-    console.log('Successfully generated content');
+    while (attempts < maxAttempts) {
+      try {
+        console.log(`Attempt ${attempts + 1} of ${maxAttempts}...`);
+        const result = await model.generateContent(prompt);
+        const response = await result.response;
+        const text = response.text();
+        
+        console.log('Successfully generated content');
+        return new Response(
+          JSON.stringify({ result: text }),
+          { headers: corsHeaders }
+        );
+      } catch (error) {
+        lastError = error;
+        attempts++;
+        
+        // If it's a rate limit error, wait before retrying
+        if (error.toString().includes('429')) {
+          console.log('Rate limit hit, waiting before retry...');
+          await new Promise(resolve => setTimeout(resolve, 2000 * attempts)); // Exponential backoff
+          continue;
+        }
+        
+        // For other errors, throw immediately
+        throw error;
+      }
+    }
 
-    return new Response(
-      JSON.stringify({ result: text }),
-      { headers: corsHeaders }
-    );
+    // If we get here, all attempts failed
+    throw lastError || new Error('Failed to generate content after multiple attempts');
 
   } catch (error) {
     console.error('Edge Function Error:', error);
     
+    // Determine if it's a rate limit error
+    const isRateLimit = error.toString().includes('429');
+    
     return new Response(
       JSON.stringify({
-        error: error.message || 'An unexpected error occurred',
-        details: error.toString()
+        error: isRateLimit 
+          ? 'The AI service is currently busy. Please try again in a few moments.'
+          : error.message || 'An unexpected error occurred',
+        details: error.toString(),
+        retryAfter: isRateLimit ? 5 : undefined
       }),
       { 
-        status: 500,
-        headers: corsHeaders
+        status: isRateLimit ? 429 : 500,
+        headers: {
+          ...corsHeaders,
+          ...(isRateLimit ? { 'Retry-After': '5' } : {})
+        }
       }
     );
   }
