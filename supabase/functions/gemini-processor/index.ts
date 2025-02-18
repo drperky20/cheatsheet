@@ -14,6 +14,14 @@ interface Assignment {
   due_at: string;
 }
 
+type OperationType = 
+  | 'generate_content'
+  | 'adjust_text'
+  | 'adjust_length'
+  | 'adjust_reading_level'
+  | 'improve_writing'
+  | 'analyze_requirements';
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -21,6 +29,8 @@ serve(async (req) => {
 
   try {
     const { content, type, level, config } = await req.json();
+    console.log('Received request:', { type, config }); // Add logging
+
     const assignment = config?.assignment as Assignment | undefined;
 
     if (!content) {
@@ -47,13 +57,14 @@ serve(async (req) => {
         Write as if you are a student completing this assignment.`;
     }
 
-    switch (type) {
+    switch (type as OperationType) {
       case 'generate_content':
         prompt = `Given this assignment: "${content}", generate a well-written response that would receive a B grade. 
                  Include some minor imperfections to sound natural. Use straightforward language and occasional personal insights.`;
         break;
       
       case 'adjust_text':
+      case 'adjust_length':
         const lengthFactor = config?.lengthFactor || 1;
         const textType = config?.selection ? 'selected section' : 'entire text';
         prompt = `Adjust the length of this ${textType} by a factor of ${lengthFactor} (where 1 is original length): "${content}"
@@ -83,9 +94,24 @@ serve(async (req) => {
                  5. Don't make it sound too polished or professional`;
         break;
       
+      case 'analyze_requirements':
+        prompt = `Analyze this assignment description and provide key insights:
+                 "${content}"
+                 
+                 Please identify:
+                 1. Main objectives and deliverables
+                 2. Key requirements and constraints
+                 3. Suggested approach
+                 4. Potential challenges
+                 5. Tips for success`;
+        break;
+      
       default:
-        throw new Error('Invalid operation type');
+        console.error('Invalid operation type:', type);
+        throw new Error(`Invalid operation type: ${type}`);
     }
+
+    console.log('Sending prompt to Gemini:', prompt); // Add logging
 
     const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent', {
       method: 'POST',
@@ -109,7 +135,7 @@ serve(async (req) => {
     });
 
     const data = await response.json();
-    console.log('Gemini response:', data);
+    console.log('Gemini response:', data); // Add logging
 
     if (!data.candidates?.[0]?.content?.parts?.[0]?.text) {
       throw new Error('Invalid response from Gemini API');
@@ -121,7 +147,7 @@ serve(async (req) => {
     );
 
   } catch (error) {
-    console.error('Error:', error);
+    console.error('Error in edge function:', error); // Add logging
     return new Response(
       JSON.stringify({ error: error.message }),
       { 
