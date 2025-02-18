@@ -67,7 +67,7 @@ export const ChatInterface = ({ onBack, initialQuestion = '', initialFile = null
     if (!input.trim() && !uploadedFile) return;
 
     const userMessage = uploadedFile 
-      ? `${input}\n[Analyzing file: ${uploadedFile.name}]`
+      ? `${input}\n[Analyzing file: ${uploadedFile.name} with Gemini 2.0 flash-thinking]`
       : input;
 
     setMessages(prev => [...prev, { role: 'user', content: userMessage }]);
