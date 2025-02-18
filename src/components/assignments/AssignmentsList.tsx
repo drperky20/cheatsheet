@@ -121,12 +121,12 @@ export const AssignmentsList = ({ courseId, onStartAssignment }: AssignmentsList
           .from('assignments')
           .upsert(
             chunk.map(a => ({
-              canvas_assignment_id: a.id,
-              course_id: courseId,
+              canvas_assignment_id: String(a.id), // Convert to string
+              course_id: String(courseId), // Convert to string
               title: a.name,
               description: a.description || null,
               due_date: a.due_at ? new Date(a.due_at).toISOString() : null,
-              points_possible: a.points_possible || null,
+              points_possible: typeof a.points_possible === 'number' ? a.points_possible : null,
               status: 'pending',
               requirements: null
             })),
