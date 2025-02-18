@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { LogIn, UserPlus, Mail, Lock, User } from "lucide-react";
 
 export const AuthForm = () => {
   const { signIn, signUp } = useAuth();
@@ -28,36 +29,48 @@ export const AuthForm = () => {
   };
 
   return (
-    <Card className="p-6 glass">
+    <Card className="p-6 bg-black/40 backdrop-blur-xl border border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.4)]">
       <Tabs defaultValue="signin" className="w-full">
-        <TabsList className="grid w-full grid-cols-2 mb-6">
-          <TabsTrigger value="signin">Sign In</TabsTrigger>
-          <TabsTrigger value="signup">Sign Up</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-2 mb-8 bg-black/20">
+          <TabsTrigger value="signin" className="data-[state=active]:bg-[#9b87f5] data-[state=active]:text-white">
+            <LogIn className="w-4 h-4 mr-2" />
+            Sign In
+          </TabsTrigger>
+          <TabsTrigger value="signup" className="data-[state=active]:bg-[#9b87f5] data-[state=active]:text-white">
+            <UserPlus className="w-4 h-4 mr-2" />
+            Sign Up
+          </TabsTrigger>
         </TabsList>
         
         <TabsContent value="signin">
           <form onSubmit={handleSignIn} className="space-y-4">
-            <Input
-              type="email"
-              placeholder="Email address"
-              className="input-gradient text-lg h-12"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              disabled={loading}
-              required
-            />
-            <Input
-              type="password"
-              placeholder="Password"
-              className="input-gradient text-lg h-12"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              disabled={loading}
-              required
-            />
+            <div className="relative">
+              <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <Input
+                type="email"
+                placeholder="Email address"
+                className="pl-11 h-12 bg-black/20 border-white/10 focus:border-[#9b87f5] transition-colors"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                disabled={loading}
+                required
+              />
+            </div>
+            <div className="relative">
+              <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <Input
+                type="password"
+                placeholder="Password"
+                className="pl-11 h-12 bg-black/20 border-white/10 focus:border-[#9b87f5] transition-colors"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                disabled={loading}
+                required
+              />
+            </div>
             <Button
               type="submit"
-              className="w-full h-12 text-lg font-medium transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
+              className="w-full h-12 text-lg font-medium bg-[#9b87f5] hover:bg-[#8b5cf6] transition-all duration-200"
               disabled={loading}
             >
               {loading ? "Signing in..." : "Sign In"}
@@ -67,35 +80,44 @@ export const AuthForm = () => {
 
         <TabsContent value="signup">
           <form onSubmit={handleSignUp} className="space-y-4">
-            <Input
-              placeholder="Full Name"
-              className="input-gradient text-lg h-12"
-              value={fullName}
-              onChange={(e) => setFullName(e.target.value)}
-              disabled={loading}
-              required
-            />
-            <Input
-              type="email"
-              placeholder="Email address"
-              className="input-gradient text-lg h-12"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              disabled={loading}
-              required
-            />
-            <Input
-              type="password"
-              placeholder="Password"
-              className="input-gradient text-lg h-12"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              disabled={loading}
-              required
-            />
+            <div className="relative">
+              <User className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <Input
+                placeholder="Full Name"
+                className="pl-11 h-12 bg-black/20 border-white/10 focus:border-[#9b87f5] transition-colors"
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                disabled={loading}
+                required
+              />
+            </div>
+            <div className="relative">
+              <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <Input
+                type="email"
+                placeholder="Email address"
+                className="pl-11 h-12 bg-black/20 border-white/10 focus:border-[#9b87f5] transition-colors"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                disabled={loading}
+                required
+              />
+            </div>
+            <div className="relative">
+              <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <Input
+                type="password"
+                placeholder="Password"
+                className="pl-11 h-12 bg-black/20 border-white/10 focus:border-[#9b87f5] transition-colors"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                disabled={loading}
+                required
+              />
+            </div>
             <Button
               type="submit"
-              className="w-full h-12 text-lg font-medium transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
+              className="w-full h-12 text-lg font-medium bg-[#9b87f5] hover:bg-[#8b5cf6] transition-all duration-200"
               disabled={loading}
             >
               {loading ? "Creating account..." : "Create Account"}
