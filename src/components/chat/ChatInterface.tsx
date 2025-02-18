@@ -1,3 +1,4 @@
+
 import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Send, Loader2, Upload } from "lucide-react";
@@ -112,7 +113,7 @@ export const ChatInterface = ({ onBack, initialQuestion = '', initialFile = null
       toast({
         title: isRateLimit ? "Too Many Requests" : "Error",
         description: isRateLimit 
-          ? "Please wait a moment before trying again."
+          ? "Gemini 2.0 flash-thinking - Please wait a moment before trying again."
           : error.message || "Failed to get a response. Please try again.",
         variant: "destructive"
       });
