@@ -42,6 +42,7 @@ export const CoursesDashboard = () => {
   const [sortBy, setSortBy] = useState<SortOption>("name");
   const [showDisclaimer, setShowDisclaimer] = useState(false);
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
+  const [hasSeenDisclaimer, setHasSeenDisclaimer] = useState(false);
   const { toast } = useToast();
   const { canvasConfig } = useAuth();
 
@@ -169,7 +170,11 @@ export const CoursesDashboard = () => {
 
   const handleCourseClick = (course: Course) => {
     setSelectedCourse(course);
-    setShowDisclaimer(true);
+    if (!hasSeenDisclaimer) {
+      setShowDisclaimer(true);
+    } else {
+      console.log("Proceeding with course:", course);
+    }
   };
 
   if (loading) {
@@ -228,6 +233,7 @@ export const CoursesDashboard = () => {
             <Button
               onClick={() => {
                 setShowDisclaimer(false);
+                setHasSeenDisclaimer(true);
                 if (selectedCourse) {
                   console.log("Proceeding with course:", selectedCourse);
                 }
