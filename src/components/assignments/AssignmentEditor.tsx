@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Slider } from "@/components/ui/slider";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -24,6 +25,9 @@ import {
   Smile,
   History,
   Sparkles,
+  PenTool,
+  RefreshCw,
+  BookOpen,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Card } from "@/components/ui/card";
@@ -36,6 +40,12 @@ interface Version {
 
 interface EditorProps {
   content: string;
+  assignment?: {
+    name: string;
+    description: string;
+    points_possible: number;
+    due_at: string;
+  };
   onChange: (content: string) => void;
   onImprove: () => Promise<void>;
   onGenerate: () => Promise<void>;
@@ -47,6 +57,7 @@ interface EditorProps {
 
 export const AssignmentEditor = ({
   content,
+  assignment,
   onChange,
   onImprove,
   onGenerate,
@@ -57,6 +68,7 @@ export const AssignmentEditor = ({
 }: EditorProps) => {
   const [versions, setVersions] = useState<Version[]>([]);
   const [selectedText, setSelectedText] = useState('');
+  const [adjustLength, setAdjustLength] = useState(1); // 0.5 to 2.0
 
   const handleTextSelect = () => {
     const selection = window.getSelection();
@@ -75,90 +87,83 @@ export const AssignmentEditor = ({
     toast.success("Previous version restored!");
   };
 
-  const adjustLength = async (type: 'expand' | 'shorten') => {
-    if (!selectedText) {
-      toast.error("Please select text to adjust");
+  const adjustText = async () => {
+    const textToAdjust = selectedText || content;
+    if (!textToAdjust) {
+      toast.error("No text to adjust");
       return;
     }
 
     try {
       const { data, error } = await supabase.functions.invoke('gemini-processor', {
         body: {
-          content: selectedText,
-          type: `${type}_text`
+          content: textToAdjust,
+          type: 'adjust_text',
+          config: {
+            assignment,
+            lengthFactor: adjustLength,
+            selection: !!selectedText
+          }
         }
       });
 
       if (error) throw error;
 
-      const newContent = content.replace(selectedText, data.result);
-      onChange(newContent);
-      toast.success(`Text ${type}ed successfully`);
+      if (selectedText) {
+        const newContent = content.replace(selectedText, data.result);
+        onChange(newContent);
+      } else {
+        onChange(data.result);
+      }
+      
+      toast.success(`Text adjusted successfully`);
     } catch (error) {
-      toast.error("Failed to adjust text length");
+      toast.error("Failed to adjust text");
     }
   };
 
   const changeReadingLevel = async (level: string) => {
-    if (!selectedText) {
-      toast.error("Please select text to adjust");
+    const textToAdjust = selectedText || content;
+    if (!textToAdjust) {
+      toast.error("No text to adjust");
       return;
     }
 
     try {
       const { data, error } = await supabase.functions.invoke('gemini-processor', {
         body: {
-          content: selectedText,
+          content: textToAdjust,
           type: 'adjust_reading_level',
-          level
+          level,
+          config: { assignment }
         }
       });
 
       if (error) throw error;
 
-      const newContent = content.replace(selectedText, data.result);
-      onChange(newContent);
+      if (selectedText) {
+        const newContent = content.replace(selectedText, data.result);
+        onChange(newContent);
+      } else {
+        onChange(data.result);
+      }
       toast.success(`Reading level adjusted to ${level}`);
     } catch (error) {
       toast.error("Failed to adjust reading level");
     }
   };
 
-  const addEmojis = async () => {
-    if (!selectedText) {
-      toast.error("Please select text to add emojis");
-      return;
-    }
-
-    try {
-      const { data, error } = await supabase.functions.invoke('gemini-processor', {
-        body: {
-          content: selectedText,
-          type: 'add_emojis'
-        }
-      });
-
-      if (error) throw error;
-
-      const newContent = content.replace(selectedText, data.result);
-      onChange(newContent);
-      toast.success("Emojis added successfully");
-    } catch (error) {
-      toast.error("Failed to add emojis");
-    }
-  };
-
   return (
-    <Card className="p-4 space-y-4 bg-black/40 border-white/10">
-      <div className="flex items-center justify-between mb-4">
-        <Label className="text-lg font-semibold text-white">Your Response</Label>
-        <div className="flex items-center gap-2">
+    <Card className="p-6 space-y-6 bg-black/40 border-white/10 backdrop-blur-xl">
+      <div className="flex items-center justify-between">
+        <Label className="text-lg font-semibold text-gradient">Your Response</Label>
+        <div className="flex items-center gap-3">
           <Button
             variant="outline"
             size="sm"
             onClick={onGenerate}
             disabled={isGenerating}
-            className="gap-2"
+            className="gap-2 bg-white/5 hover:bg-white/10 border-white/10"
           >
             <Wand2 className="w-4 h-4" />
             {isGenerating ? "Generating..." : "Generate Response"}
@@ -166,13 +171,17 @@ export const AssignmentEditor = ({
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="gap-2">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="gap-2 bg-white/5 hover:bg-white/10 border-white/10"
+              >
                 <History className="w-4 h-4" />
                 Version History
                 <ChevronDown className="w-4 h-4" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56">
+            <DropdownMenuContent align="end" className="w-56 bg-black/90 border-white/10">
               <DropdownMenuLabel>Previous Versions</DropdownMenuLabel>
               <DropdownMenuSeparator />
               {versions.length === 0 ? (
@@ -194,7 +203,7 @@ export const AssignmentEditor = ({
             variant="outline"
             size="sm"
             onClick={saveVersion}
-            className="gap-2"
+            className="gap-2 bg-white/5 hover:bg-white/10 border-white/10"
           >
             <Save className="w-4 h-4" />
             Save Version
@@ -202,35 +211,52 @@ export const AssignmentEditor = ({
         </div>
       </div>
 
-      <div className="relative">
-        <Textarea
-          value={content}
-          onChange={(e) => onChange(e.target.value)}
-          onSelect={handleTextSelect}
-          className="min-h-[400px] bg-black/20 border-white/10 text-white/90 placeholder-white/50 font-mono"
-          placeholder="Start writing or generate content..."
-        />
+      <div className="space-y-4">
+        <div className="flex items-center gap-4">
+          <div className="flex-1">
+            <Label className="text-sm text-white/60 mb-2">Adjust Length</Label>
+            <Slider
+              value={[adjustLength]}
+              onValueChange={([value]) => setAdjustLength(value)}
+              min={0.5}
+              max={2}
+              step={0.1}
+              className="my-2"
+            />
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={adjustText}
+            className="gap-2 h-10 bg-white/5 hover:bg-white/10 border-white/10"
+          >
+            <PenTool className="w-4 h-4" />
+            {selectedText ? "Adjust Selection" : "Adjust Text"}
+          </Button>
+        </div>
 
-        {selectedText && (
+        <div className="relative">
+          <Textarea
+            value={content}
+            onChange={(e) => onChange(e.target.value)}
+            onSelect={handleTextSelect}
+            className="min-h-[400px] bg-black/20 border-white/10 text-white/90 placeholder-white/50 font-mono rounded-xl resize-none"
+            placeholder="Start writing or generate content..."
+          />
+
           <div className="absolute bottom-4 right-4 flex items-center gap-2">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button size="sm" variant="outline" className="gap-2">
-                  <Wand2 className="w-4 h-4" />
-                  Improve Selection
+                <Button 
+                  size="sm" 
+                  variant="outline" 
+                  className="gap-2 bg-black/40 hover:bg-black/60 border-white/10"
+                >
+                  <BookOpen className="w-4 h-4" />
+                  Reading Level
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-56">
-                <DropdownMenuItem onClick={() => adjustLength('expand')}>
-                  <ArrowBigUpDash className="w-4 h-4 mr-2" />
-                  Expand
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => adjustLength('shorten')}>
-                  <ArrowBigDownDash className="w-4 h-4 mr-2" />
-                  Shorten
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuLabel>Reading Level</DropdownMenuLabel>
+              <DropdownMenuContent className="w-56 bg-black/90 border-white/10">
                 <DropdownMenuItem onClick={() => changeReadingLevel('elementary')}>
                   <GraduationCap className="w-4 h-4 mr-2" />
                   Elementary
@@ -247,27 +273,29 @@ export const AssignmentEditor = ({
                   <GraduationCap className="w-4 h-4 mr-2" />
                   Graduate Level
                 </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={addEmojis}>
-                  <Smile className="w-4 h-4 mr-2" />
-                  Add Emojis
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={onImprove} disabled={isImproving}>
-                  <Sparkles className="w-4 h-4 mr-2" />
-                  {isImproving ? "Polishing..." : "Polish Writing"}
-                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onImprove}
+              disabled={isImproving}
+              className="gap-2 bg-black/40 hover:bg-black/60 border-white/10"
+            >
+              <Sparkles className="w-4 h-4" />
+              {isImproving ? "Polishing..." : "Polish Writing"}
+            </Button>
           </div>
-        )}
+        </div>
       </div>
 
-      <div className="flex justify-end gap-2 mt-4">
+      <div className="flex justify-end gap-2">
         {onSave && (
           <Button
             onClick={onSave}
             disabled={isSubmitting || !content.trim()}
-            className="gap-2"
+            className="gap-2 bg-[#9b87f5] hover:bg-[#8b77e5] text-white"
           >
             <Send className="w-4 h-4" />
             {isSubmitting ? "Submitting..." : "Submit to Canvas"}

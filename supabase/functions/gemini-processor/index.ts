@@ -7,38 +7,57 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+interface Assignment {
+  name: string;
+  description: string;
+  points_possible: number;
+  due_at: string;
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const body = await req.json();
-    const { content, type, level, config } = body;
+    const { content, type, level, config } = await req.json();
+    const assignment = config?.assignment as Assignment | undefined;
 
     if (!content) {
       throw new Error('Content is required');
     }
 
-    const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
-    if (!GEMINI_API_KEY) {
-      throw new Error('Missing Gemini API key');
+    let prompt = '';
+    let systemPrompt = '';
+    
+    if (assignment) {
+      systemPrompt = `You are assisting with the following assignment:
+        Title: ${assignment.name}
+        Description: ${assignment.description}
+        Points: ${assignment.points_possible}
+        Due: ${new Date(assignment.due_at).toLocaleDateString()}
+        
+        Your goal is to generate B-grade student-quality work that:
+        1. Shows understanding but allows for minor imperfections
+        2. Uses natural, conversational language
+        3. Maintains appropriate length and depth
+        4. Includes occasional simple examples
+        5. Avoids overly complex vocabulary
+        
+        Write as if you are a student completing this assignment.`;
     }
 
-    let prompt = '';
-    
     switch (type) {
       case 'generate_content':
-        prompt = `Given this assignment description: "${content}", generate a well-written response that would receive a ${config?.targetGrade || 'B'} grade. 
-                 Write in a ${config?.writingStyle || 'mixed'} style.`;
+        prompt = `Given this assignment: "${content}", generate a well-written response that would receive a B grade. 
+                 Include some minor imperfections to sound natural. Use straightforward language and occasional personal insights.`;
         break;
       
-      case 'expand_text':
-        prompt = `Expand this text while maintaining its core meaning and adding relevant details: "${content}"`;
-        break;
-      
-      case 'shorten_text':
-        prompt = `Summarize this text while preserving its key points: "${content}"`;
+      case 'adjust_text':
+        const lengthFactor = config?.lengthFactor || 1;
+        const textType = config?.selection ? 'selected section' : 'entire text';
+        prompt = `Adjust the length of this ${textType} by a factor of ${lengthFactor} (where 1 is original length): "${content}"
+                 Maintain the same style and tone, but ${lengthFactor > 1 ? 'expand with relevant details and examples' : 'make more concise while keeping key points'}.`;
         break;
       
       case 'adjust_reading_level':
@@ -48,19 +67,20 @@ serve(async (req) => {
           'high_school': 'more sophisticated vocabulary suitable for high school students',
           'college': 'advanced vocabulary and complex sentence structures suitable for college level'
         };
-        prompt = `Rewrite this text at a ${level} reading level using ${levelDescriptions[level]}: "${content}"`;
-        break;
-      
-      case 'add_emojis':
-        prompt = `Add appropriate emojis to enhance this text (not too many, just where they naturally fit): "${content}"`;
+        prompt = `Rewrite this text at a ${level} reading level using ${levelDescriptions[level]}: "${content}"
+                 Maintain the core meaning and key points while adjusting the complexity.`;
         break;
       
       case 'improve_writing':
-        prompt = `Improve this text by enhancing clarity, fixing grammar, and making it more engaging while maintaining the original meaning: "${content}"`;
-        break;
-      
-      case 'analyze_requirements':
-        prompt = `Analyze this assignment and provide key requirements, guidelines, and suggestions for a successful submission: "${content}"`;
+        prompt = `Improve this text while maintaining a natural student writing style:
+                 "${content}"
+                 
+                 Guidelines:
+                 1. Fix obvious grammar errors but leave some minor imperfections
+                 2. Improve flow and clarity
+                 3. Keep the language natural and conversational
+                 4. Maintain the same general tone and complexity level
+                 5. Don't make it sound too polished or professional`;
         break;
       
       default:
@@ -71,12 +91,12 @@ serve(async (req) => {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-goog-api-key': GEMINI_API_KEY,
+        'x-goog-api-key': Deno.env.get('GEMINI_API_KEY') || '',
       },
       body: JSON.stringify({
         contents: [{
           parts: [{
-            text: prompt
+            text: systemPrompt ? `${systemPrompt}\n\n${prompt}` : prompt
           }]
         }],
         generationConfig: {
@@ -84,25 +104,7 @@ serve(async (req) => {
           topK: 40,
           topP: 0.95,
           maxOutputTokens: 1024,
-        },
-        safetySettings: [
-          {
-            category: "HARM_CATEGORY_HARASSMENT",
-            threshold: "BLOCK_MEDIUM_AND_ABOVE"
-          },
-          {
-            category: "HARM_CATEGORY_HATE_SPEECH",
-            threshold: "BLOCK_MEDIUM_AND_ABOVE"
-          },
-          {
-            category: "HARM_CATEGORY_SEXUALLY_EXPLICIT",
-            threshold: "BLOCK_MEDIUM_AND_ABOVE"
-          },
-          {
-            category: "HARM_CATEGORY_DANGEROUS_CONTENT",
-            threshold: "BLOCK_MEDIUM_AND_ABOVE"
-          }
-        ]
+        }
       })
     });
 
@@ -113,23 +115,18 @@ serve(async (req) => {
       throw new Error('Invalid response from Gemini API');
     }
 
-    const result = data.candidates[0].content.parts[0].text;
-
     return new Response(
-      JSON.stringify({ result }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200,
-      }
+      JSON.stringify({ result: data.candidates[0].content.parts[0].text }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
   } catch (error) {
     console.error('Error:', error);
     return new Response(
       JSON.stringify({ error: error.message }),
-      {
+      { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 500,
+        status: 500
       }
     );
   }
