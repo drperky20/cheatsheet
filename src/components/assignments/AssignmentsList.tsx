@@ -1,12 +1,12 @@
+
 import { useState, useEffect } from "react";
-import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Clock, BookOpen, CheckCircle, AlertCircle, Search } from "lucide-react";
+import { Search, AlertCircle } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { AssignmentCard } from "./AssignmentCard";
 
 interface Assignment {
   id: string;
@@ -44,17 +44,16 @@ export const AssignmentsList = ({ courseId, onStartAssignment }: AssignmentsList
         throw new Error('Canvas configuration not found');
       }
 
-      console.log('Starting to fetch all assignments for course:', courseId);
       let allAssignments: Assignment[] = [];
       let page = 1;
       let hasMore = true;
+      const PER_PAGE = 100; // Maximum allowed by Canvas API
 
-      // Fetch all pages of assignments
       while (hasMore) {
-        console.log(`Fetching page ${page} of assignments...`);
-        const { data, error } = await supabase.functions.invoke('canvas-proxy', {
+        console.log(`Fetching assignments page ${page}...`);
+        const { data: pageData, error } = await supabase.functions.invoke('canvas-proxy', {
           body: {
-            endpoint: `/courses/${courseId}/assignments?page=${page}&per_page=100`,
+            endpoint: `/courses/${courseId}/assignments?page=${page}&per_page=${PER_PAGE}`,
             method: 'GET',
             domain: canvasConfig.domain,
             apiKey: canvasConfig.api_key
@@ -63,48 +62,69 @@ export const AssignmentsList = ({ courseId, onStartAssignment }: AssignmentsList
 
         if (error) throw error;
 
-        // Ensure data is an array
-        const pageAssignments = Array.isArray(data) ? data : [];
+        const pageAssignments = Array.isArray(pageData) ? pageData : [];
         console.log(`Received ${pageAssignments.length} assignments on page ${page}`);
 
         if (pageAssignments.length === 0) {
           hasMore = false;
         } else {
+          // Cache the assignments
+          await cacheAssignments(pageAssignments);
+          
           allAssignments = [...allAssignments, ...pageAssignments];
-          page++;
+          
+          // If we received fewer assignments than the page size, we've reached the end
+          if (pageAssignments.length < PER_PAGE) {
+            hasMore = false;
+          } else {
+            page++;
+          }
         }
       }
 
-      console.log('Total assignments fetched:', allAssignments.length);
+      // Filter and sort assignments
+      const filteredAssignments = allAssignments
+        .filter(assignment => 
+          assignment && 
+          assignment.workflow_state !== 'deleted' &&
+          assignment.published === true
+        )
+        .sort((a, b) => {
+          if (!a.due_at && !b.due_at) return 0;
+          if (!a.due_at) return 1;
+          if (!b.due_at) return -1;
+          return new Date(b.due_at).getTime() - new Date(a.due_at).getTime();
+        });
 
-      // Filter active and published assignments
-      const filteredAssignments = allAssignments.filter(assignment => 
-        assignment && 
-        assignment.workflow_state !== 'deleted' &&
-        assignment.published === true
-      );
-
-      console.log('Filtered assignments count:', filteredAssignments.length);
-
-      // Sort assignments by due date (newest first)
-      const sortedAssignments = filteredAssignments.sort((a, b) => {
-        // Handle null values - put them at the end
-        if (!a.due_at && !b.due_at) return 0;
-        if (!a.due_at) return 1;
-        if (!b.due_at) return -1;
-
-        const dateA = new Date(a.due_at);
-        const dateB = new Date(b.due_at);
-        return dateB.getTime() - dateA.getTime();
-      });
-
-      console.log('Assignments sorted by due date');
-      setAssignments(sortedAssignments);
+      console.log(`Total assignments after filtering: ${filteredAssignments.length}`);
+      setAssignments(filteredAssignments);
     } catch (error) {
       console.error('Error fetching assignments:', error);
       toast.error("Failed to load assignments");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const cacheAssignments = async (assignments: Assignment[]) => {
+    try {
+      const { error } = await supabase.from('cached_assignments').upsert(
+        assignments.map(a => ({
+          course_id: courseId,
+          canvas_assignment_id: a.id,
+          name: a.name,
+          description: a.description,
+          due_at: a.due_at,
+          points_possible: a.points_possible,
+          published: a.published
+        }))
+      );
+
+      if (error) {
+        console.error('Error caching assignments:', error);
+      }
+    } catch (error) {
+      console.error('Error in cacheAssignments:', error);
     }
   };
 
@@ -128,19 +148,6 @@ export const AssignmentsList = ({ courseId, onStartAssignment }: AssignmentsList
     } finally {
       setAnalyzing(null);
     }
-  };
-
-  const getDueStatus = (dueDate: string | null) => {
-    if (!dueDate) return { text: "No due date", color: "text-gray-400" };
-
-    const now = new Date();
-    const due = new Date(dueDate);
-    const daysUntilDue = Math.ceil((due.getTime() - now.getTime()) / (1000 * 3600 * 24));
-
-    if (daysUntilDue < 0) return { text: "Overdue", color: "text-red-400" };
-    if (daysUntilDue === 0) return { text: "Due today", color: "text-yellow-400" };
-    if (daysUntilDue <= 3) return { text: `Due in ${daysUntilDue} days`, color: "text-orange-400" };
-    return { text: `Due in ${daysUntilDue} days`, color: "text-green-400" };
   };
 
   const filteredAssignments = assignments.filter(assignment =>
@@ -177,44 +184,14 @@ export const AssignmentsList = ({ courseId, onStartAssignment }: AssignmentsList
 
       <div className="space-y-4">
         {filteredAssignments.length > 0 ? (
-          filteredAssignments.map((assignment) => {
-            const { text: dueText, color: dueColor } = getDueStatus(assignment.due_at);
-            
-            return (
-              <Card key={assignment.id} className="p-4 glass hover:border-white/10 transition-all">
-                <div className="flex items-start justify-between">
-                  <div className="space-y-1">
-                    <h3 className="font-semibold text-lg">{assignment.name}</h3>
-                    <div className="flex items-center gap-4 text-sm">
-                      <div className="flex items-center gap-1">
-                        <CheckCircle className="w-4 h-4 text-green-400" />
-                        <span>{assignment.points_possible} points</span>
-                      </div>
-                      <div className={`flex items-center gap-1 ${dueColor}`}>
-                        <Clock className="w-4 h-4" />
-                        <span>{dueText}</span>
-                      </div>
-                    </div>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    className="bg-white/5 hover:bg-white/10"
-                    onClick={() => analyzeRequirements(assignment)}
-                    disabled={analyzing === assignment.id}
-                  >
-                    {analyzing === assignment.id ? (
-                      <>Analyzing...</>
-                    ) : (
-                      <>
-                        Start Assignment
-                        <BookOpen className="ml-2 w-4 h-4" />
-                      </>
-                    )}
-                  </Button>
-                </div>
-              </Card>
-            );
-          })
+          filteredAssignments.map((assignment) => (
+            <AssignmentCard
+              key={assignment.id}
+              assignment={assignment}
+              onStart={analyzeRequirements}
+              isAnalyzing={analyzing === assignment.id}
+            />
+          ))
         ) : (
           <div className="text-center p-8 glass rounded-lg">
             <AlertCircle className="mx-auto h-12 w-12 text-gray-400 mb-4" />
