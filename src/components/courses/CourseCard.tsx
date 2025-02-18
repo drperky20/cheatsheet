@@ -81,7 +81,7 @@ export const CourseCard = ({ course }: CourseCardProps) => {
             </div>
             <div className="flex items-center space-x-1">
               <Clock className="w-4 h-4" />
-              <span>{course.pending_assignments} pending</span>
+              <span>{course.pending_assignments} missing</span>
             </div>
           </div>
 

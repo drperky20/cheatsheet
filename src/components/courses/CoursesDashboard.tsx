@@ -200,7 +200,7 @@ export const CoursesDashboard = () => {
                 Sort by Name
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => handleSort("pending")}>
-                Sort by Pending
+                Sort by Missing
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => handleSort("progress")}>
                 Sort by Progress
