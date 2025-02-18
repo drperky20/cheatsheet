@@ -31,9 +31,27 @@ export const CourseCard = ({ course }: CourseCardProps) => {
   const [showAssignments, setShowAssignments] = useState(false);
   const [selectedAssignment, setSelectedAssignment] = useState<any>(null);
   
-  const progressValue = course.final_score || (course.assignments_count > 0 
-    ? ((course.assignments_count - course.pending_assignments) / course.assignments_count) * 100
-    : 0);
+  const getGradeDisplay = () => {
+    if (course.final_grade && course.final_score !== undefined) {
+      return `${course.final_grade} (${course.final_score.toFixed(1)}%)`;
+    }
+    
+    const progressValue = course.assignments_count > 0 
+      ? ((course.assignments_count - course.pending_assignments) / course.assignments_count) * 100
+      : 0;
+    
+    return `${Math.round(progressValue)}%`;
+  };
+
+  const getProgressValue = () => {
+    if (course.final_score !== undefined) {
+      return course.final_score;
+    }
+    
+    return course.assignments_count > 0 
+      ? ((course.assignments_count - course.pending_assignments) / course.assignments_count) * 100
+      : 0;
+  };
 
   const getRandomGradient = () => {
     const gradients = [
@@ -71,12 +89,10 @@ export const CourseCard = ({ course }: CourseCardProps) => {
             <div className="flex items-center justify-between text-sm">
               <span className="text-gray-400">Grade</span>
               <span className="text-gray-400">
-                {course.final_grade 
-                  ? `${course.final_grade} (${Math.round(course.final_score || 0)}%)`
-                  : `${Math.round(progressValue)}%`}
+                {getGradeDisplay()}
               </span>
             </div>
-            <Progress value={progressValue} className="h-1" />
+            <Progress value={getProgressValue()} className="h-1" />
           </div>
 
           <div className="flex items-center justify-between text-sm text-gray-400">

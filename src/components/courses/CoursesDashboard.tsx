@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { CourseCard } from "./CourseCard";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -21,6 +20,8 @@ interface Course {
   course_code: string;
   assignments_count: number;
   pending_assignments: number;
+  final_grade?: string;
+  final_score?: number;
   term?: {
     name: string;
     start_at: string;
@@ -37,9 +38,36 @@ export const CoursesDashboard = () => {
   const { toast } = useToast();
   const { canvasConfig } = useAuth();
 
-  useEffect(() => {
-    fetchCourses();
-  }, [canvasConfig]);
+  const fetchEnrollmentData = async (courseId: string) => {
+    console.log(`Fetching enrollment data for course ${courseId}...`);
+    const { data: enrollments, error } = await supabase.functions.invoke('canvas-proxy', {
+      body: {
+        endpoint: `/courses/${courseId}/enrollments?type[]=StudentEnrollment&state[]=active&include[]=grades`,
+        method: 'GET',
+        domain: canvasConfig?.domain,
+        apiKey: canvasConfig?.api_key
+      }
+    });
+
+    if (error) {
+      console.error('Error fetching enrollments:', error);
+      return null;
+    }
+
+    const userEnrollment = Array.isArray(enrollments) 
+      ? enrollments.find(enrollment => enrollment.type === 'StudentEnrollment')
+      : null;
+
+    if (userEnrollment?.grades) {
+      console.log(`Found grades for course ${courseId}:`, userEnrollment.grades);
+      return {
+        final_grade: userEnrollment.grades.final_grade,
+        final_score: userEnrollment.grades.final_score
+      };
+    }
+
+    return null;
+  };
 
   const fetchAllAssignments = async (courseId: string) => {
     let allAssignments: any[] = [];
@@ -66,7 +94,6 @@ export const CoursesDashboard = () => {
       const pageAssignments = Array.isArray(assignments) ? assignments : [];
       allAssignments = [...allAssignments, ...pageAssignments];
 
-      // If we received fewer assignments than the page size, we've reached the end
       if (pageAssignments.length < PER_PAGE) {
         hasMore = false;
       } else {
@@ -76,6 +103,10 @@ export const CoursesDashboard = () => {
 
     return allAssignments;
   };
+
+  useEffect(() => {
+    fetchCourses();
+  }, [canvasConfig]);
 
   const fetchCourses = async () => {
     try {
@@ -96,23 +127,19 @@ export const CoursesDashboard = () => {
 
       if (coursesError) throw coursesError;
 
-      // Fetch assignment counts for each course
-      const coursesWithAssignments = await Promise.all(
+      const coursesWithData = await Promise.all(
         (Array.isArray(coursesData) ? coursesData : []).map(async (course) => {
           const assignments = await fetchAllAssignments(course.id);
+          const enrollmentData = await fetchEnrollmentData(course.id);
           
           const startDate = new Date('2024-01-01');
           const totalAssignments = assignments.length;
           const missingAssignments = assignments.filter(a => {
-            // Check if the assignment has a due date and it's after Jan 1st, 2024
             const dueDate = a.due_at ? new Date(a.due_at) : null;
             if (!dueDate || dueDate < startDate) return false;
-
-            // Check if the assignment has points possible and if the submission score is 0
             const hasSubmission = a.submission && typeof a.submission.score === 'number';
             const isZeroScore = hasSubmission && a.submission.score === 0;
             const hasPointsPossible = a.points_possible > 0;
-
             return hasPointsPossible && isZeroScore;
           }).length;
 
@@ -123,13 +150,14 @@ export const CoursesDashboard = () => {
             assignments_count: totalAssignments,
             pending_assignments: missingAssignments,
             term: course.term,
-            nickname: undefined
+            nickname: undefined,
+            ...(enrollmentData || {})
           } as Course;
         })
       );
 
-      const validCourses = coursesWithAssignments.filter((course): course is Course => course !== null);
-      console.log('Courses with assignments:', validCourses);
+      const validCourses = coursesWithData.filter((course): course is Course => course !== null);
+      console.log('Courses with enrollment data:', validCourses);
       setCourses(sortCourses(validCourses, sortBy));
     } catch (error: any) {
       console.error('Error fetching courses:', error);
