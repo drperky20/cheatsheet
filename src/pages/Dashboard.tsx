@@ -1,8 +1,9 @@
 
+import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { CanvasSetup } from "@/components/canvas/CanvasSetup";
 import { CoursesDashboard } from "@/components/courses/CoursesDashboard";
-import { Settings, LogOut, User } from "lucide-react";
+import { Settings, LogOut, User, BookOpen, Upload, MessageSquare } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -17,6 +18,7 @@ import { useNavigate } from "react-router-dom";
 const Dashboard = () => {
   const { profile, canvasConfig, signOut } = useAuth();
   const navigate = useNavigate();
+  const [showCourses, setShowCourses] = useState(false);
 
   if (!canvasConfig) {
     return (
@@ -84,7 +86,40 @@ const Dashboard = () => {
             </DropdownMenuContent>
           </DropdownMenu>
         </header>
-        <CoursesDashboard />
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          <Button 
+            onClick={() => setShowCourses(!showCourses)}
+            className="h-32 bg-gradient-to-br from-blue-500/20 to-purple-500/20 border border-white/10 hover:border-white/20"
+          >
+            <div className="flex flex-col items-center justify-center space-y-2">
+              <BookOpen className="h-8 w-8" />
+              <span className="text-lg">Canvas Courses</span>
+            </div>
+          </Button>
+
+          <Button 
+            onClick={() => {/* TODO: Implement upload functionality */}}
+            className="h-32 bg-gradient-to-br from-green-500/20 to-emerald-500/20 border border-white/10 hover:border-white/20"
+          >
+            <div className="flex flex-col items-center justify-center space-y-2">
+              <Upload className="h-8 w-8" />
+              <span className="text-lg">Upload</span>
+            </div>
+          </Button>
+
+          <Button 
+            onClick={() => {/* TODO: Implement chat functionality */}}
+            className="h-32 bg-gradient-to-br from-orange-500/20 to-red-500/20 border border-white/10 hover:border-white/20"
+          >
+            <div className="flex flex-col items-center justify-center space-y-2">
+              <MessageSquare className="h-8 w-8" />
+              <span className="text-lg">Ask Anything</span>
+            </div>
+          </Button>
+        </div>
+
+        {showCourses && <CoursesDashboard />}
       </div>
     </div>
   );
