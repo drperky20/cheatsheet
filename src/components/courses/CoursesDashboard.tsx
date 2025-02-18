@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { CourseCard } from "./CourseCard";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -41,6 +40,42 @@ export const CoursesDashboard = () => {
     fetchCourses();
   }, [canvasConfig]);
 
+  const fetchAllAssignments = async (courseId: string) => {
+    let allAssignments: any[] = [];
+    let page = 1;
+    let hasMore = true;
+    const PER_PAGE = 100; // Maximum allowed by Canvas API
+
+    while (hasMore) {
+      console.log(`Fetching assignments page ${page} for course ${courseId}...`);
+      const { data: assignments, error } = await supabase.functions.invoke('canvas-proxy', {
+        body: {
+          endpoint: `/courses/${courseId}/assignments?page=${page}&per_page=${PER_PAGE}`,
+          method: 'GET',
+          domain: canvasConfig?.domain,
+          apiKey: canvasConfig?.api_key
+        }
+      });
+
+      if (error) {
+        console.error('Error fetching assignments:', error);
+        break;
+      }
+
+      const pageAssignments = Array.isArray(assignments) ? assignments : [];
+      allAssignments = [...allAssignments, ...pageAssignments];
+
+      // If we received fewer assignments than the page size, we've reached the end
+      if (pageAssignments.length < PER_PAGE) {
+        hasMore = false;
+      } else {
+        page++;
+      }
+    }
+
+    return allAssignments;
+  };
+
   const fetchCourses = async () => {
     try {
       if (!canvasConfig) {
@@ -63,27 +98,13 @@ export const CoursesDashboard = () => {
       // Fetch assignment counts for each course
       const coursesWithAssignments = await Promise.all(
         (Array.isArray(coursesData) ? coursesData : []).map(async (course) => {
-          const { data: assignments, error: assignmentsError } = await supabase.functions.invoke('canvas-proxy', {
-            body: {
-              endpoint: `/courses/${course.id}/assignments`,
-              method: 'GET',
-              domain: canvasConfig.domain,
-              apiKey: canvasConfig.api_key
-            }
-          });
-
-          if (assignmentsError) {
-            console.error('Error fetching assignments for course:', course.id, assignmentsError);
-            return null;
-          }
-
-          const totalAssignments = Array.isArray(assignments) ? assignments.length : 0;
-          const pendingAssignments = Array.isArray(assignments) 
-            ? assignments.filter(a => 
-                new Date(a.due_at) > new Date() && 
-                !a.has_submitted_submissions
-              ).length 
-            : 0;
+          const assignments = await fetchAllAssignments(course.id);
+          
+          const totalAssignments = assignments.length;
+          const pendingAssignments = assignments.filter(a => 
+            new Date(a.due_at) > new Date() && 
+            !a.has_submitted_submissions
+          ).length;
 
           return {
             id: course.id,
