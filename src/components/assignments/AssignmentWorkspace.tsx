@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -7,6 +6,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Wand2, Save, Send, RotateCcw, FileText } from "lucide-react";
 import { extractGoogleDocLinks, sanitizeHTML } from "@/utils/docProcessor";
+import { AssignmentQualityControls } from "./AssignmentQualityControls";
+import { AssignmentQualityConfig } from "@/types/assignment";
 
 interface Assignment {
   id: string;
@@ -31,9 +32,14 @@ export const AssignmentWorkspace = ({ assignment, onClose }: AssignmentWorkspace
   const [history, setHistory] = useState<string[]>([]);
   const [googleDocs, setGoogleDocs] = useState<string[]>([]);
   const [processingDocs, setProcessingDocs] = useState(false);
+  const [qualityConfig, setQualityConfig] = useState<AssignmentQualityConfig>({
+    targetGrade: 'B',
+    selectedFlaws: [],
+    writingStyle: 'mixed',
+    confidenceLevel: 75
+  });
 
   useEffect(() => {
-    // Extract Google Doc links when component mounts
     const links = extractGoogleDocLinks(assignment.description);
     setGoogleDocs(links);
   }, [assignment.description]);
@@ -47,7 +53,6 @@ export const AssignmentWorkspace = ({ assignment, onClose }: AssignmentWorkspace
     try {
       setProcessingDocs(true);
       
-      // Process each Google Doc link
       for (const docUrl of googleDocs) {
         console.log("Processing Google Doc:", docUrl);
         
@@ -60,7 +65,6 @@ export const AssignmentWorkspace = ({ assignment, onClose }: AssignmentWorkspace
 
         if (error) throw error;
 
-        // Add the processed content to the existing content
         setContent(prev => {
           const newContent = `${prev}\n\n### Analysis of Google Doc (${docUrl}):\n${data.result}`;
           return newContent.trim();
@@ -82,7 +86,8 @@ export const AssignmentWorkspace = ({ assignment, onClose }: AssignmentWorkspace
       const { data, error } = await supabase.functions.invoke('gemini-processor', {
         body: {
           content: assignment.description,
-          type: 'generate_content'
+          type: 'generate_content',
+          config: qualityConfig
         }
       });
 
@@ -168,6 +173,8 @@ export const AssignmentWorkspace = ({ assignment, onClose }: AssignmentWorkspace
               )}
             </Card>
           </div>
+
+          <AssignmentQualityControls onConfigChange={setQualityConfig} />
 
           <div className="space-y-2">
             <div className="flex items-center justify-between">
