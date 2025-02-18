@@ -36,7 +36,7 @@ async function processWithRetry(genAI: any, prompt: string, maxRetries = 3): Pro
   
   for (let attempt = 0; attempt < maxRetries; attempt++) {
     try {
-      const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+      const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
       const result = await model.generateContent(prompt);
       const response = await result.response;
       return response.text();
@@ -83,6 +83,7 @@ serve(async (req) => {
           status: 429,
           headers: {
             ...corsHeaders,
+            'Content-Type': 'application/json',
             'Retry-After': `${RATE_LIMIT_WINDOW / 1000}`
           }
         }
@@ -146,7 +147,7 @@ For general questions, respond in a friendly and helpful way without assuming it
     console.log('Successfully generated content');
     return new Response(
       JSON.stringify({ result }),
-      { headers: corsHeaders }
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
   } catch (error) {
@@ -167,6 +168,7 @@ For general questions, respond in a friendly and helpful way without assuming it
         status: isRateLimit ? 429 : 500,
         headers: {
           ...corsHeaders,
+          'Content-Type': 'application/json',
           ...(isRateLimit ? { 'Retry-After': '5' } : {})
         }
       }
