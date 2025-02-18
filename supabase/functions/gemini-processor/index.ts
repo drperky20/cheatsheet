@@ -29,9 +29,7 @@ serve(async (req) => {
 
   try {
     const { content, type, level, config } = await req.json();
-    console.log('Received request:', { type, config });
-
-    const assignment = config?.assignment as Assignment | undefined;
+    console.log('Received request:', { type, content, config });
 
     if (!content) {
       throw new Error('Content is required');
@@ -51,16 +49,23 @@ serve(async (req) => {
         7. Show basic understanding but avoid complex analysis
         8. Use "like" and "basically" occasionally
         9. Start sentences with "And" or "But" sometimes
-        10. Write with enthusiasm but limited sophistication
-
-        Assignment Details:
-        Title: ${assignment.name}
-        Description: ${assignment.description}
-        Points: ${assignment.points_possible}
-        Due: ${new Date(assignment.due_at).toLocaleDateString()}`;
+        10. Write with enthusiasm but limited sophistication`;
     }
 
     switch (type as OperationType) {
+      case 'analyze_requirements':
+        prompt = `Help me understand this: "${content}"
+                 
+                 Break it down like a middle school student would:
+                 1. What do I actually have to do?
+                 2. What's the main point?
+                 3. How long does it need to be?
+                 4. What should I include?
+                 5. When is it due?
+                 
+                 Keep it simple and use casual language, like you're explaining it to a friend.`;
+        break;
+
       case 'generate_content':
         prompt = `Write a response to this assignment as if you're a real middle school student trying to get a B grade. Be natural and informal, make occasional mistakes, and don't be too sophisticated: "${content}"`;
         break;
@@ -68,7 +73,6 @@ serve(async (req) => {
       case 'adjust_text':
       case 'adjust_length':
         const lengthFactor = config?.lengthFactor || 1;
-        const textType = config?.selection ? 'selected section' : 'entire text';
         prompt = `${lengthFactor > 1 ? 'Make this longer' : 'Make this shorter'} while keeping the same casual, student-like style. 
                  Original text: "${content}"
                  
@@ -111,7 +115,7 @@ serve(async (req) => {
         throw new Error(`Invalid operation type: ${type}`);
     }
 
-    console.log('Sending prompt to Gemini:', prompt); // Add logging
+    console.log('Sending prompt to Gemini:', prompt);
 
     const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent', {
       method: 'POST',
@@ -135,7 +139,7 @@ serve(async (req) => {
     });
 
     const data = await response.json();
-    console.log('Gemini response:', data); // Add logging
+    console.log('Gemini response:', data);
 
     if (!data.candidates?.[0]?.content?.parts?.[0]?.text) {
       throw new Error('Invalid response from Gemini API');
