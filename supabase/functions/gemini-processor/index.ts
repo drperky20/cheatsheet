@@ -63,6 +63,19 @@ serve(async (req) => {
     }
 
     switch (type as OperationType) {
+      case 'analyze_requirements':
+        prompt = `Help me understand this: "${content}"
+                 
+                 Break it down like a middle school student would:
+                 1. What do I actually have to do?
+                 2. What's the main point?
+                 3. How long does it need to be?
+                 4. What should I include?
+                 5. When is it due?
+                 
+                 Keep it simple and use casual language, like you're explaining it to a friend.`;
+        break;
+
       case 'generate':
         prompt = `Write a response to this assignment as if you're a real middle school student trying to get a B grade. Be natural and informal, make occasional mistakes, and don't be too sophisticated. Use the assignment details as your guide:
 
