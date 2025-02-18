@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -8,6 +7,7 @@ import { Send } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { EditingToolbar } from './editor/EditingToolbar';
 import { VersionControl } from './editor/VersionControl';
+import { AdjustmentSlider } from './editor/AdjustmentSlider';
 
 interface Assignment {
   id: string;
@@ -39,6 +39,30 @@ export const AssignmentEditor = ({
 }: EditorProps) => {
   const [versions, setVersions] = useState<Version[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [activeSlider, setActiveSlider] = useState<'length' | 'grade' | null>(null);
+  const [sliderValue, setSliderValue] = useState(5);
+
+  const handleGenerate = async () => {
+    try {
+      setIsProcessing(true);
+      const { data, error } = await supabase.functions.invoke('gemini-processor', {
+        body: {
+          content: assignment?.description || "",
+          type: 'generate',
+          config: { assignment }
+        }
+      });
+
+      if (error) throw error;
+      onChange(data.result);
+      toast.success("Response generated successfully!");
+    } catch (error) {
+      console.error('Generation error:', error);
+      toast.error("Failed to generate response");
+    } finally {
+      setIsProcessing(false);
+    }
+  };
 
   const handleStyleChange = async () => {
     if (!content.trim()) {
@@ -73,15 +97,35 @@ export const AssignmentEditor = ({
       toast.error("Please add some content first");
       return;
     }
+    setActiveSlider('length');
+    setSliderValue(5);
+  };
 
+  const handleGradeClick = () => {
+    if (!content.trim()) {
+      toast.error("Please add some content first");
+      return;
+    }
+    setActiveSlider('grade');
+    setSliderValue(5);
+  };
+
+  const handleSliderChange = async (value: number) => {
+    setSliderValue(value);
+    
     try {
       setIsProcessing(true);
       const { data, error } = await supabase.functions.invoke('gemini-processor', {
         body: {
           content,
-          type: 'adjust_text',
+          type: activeSlider === 'length' ? 'adjust_text' : 'adjust_reading_level',
+          level: activeSlider === 'grade' ? 
+            (value <= 2.5 ? 'kindergarten' : 
+             value <= 5 ? 'middle_school' : 
+             value <= 7.5 ? 'high_school' : 
+             'college') : undefined,
           config: {
-            lengthFactor: 1.5,
+            lengthFactor: activeSlider === 'length' ? value / 5 : undefined,
             assignment
           }
         }
@@ -89,16 +133,15 @@ export const AssignmentEditor = ({
 
       if (error) throw error;
       onChange(data.result);
-      toast.success("Length adjusted successfully");
     } catch (error) {
-      console.error('Length adjustment error:', error);
-      toast.error("Failed to adjust length");
+      console.error('Adjustment error:', error);
+      toast.error(`Failed to adjust ${activeSlider}`);
     } finally {
       setIsProcessing(false);
     }
   };
 
-  const improveWriting = async () => {
+  const handleImproveClick = async () => {
     if (!content.trim()) {
       toast.error("Please add some content first");
       return;
@@ -127,55 +170,6 @@ export const AssignmentEditor = ({
 
   const formatText = () => {
     toast.success("Text formatting applied");
-  };
-
-  const adjustGrade = async () => {
-    if (!content.trim()) {
-      toast.error("Please add some content first");
-      return;
-    }
-
-    try {
-      setIsProcessing(true);
-      const { data, error } = await supabase.functions.invoke('gemini-processor', {
-        body: {
-          content,
-          type: 'adjust_grade_level',
-          config: { assignment }
-        }
-      });
-
-      if (error) throw error;
-      onChange(data.result);
-      toast.success("Grade level adjusted!");
-    } catch (error) {
-      console.error('Grade adjustment error:', error);
-      toast.error("Failed to adjust grade level");
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
-  const handleGenerate = async () => {
-    try {
-      setIsProcessing(true);
-      const { data, error } = await supabase.functions.invoke('gemini-processor', {
-        body: {
-          content: assignment?.description || "",  // Provide assignment description as initial content
-          type: 'generate',
-          config: { assignment }
-        }
-      });
-
-      if (error) throw error;
-      onChange(data.result);
-      toast.success("Response generated successfully!");
-    } catch (error) {
-      console.error('Generation error:', error);
-      toast.error("Failed to generate response");
-    } finally {
-      setIsProcessing(false);
-    }
   };
 
   return (
@@ -212,11 +206,20 @@ export const AssignmentEditor = ({
         <EditingToolbar
           onStyleClick={handleStyleChange}
           onLengthClick={handleLengthAdjust}
-          onImproveClick={improveWriting}
+          onImproveClick={handleImproveClick}
           onFormatClick={formatText}
-          onGradeClick={adjustGrade}
+          onGradeClick={handleGradeClick}
           onGenerate={handleGenerate}
         />
+
+        {activeSlider && (
+          <AdjustmentSlider
+            type={activeSlider}
+            value={sliderValue}
+            onChange={handleSliderChange}
+            onClose={() => setActiveSlider(null)}
+          />
+        )}
 
         <div className="flex justify-end items-center gap-4 mt-4">
           <span className="text-sm text-white/60">
