@@ -3,7 +3,7 @@ import { AuthForm } from "@/components/auth/AuthForm";
 
 const Index = () => {
   return (
-    <div className="min-h-screen w-full flex flex-col items-center justify-center p-4 relative overflow-hidden bg-black">
+    <div className="fixed inset-0 min-h-screen w-full flex flex-col items-center justify-center relative overflow-hidden bg-black">
       {/* Background gradients */}
       <div className="absolute inset-0">
         <div className="absolute inset-0 bg-gradient-to-br from-[#1A1F2C] to-black" />
@@ -12,7 +12,7 @@ const Index = () => {
       </div>
       
       {/* Content */}
-      <div className="relative z-10 w-full max-w-7xl mx-auto">
+      <div className="relative z-10 w-full max-w-7xl mx-auto px-4">
         <div className="text-center mb-12 animate-fadeIn">
           <h1 className="text-5xl md:text-7xl font-bold mb-4 bg-gradient-to-br from-white via-white/90 to-[#D6BCFA] bg-clip-text text-transparent">
             CheatSheet
