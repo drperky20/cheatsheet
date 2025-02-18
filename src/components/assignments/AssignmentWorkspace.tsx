@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -94,6 +95,11 @@ export const AssignmentWorkspace = ({ assignment, onClose }: AssignmentWorkspace
   };
 
   const handleSubmit = async () => {
+    if (!content.trim()) {
+      toast.error("Please add some content before submitting");
+      return;
+    }
+
     try {
       setSubmitting(true);
       
@@ -112,11 +118,11 @@ export const AssignmentWorkspace = ({ assignment, onClose }: AssignmentWorkspace
 
       if (error) throw error;
 
-      toast.success("Assignment submitted successfully!");
+      toast.success("Assignment submitted to Canvas successfully!");
       onClose();
     } catch (error) {
       console.error('Submission error:', error);
-      toast.error("Failed to submit assignment");
+      toast.error("Failed to submit assignment to Canvas");
     } finally {
       setSubmitting(false);
     }
@@ -132,8 +138,6 @@ export const AssignmentWorkspace = ({ assignment, onClose }: AssignmentWorkspace
       setProcessingDocs(true);
       
       for (const docUrl of googleDocs) {
-        console.log("Processing Google Doc:", docUrl);
-        
         const { data, error } = await supabase.functions.invoke('gemini-processor', {
           body: {
             content: `Process this Google Doc and provide a detailed analysis: ${docUrl}\n\nAssignment Context: ${assignment.name}\n\nAssignment Description: ${assignment.description}`,
@@ -210,21 +214,12 @@ export const AssignmentWorkspace = ({ assignment, onClose }: AssignmentWorkspace
     }
   };
 
-  const undoChanges = () => {
-    if (history.length > 0) {
-      const previousContent = history[history.length - 1];
-      setContent(previousContent);
-      setHistory(history.slice(0, -1));
-      toast.success("Changes reverted");
-    }
-  };
-
   return (
     <div className="fixed inset-0 bg-black/90 backdrop-blur-sm z-50 flex items-center justify-center p-4">
       <Card className="w-full max-w-4xl h-[90vh] glass overflow-hidden flex flex-col">
-        <div className="p-4 border-b border-white/10 flex items-center justify-between">
+        <div className="p-4 border-b border-white/10 flex items-center justify-between bg-black/40">
           <div>
-            <h2 className="text-xl font-semibold">{assignment.name}</h2>
+            <h2 className="text-xl font-semibold text-white">{assignment.name}</h2>
             <p className="text-sm text-gray-400">Due {new Date(assignment.due_at).toLocaleDateString()}</p>
           </div>
           <Button variant="ghost" onClick={onClose}>Close</Button>
@@ -232,9 +227,12 @@ export const AssignmentWorkspace = ({ assignment, onClose }: AssignmentWorkspace
 
         <div className="flex-1 p-4 space-y-4 overflow-auto">
           <div className="space-y-2">
-            <label className="text-sm font-medium">Assignment Description</label>
-            <Card className="p-4 bg-black/40">
-              <div dangerouslySetInnerHTML={{ __html: sanitizeHTML(assignment.description) }} />
+            <label className="text-sm font-medium text-white">Assignment Description</label>
+            <Card className="p-4 bg-black/40 border-white/10">
+              <div 
+                className="prose prose-invert max-w-none"
+                dangerouslySetInnerHTML={{ __html: sanitizeHTML(assignment.description) }} 
+              />
               
               {googleDocs.length > 0 && (
                 <div className="mt-4 p-3 bg-blue-500/10 rounded-lg border border-blue-500/20">
@@ -261,16 +259,28 @@ export const AssignmentWorkspace = ({ assignment, onClose }: AssignmentWorkspace
             onChange={setContent}
             onImprove={improveWriting}
             onSave={handleSubmit}
-            isLoading={submitting}
+            onGenerate={generateContent}
+            isGenerating={generating}
+            isImproving={improving}
+            isSubmitting={submitting}
           />
         </div>
 
-        <div className="p-4 border-t border-white/10 flex justify-end gap-2">
-          <Button variant="ghost" onClick={onClose}>Cancel</Button>
-          <Button onClick={() => toast.success("Submission feature coming soon!")}>
-            <Save className="w-4 h-4 mr-2" />
-            Submit to Canvas
-          </Button>
+        <div className="p-4 border-t border-white/10 bg-black/40 flex justify-between items-center">
+          <div className="text-sm text-gray-400">
+            {content ? `${content.length} characters` : 'No content yet'}
+          </div>
+          <div className="flex gap-2">
+            <Button variant="ghost" onClick={onClose}>Cancel</Button>
+            <Button 
+              onClick={handleSubmit} 
+              disabled={submitting || !content.trim()}
+              className="gap-2"
+            >
+              <Send className="w-4 h-4" />
+              {submitting ? "Submitting..." : "Submit to Canvas"}
+            </Button>
+          </div>
         </div>
       </Card>
     </div>

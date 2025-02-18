@@ -16,7 +16,7 @@ import {
   ChevronDown,
   RotateCcw,
   Save,
-  Upload,
+  Send,
   FileText,
   ArrowBigUpDash,
   ArrowBigDownDash,
@@ -38,16 +38,22 @@ interface EditorProps {
   content: string;
   onChange: (content: string) => void;
   onImprove: () => Promise<void>;
+  onGenerate: () => Promise<void>;
   onSave?: () => Promise<void>;
-  isLoading?: boolean;
+  isGenerating?: boolean;
+  isImproving?: boolean;
+  isSubmitting?: boolean;
 }
 
 export const AssignmentEditor = ({
   content,
   onChange,
   onImprove,
+  onGenerate,
   onSave,
-  isLoading = false
+  isGenerating = false,
+  isImproving = false,
+  isSubmitting = false
 }: EditorProps) => {
   const [versions, setVersions] = useState<Version[]>([]);
   const [selectedText, setSelectedText] = useState('');
@@ -61,12 +67,12 @@ export const AssignmentEditor = ({
 
   const saveVersion = () => {
     setVersions(prev => [...prev, { content, timestamp: new Date() }]);
-    toast.success("Version saved!");
+    toast.success("Version saved to history!");
   };
 
   const restoreVersion = (version: Version) => {
     onChange(version.content);
-    toast.success("Version restored!");
+    toast.success("Previous version restored!");
   };
 
   const adjustLength = async (type: 'expand' | 'shorten') => {
@@ -145,8 +151,19 @@ export const AssignmentEditor = ({
   return (
     <Card className="p-4 space-y-4 bg-black/40 border-white/10">
       <div className="flex items-center justify-between mb-4">
-        <Label className="text-lg font-semibold">Your Response</Label>
+        <Label className="text-lg font-semibold text-white">Your Response</Label>
         <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onGenerate}
+            disabled={isGenerating}
+            className="gap-2"
+          >
+            <Wand2 className="w-4 h-4" />
+            {isGenerating ? "Generating..." : "Generate Response"}
+          </Button>
+
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="sm" className="gap-2">
@@ -190,7 +207,7 @@ export const AssignmentEditor = ({
           value={content}
           onChange={(e) => onChange(e.target.value)}
           onSelect={handleTextSelect}
-          className="min-h-[400px] bg-black/20 border-white/10 text-white/90 placeholder-white/50"
+          className="min-h-[400px] bg-black/20 border-white/10 text-white/90 placeholder-white/50 font-mono"
           placeholder="Start writing or generate content..."
         />
 
@@ -203,7 +220,7 @@ export const AssignmentEditor = ({
                   Improve Selection
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent>
+              <DropdownMenuContent className="w-56">
                 <DropdownMenuItem onClick={() => adjustLength('expand')}>
                   <ArrowBigUpDash className="w-4 h-4 mr-2" />
                   Expand
@@ -218,22 +235,26 @@ export const AssignmentEditor = ({
                   <GraduationCap className="w-4 h-4 mr-2" />
                   Elementary
                 </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => changeReadingLevel('middle_school')}>
+                  <GraduationCap className="w-4 h-4 mr-2" />
+                  Middle School
+                </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => changeReadingLevel('high_school')}>
                   <GraduationCap className="w-4 h-4 mr-2" />
                   High School
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => changeReadingLevel('college')}>
                   <GraduationCap className="w-4 h-4 mr-2" />
-                  College
+                  Graduate Level
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={addEmojis}>
                   <Smile className="w-4 h-4 mr-2" />
                   Add Emojis
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={onImprove}>
+                <DropdownMenuItem onClick={onImprove} disabled={isImproving}>
                   <Sparkles className="w-4 h-4 mr-2" />
-                  Polish Writing
+                  {isImproving ? "Polishing..." : "Polish Writing"}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -245,11 +266,11 @@ export const AssignmentEditor = ({
         {onSave && (
           <Button
             onClick={onSave}
-            disabled={isLoading}
+            disabled={isSubmitting || !content.trim()}
             className="gap-2"
           >
-            <Upload className="w-4 h-4" />
-            Submit to Canvas
+            <Send className="w-4 h-4" />
+            {isSubmitting ? "Submitting..." : "Submit to Canvas"}
           </Button>
         )}
       </div>
