@@ -31,10 +31,7 @@ interface AssignmentWorkspaceProps {
 
 export const AssignmentWorkspace = ({ assignment, onClose }: AssignmentWorkspaceProps) => {
   const [content, setContent] = useState("");
-  const [generating, setGenerating] = useState(false);
-  const [improving, setImproving] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
-  const [history, setHistory] = useState<string[]>([]);
+  const [isSubmitting, setSubmitting] = useState(false);
   const [googleDocs, setGoogleDocs] = useState<string[]>([]);
   const [processingDocs, setProcessingDocs] = useState(false);
   const [qualityConfig, setQualityConfig] = useState<AssignmentQualityConfig>({
@@ -162,58 +159,6 @@ export const AssignmentWorkspace = ({ assignment, onClose }: AssignmentWorkspace
     }
   };
 
-  const generateContent = async () => {
-    try {
-      setGenerating(true);
-      const { data, error } = await supabase.functions.invoke('gemini-processor', {
-        body: {
-          content: assignment.description,
-          type: 'generate_content',
-          config: qualityConfig
-        }
-      });
-
-      if (error) throw error;
-
-      setHistory([...history, content]);
-      setContent(data.result);
-      toast.success("Content generated successfully");
-    } catch (error) {
-      console.error('Error generating content:', error);
-      toast.error("Failed to generate content");
-    } finally {
-      setGenerating(false);
-    }
-  };
-
-  const improveWriting = async () => {
-    if (!content) {
-      toast.error("Please add some content first");
-      return;
-    }
-
-    try {
-      setImproving(true);
-      const { data, error } = await supabase.functions.invoke('gemini-processor', {
-        body: {
-          content,
-          type: 'improve_writing'
-        }
-      });
-
-      if (error) throw error;
-
-      setHistory([...history, content]);
-      setContent(data.result);
-      toast.success("Writing improved successfully");
-    } catch (error) {
-      console.error('Error improving writing:', error);
-      toast.error("Failed to improve writing");
-    } finally {
-      setImproving(false);
-    }
-  };
-
   return (
     <div className="fixed inset-0 bg-black/90 backdrop-blur-sm z-50 flex items-center justify-center p-4">
       <Card className="w-full max-w-4xl h-[90vh] glass overflow-hidden flex flex-col">
@@ -257,30 +202,10 @@ export const AssignmentWorkspace = ({ assignment, onClose }: AssignmentWorkspace
           <AssignmentEditor
             content={content}
             onChange={setContent}
-            onImprove={improveWriting}
+            assignment={assignment}
             onSave={handleSubmit}
-            onGenerate={generateContent}
-            isGenerating={generating}
-            isImproving={improving}
-            isSubmitting={submitting}
+            isSubmitting={isSubmitting}
           />
-        </div>
-
-        <div className="p-4 border-t border-white/10 bg-black/40 flex justify-between items-center">
-          <div className="text-sm text-gray-400">
-            {content ? `${content.length} characters` : 'No content yet'}
-          </div>
-          <div className="flex gap-2">
-            <Button variant="ghost" onClick={onClose}>Cancel</Button>
-            <Button 
-              onClick={handleSubmit} 
-              disabled={submitting || !content.trim()}
-              className="gap-2"
-            >
-              <Send className="w-4 h-4" />
-              {submitting ? "Submitting..." : "Submit to Canvas"}
-            </Button>
-          </div>
         </div>
       </Card>
     </div>
