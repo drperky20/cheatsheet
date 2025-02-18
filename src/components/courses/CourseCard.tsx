@@ -1,6 +1,6 @@
+
 import { useState } from "react";
 import { Card } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
 import { BookOpen, Clock, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CourseRename } from "./CourseRename";
@@ -30,10 +30,6 @@ export const CourseCard = ({ course }: CourseCardProps) => {
   const [nickname, setNickname] = useState(course.nickname);
   const [showAssignments, setShowAssignments] = useState(false);
   const [selectedAssignment, setSelectedAssignment] = useState<any>(null);
-  
-  const progressValue = course.final_score || (course.assignments_count > 0 
-    ? ((course.assignments_count - course.pending_assignments) / course.assignments_count) * 100
-    : 0);
 
   const getRandomGradient = () => {
     const gradients = [
@@ -65,18 +61,6 @@ export const CourseCard = ({ course }: CourseCardProps) => {
               nickname={nickname}
               onUpdate={setNickname}
             />
-          </div>
-
-          <div className="space-y-2">
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-gray-400">Grade</span>
-              <span className="text-gray-400">
-                {course.final_grade 
-                  ? `${course.final_grade} (${Math.round(course.final_score || 0)}%)`
-                  : `${Math.round(progressValue)}%`}
-              </span>
-            </div>
-            <Progress value={progressValue} className="h-1" />
           </div>
 
           <div className="flex items-center justify-between text-sm text-gray-400">
