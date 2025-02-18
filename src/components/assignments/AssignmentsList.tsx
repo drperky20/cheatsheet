@@ -68,9 +68,6 @@ export const AssignmentsList = ({ courseId, onStartAssignment }: AssignmentsList
         if (pageAssignments.length === 0) {
           hasMore = false;
         } else {
-          // Cache the assignments
-          await cacheAssignments(pageAssignments);
-          
           allAssignments = [...allAssignments, ...pageAssignments];
           
           // If we received fewer assignments than the page size, we've reached the end
@@ -103,46 +100,6 @@ export const AssignmentsList = ({ courseId, onStartAssignment }: AssignmentsList
       toast.error("Failed to load assignments");
     } finally {
       setLoading(false);
-    }
-  };
-
-  const cacheAssignments = async (assignments: Assignment[]) => {
-    try {
-      // Split into chunks to avoid potential payload size limits
-      const chunkSize = 50;
-      const chunks = [];
-      
-      for (let i = 0; i < assignments.length; i += chunkSize) {
-        chunks.push(assignments.slice(i, i + chunkSize));
-      }
-
-      for (const chunk of chunks) {
-        const { error } = await supabase
-          .from('assignments')
-          .upsert(
-            chunk.map(a => ({
-              canvas_assignment_id: String(a.id), // Convert to string
-              course_id: String(courseId), // Convert to string
-              title: a.name,
-              description: a.description || null,
-              due_date: a.due_at ? new Date(a.due_at).toISOString() : null,
-              points_possible: typeof a.points_possible === 'number' ? a.points_possible : null,
-              status: 'pending',
-              requirements: null
-            })),
-            {
-              onConflict: 'canvas_assignment_id',
-              ignoreDuplicates: false
-            }
-          );
-
-        if (error) {
-          console.error('Error caching assignments chunk:', error);
-          // Continue with other chunks even if one fails
-        }
-      }
-    } catch (error) {
-      console.error('Error in cacheAssignments:', error);
     }
   };
 
