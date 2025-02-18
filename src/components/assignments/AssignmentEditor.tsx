@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -126,7 +125,6 @@ export const AssignmentEditor = ({
   };
 
   const formatText = () => {
-    // Add formatting logic here
     toast.success("Text formatting applied");
   };
 
@@ -152,6 +150,27 @@ export const AssignmentEditor = ({
     } catch (error) {
       console.error('Grade adjustment error:', error);
       toast.error("Failed to adjust grade level");
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleGenerate = async () => {
+    try {
+      setIsProcessing(true);
+      const { data, error } = await supabase.functions.invoke('gemini-processor', {
+        body: {
+          type: 'generate',
+          config: { assignment }
+        }
+      });
+
+      if (error) throw error;
+      onChange(data.result);
+      toast.success("Response generated successfully!");
+    } catch (error) {
+      console.error('Generation error:', error);
+      toast.error("Failed to generate response");
     } finally {
       setIsProcessing(false);
     }
@@ -194,6 +213,7 @@ export const AssignmentEditor = ({
           onImproveClick={improveWriting}
           onFormatClick={formatText}
           onGradeClick={adjustGrade}
+          onGenerate={handleGenerate}
         />
 
         <div className="flex justify-end items-center gap-4 mt-4">

@@ -11,7 +11,8 @@ import {
   GraduationCap,
   ArrowUpDown,
   Sparkles,
-  PencilRuler
+  PencilRuler,
+  Wand2
 } from "lucide-react";
 
 interface EditingToolbarProps {
@@ -20,6 +21,7 @@ interface EditingToolbarProps {
   onImproveClick: () => void;
   onFormatClick: () => void;
   onGradeClick: () => void;
+  onGenerate?: () => void;
 }
 
 export const EditingToolbar = ({
@@ -28,11 +30,30 @@ export const EditingToolbar = ({
   onImproveClick,
   onFormatClick,
   onGradeClick,
+  onGenerate
 }: EditingToolbarProps) => {
   return (
     <div className="fixed right-6 top-1/2 -translate-y-1/2 z-50">
       <div className="flex flex-col gap-4 p-3 rounded-full neo-blur">
         <TooltipProvider>
+          {onGenerate && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button 
+                  variant="ghost" 
+                  size="icon"
+                  onClick={onGenerate}
+                  className="text-[#9b87f5] hover:text-[#8b77e5] hover:bg-white/5"
+                >
+                  <Wand2 className="h-5 w-5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="left" className="neo-blur">
+                <p>Generate Response</p>
+              </TooltipContent>
+            </Tooltip>
+          )}
+
           <Tooltip>
             <TooltipTrigger asChild>
               <Button 
