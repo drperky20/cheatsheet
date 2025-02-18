@@ -5,8 +5,6 @@ import { GoogleGenerativeAI } from "https://esm.sh/@google/generative-ai@0.1.3";
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  'Content-Type': 'application/json'
 };
 
 // Simple in-memory rate limiting
@@ -31,6 +29,34 @@ function logRequest(clientIP: string) {
   const requests = requestLog.get(clientIP) || [];
   requests.push(Date.now());
   requestLog.set(clientIP, requests);
+}
+
+async function processWithRetry(genAI: any, prompt: string, maxRetries = 3): Promise<string> {
+  let lastError = null;
+  
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+      const result = await model.generateContent(prompt);
+      const response = await result.response;
+      return response.text();
+    } catch (error) {
+      lastError = error;
+      console.error(`Attempt ${attempt + 1} failed:`, error);
+      
+      // If it's a rate limit error, wait before retrying
+      if (error.toString().includes('429')) {
+        const waitTime = Math.pow(2, attempt) * 1000; // Exponential backoff
+        await new Promise(resolve => setTimeout(resolve, waitTime));
+        continue;
+      }
+      
+      // For other errors, throw immediately
+      throw error;
+    }
+  }
+  
+  throw lastError || new Error('Failed to process after multiple attempts');
 }
 
 serve(async (req) => {
@@ -95,14 +121,11 @@ serve(async (req) => {
 
     // Initialize Gemini
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
 
-    // Updated system prompt and content processing
+    // Updated system prompt
     const systemPrompt = `You are a helpful AI assistant that can help with both general questions and academic assignments. 
 When users ask about assignments or academic work, you should provide detailed academic analysis and help.
-For general questions, respond in a friendly and helpful way without assuming it's assignment-related.
-If you detect assignment-related keywords (like "essay", "homework", "assignment", "paper", "report", "thesis", "dissertation", "exam", "quiz", "test", "grade", "rubric", "deadline", "due date"), then activate your academic assistant mode.
-Otherwise, respond as a general helpful assistant.`;
+For general questions, respond in a friendly and helpful way without assuming it's assignment-related.`;
 
     // Combine system prompt with user content
     let prompt = "";
@@ -117,41 +140,14 @@ Otherwise, respond as a general helpful assistant.`;
         throw new Error(`Invalid processing type: ${type}`);
     }
 
-    // Generate content with retry logic
-    let attempts = 0;
-    const maxAttempts = 3;
-    let lastError = null;
-
-    while (attempts < maxAttempts) {
-      try {
-        console.log(`Attempt ${attempts + 1} of ${maxAttempts}...`);
-        const result = await model.generateContent(prompt);
-        const response = await result.response;
-        const text = response.text();
-        
-        console.log('Successfully generated content');
-        return new Response(
-          JSON.stringify({ result: text }),
-          { headers: corsHeaders }
-        );
-      } catch (error) {
-        lastError = error;
-        attempts++;
-        
-        // If it's a rate limit error, wait before retrying
-        if (error.toString().includes('429')) {
-          console.log('Rate limit hit, waiting before retry...');
-          await new Promise(resolve => setTimeout(resolve, 2000 * attempts)); // Exponential backoff
-          continue;
-        }
-        
-        // For other errors, throw immediately
-        throw error;
-      }
-    }
-
-    // If we get here, all attempts failed
-    throw lastError || new Error('Failed to generate content after multiple attempts');
+    // Process with retry logic
+    const result = await processWithRetry(genAI, prompt);
+    
+    console.log('Successfully generated content');
+    return new Response(
+      JSON.stringify({ result }),
+      { headers: corsHeaders }
+    );
 
   } catch (error) {
     console.error('Edge Function Error:', error);
