@@ -8,10 +8,10 @@ import { extractGoogleDocLinks, sanitizeHTML } from "@/utils/docProcessor";
 import { AssignmentQualityControls } from "./AssignmentQualityControls";
 import { AssignmentEditor } from "./AssignmentEditor";
 import { AssignmentQualityConfig } from "@/types/assignment";
-import * as pdfMake from "pdfmake/build/pdfmake";
-import * as pdfFonts from "pdfmake/build/vfs_fonts";
+import pdfMake from "pdfmake/build/pdfmake";
+import pdfFonts from "pdfmake/build/vfs_fonts";
 
-(pdfMake as any).vfs = pdfFonts.pdfMake.vfs;
+pdfMake.vfs = pdfFonts.pdfMake.vfs;
 
 interface Assignment {
   id: string;
@@ -81,11 +81,15 @@ export const AssignmentWorkspace = ({ assignment, onClose }: AssignmentWorkspace
           fontSize: 12,
           lineHeight: 1.5
         }
+      },
+      defaultStyle: {
+        font: 'Roboto'
       }
     };
 
     return new Promise((resolve) => {
-      pdfMake.createPdf(docDefinition).getBlob((blob) => {
+      const pdfDocGenerator = pdfMake.createPdf(docDefinition);
+      pdfDocGenerator.getBlob((blob) => {
         resolve(blob);
       });
     });
