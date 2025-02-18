@@ -97,17 +97,21 @@ serve(async (req) => {
     const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({ model: "gemini-pro" });
 
-    // Prepare prompt
+    // Updated system prompt and content processing
+    const systemPrompt = `You are a helpful AI assistant that can help with both general questions and academic assignments. 
+When users ask about assignments or academic work, you should provide detailed academic analysis and help.
+For general questions, respond in a friendly and helpful way without assuming it's assignment-related.
+If you detect assignment-related keywords (like "essay", "homework", "assignment", "paper", "report", "thesis", "dissertation", "exam", "quiz", "test", "grade", "rubric", "deadline", "due date"), then activate your academic assistant mode.
+Otherwise, respond as a general helpful assistant.`;
+
+    // Combine system prompt with user content
     let prompt = "";
     switch (type) {
       case "analyze_requirements":
-        prompt = `Analyze the following assignment requirements and extract key information like word count, formatting style, and deadline: ${content}`;
+        prompt = `${systemPrompt}\n\nAnalyze the following assignment requirements and extract key information like word count, formatting style, and deadline: ${content}`;
         break;
       case "generate_content":
-        prompt = `Create a high-quality academic response for the following assignment: ${content}`;
-        break;
-      case "improve_writing":
-        prompt = `Improve the following academic writing while maintaining academic integrity: ${content}`;
+        prompt = `${systemPrompt}\n\n${content}`;
         break;
       default:
         throw new Error(`Invalid processing type: ${type}`);

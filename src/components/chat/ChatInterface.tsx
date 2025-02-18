@@ -1,4 +1,3 @@
-
 import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Send, Loader2, Upload } from "lucide-react";
@@ -9,6 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 interface ChatInterfaceProps {
   onBack: () => void;
   initialQuestion?: string;
+  initialFile?: File | null;
 }
 
 interface Message {
@@ -16,11 +16,11 @@ interface Message {
   content: string;
 }
 
-export const ChatInterface = ({ onBack, initialQuestion = '' }: ChatInterfaceProps) => {
+export const ChatInterface = ({ onBack, initialQuestion = '', initialFile = null }: ChatInterfaceProps) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState(initialQuestion);
   const [isLoading, setIsLoading] = useState(false);
-  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+  const [uploadedFile, setUploadedFile] = useState<File | null>(initialFile);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 

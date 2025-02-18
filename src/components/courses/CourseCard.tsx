@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -16,6 +15,8 @@ interface CourseCardProps {
     course_code: string;
     assignments_count: number;
     pending_assignments: number;
+    final_grade?: string;
+    final_score?: number;
     term?: {
       name: string;
       start_at: string;
@@ -30,9 +31,9 @@ export const CourseCard = ({ course }: CourseCardProps) => {
   const [showAssignments, setShowAssignments] = useState(false);
   const [selectedAssignment, setSelectedAssignment] = useState<any>(null);
   
-  const progressValue = course.assignments_count > 0 
+  const progressValue = course.final_score || (course.assignments_count > 0 
     ? ((course.assignments_count - course.pending_assignments) / course.assignments_count) * 100
-    : 0;
+    : 0);
 
   const getRandomGradient = () => {
     const gradients = [
@@ -68,8 +69,12 @@ export const CourseCard = ({ course }: CourseCardProps) => {
 
           <div className="space-y-2">
             <div className="flex items-center justify-between text-sm">
-              <span className="text-gray-400">Progress</span>
-              <span className="text-gray-400">{Math.round(progressValue)}%</span>
+              <span className="text-gray-400">Grade</span>
+              <span className="text-gray-400">
+                {course.final_grade 
+                  ? `${course.final_grade} (${Math.round(course.final_score || 0)}%)`
+                  : `${Math.round(progressValue)}%`}
+              </span>
             </div>
             <Progress value={progressValue} className="h-1" />
           </div>

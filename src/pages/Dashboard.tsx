@@ -1,9 +1,9 @@
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { CanvasSetup } from "@/components/canvas/CanvasSetup";
 import { CoursesDashboard } from "@/components/courses/CoursesDashboard";
-import { Settings, LogOut, User, Send } from "lucide-react";
+import { Settings, LogOut, User, Send, Upload } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -16,12 +16,16 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useNavigate } from "react-router-dom";
 import { ChatInterface } from "@/components/chat/ChatInterface";
+import { useToast } from "@/hooks/use-toast";
 
 const Dashboard = () => {
   const { profile, canvasConfig, signOut } = useAuth();
   const navigate = useNavigate();
   const [showChat, setShowChat] = useState(false);
   const [initialQuestion, setInitialQuestion] = useState("");
+  const [uploadedImage, setUploadedImage] = useState<File | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const { toast } = useToast();
 
   if (!canvasConfig) {
     return (
@@ -44,12 +48,35 @@ const Dashboard = () => {
   }
 
   if (showChat) {
-    return <ChatInterface onBack={() => setShowChat(false)} initialQuestion={initialQuestion} />;
+    return <ChatInterface 
+      onBack={() => setShowChat(false)} 
+      initialQuestion={initialQuestion}
+      initialFile={uploadedImage}
+    />;
   }
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (!file.type.startsWith('image/')) {
+        toast({
+          title: "Invalid file type",
+          description: "Please upload an image file",
+          variant: "destructive"
+        });
+        return;
+      }
+      setUploadedImage(file);
+      toast({
+        title: "Image uploaded",
+        description: `${file.name} has been uploaded successfully.`
+      });
+    }
+  };
 
   const handleAskQuestion = (e: React.FormEvent) => {
     e.preventDefault();
-    if (initialQuestion.trim()) {
+    if (initialQuestion.trim() || uploadedImage) {
       setShowChat(true);
     }
   };
@@ -123,30 +150,51 @@ const Dashboard = () => {
               <div className="relative">
                 <Input
                   type="text"
-                  placeholder="Ask anything... Or upload a file and ask about it"
+                  placeholder={uploadedImage ? "Ask about your image..." : "Ask anything... Or upload a file and ask about it"}
                   value={initialQuestion}
                   onChange={(e) => setInitialQuestion(e.target.value)}
                   className="w-full h-16 pl-6 pr-24 bg-white/5 border-0 text-white placeholder:text-gray-400 rounded-xl focus:ring-2 focus:ring-[#9b87f5] transition-all"
                 />
-                <div className="absolute right-2 top-1/2 -translate-y-1/2">
+                <div className="absolute right-2 top-1/2 -translate-y-1/2 flex gap-2">
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={handleImageUpload}
+                    className="hidden"
+                    accept="image/*"
+                  />
+                  <Button
+                    type="button"
+                    size="icon"
+                    variant="ghost"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="h-12 w-12 rounded-xl hover:bg-white/10"
+                  >
+                    <Upload className="h-5 w-5" />
+                  </Button>
                   <Button
                     type="submit"
                     size="icon"
                     className="h-12 w-12 rounded-xl bg-[#9b87f5] hover:bg-[#8b5cf6] transition-all duration-200 hover:scale-105 disabled:opacity-50"
-                    disabled={!initialQuestion.trim()}
+                    disabled={!initialQuestion.trim() && !uploadedImage}
                   >
                     <Send className="h-5 w-5" />
                   </Button>
                 </div>
               </div>
+              {uploadedImage && (
+                <div className="mt-2 px-4">
+                  <span className="text-sm text-[#E5DEFF]">
+                    Image: {uploadedImage.name}
+                  </span>
+                </div>
+              )}
             </div>
           </form>
         </div>
 
         {/* Courses Dashboard */}
-        <div className="glass-morphism rounded-xl p-6 animate-fadeIn">
-          <CoursesDashboard />
-        </div>
+        <CoursesDashboard />
       </div>
     </div>
   );
