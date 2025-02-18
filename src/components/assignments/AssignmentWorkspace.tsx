@@ -1,11 +1,12 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Wand2, Save, Send, RotateCcw } from "lucide-react";
+import { Wand2, Save, Send, RotateCcw, FileText } from "lucide-react";
+import { extractGoogleDocLinks, sanitizeHTML } from "@/utils/docProcessor";
 
 interface Assignment {
   id: string;
@@ -28,6 +29,52 @@ export const AssignmentWorkspace = ({ assignment, onClose }: AssignmentWorkspace
   const [generating, setGenerating] = useState(false);
   const [improving, setImproving] = useState(false);
   const [history, setHistory] = useState<string[]>([]);
+  const [googleDocs, setGoogleDocs] = useState<string[]>([]);
+  const [processingDocs, setProcessingDocs] = useState(false);
+
+  useEffect(() => {
+    // Extract Google Doc links when component mounts
+    const links = extractGoogleDocLinks(assignment.description);
+    setGoogleDocs(links);
+  }, [assignment.description]);
+
+  const processGoogleDocs = async () => {
+    if (googleDocs.length === 0) {
+      toast.error("No Google Docs found in this assignment");
+      return;
+    }
+
+    try {
+      setProcessingDocs(true);
+      
+      // Process each Google Doc link
+      for (const docUrl of googleDocs) {
+        console.log("Processing Google Doc:", docUrl);
+        
+        const { data, error } = await supabase.functions.invoke('gemini-processor', {
+          body: {
+            content: `Process this Google Doc and provide a detailed analysis: ${docUrl}\n\nAssignment Context: ${assignment.name}\n\nAssignment Description: ${assignment.description}`,
+            type: 'analyze_requirements'
+          }
+        });
+
+        if (error) throw error;
+
+        // Add the processed content to the existing content
+        setContent(prev => {
+          const newContent = `${prev}\n\n### Analysis of Google Doc (${docUrl}):\n${data.result}`;
+          return newContent.trim();
+        });
+        
+        toast.success("Google Doc processed successfully");
+      }
+    } catch (error) {
+      console.error('Error processing Google Docs:', error);
+      toast.error("Failed to process Google Docs");
+    } finally {
+      setProcessingDocs(false);
+    }
+  };
 
   const generateContent = async () => {
     try {
@@ -104,7 +151,21 @@ export const AssignmentWorkspace = ({ assignment, onClose }: AssignmentWorkspace
           <div className="space-y-2">
             <label className="text-sm font-medium">Assignment Description</label>
             <Card className="p-4 bg-black/40">
-              <div dangerouslySetInnerHTML={{ __html: assignment.description }} />
+              <div dangerouslySetInnerHTML={{ __html: sanitizeHTML(assignment.description) }} />
+              
+              {googleDocs.length > 0 && (
+                <div className="mt-4 p-3 bg-blue-500/10 rounded-lg border border-blue-500/20">
+                  <h3 className="text-sm font-medium text-blue-400 mb-2">Found {googleDocs.length} Google Doc{googleDocs.length > 1 ? 's' : ''}</h3>
+                  <Button
+                    onClick={processGoogleDocs}
+                    disabled={processingDocs}
+                    className="w-full bg-blue-500/20 hover:bg-blue-500/30"
+                  >
+                    <FileText className="w-4 h-4 mr-2" />
+                    {processingDocs ? "Processing Documents..." : "Process Google Docs"}
+                  </Button>
+                </div>
+              )}
             </Card>
           </div>
 
