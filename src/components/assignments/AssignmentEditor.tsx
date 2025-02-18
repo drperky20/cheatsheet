@@ -1,225 +1,210 @@
+
 import React, { useState } from 'react';
+import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
-import { Slider } from "@/components/ui/slider";
+import { toast } from "sonner";
+import { 
+  Save, 
+  Send,
+  BookOpen,
+  List,
+} from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  Wand2,
-  ChevronDown,
-  RotateCcw,
-  Save,
-  Send,
-  FileText,
-  ArrowBigUpDash,
-  ArrowBigDownDash,
-  GraduationCap,
-  Smile,
-  History,
-  Sparkles,
-  PenTool,
-  RefreshCw,
-  BookOpen,
-  Settings,
-} from "lucide-react";
-import { toast } from "sonner";
-import { Card } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
+
+interface Assignment {
+  id: string;
+  name: string;
+  description: string;
+  due_at: string;
+  points_possible: number;
+}
+
+interface EditorProps {
+  content: string;
+  assignment?: Assignment;
+  onChange: (content: string) => void;
+  onSave?: () => Promise<void>;
+  isSubmitting?: boolean;
+}
 
 interface Version {
   content: string;
   timestamp: Date;
 }
 
-interface EditorProps {
-  content: string;
-  assignment?: {
-    name: string;
-    description: string;
-    points_possible: number;
-    due_at: string;
-  };
-  onChange: (content: string) => void;
-  onImprove: () => Promise<void>;
-  onGenerate: () => Promise<void>;
-  onSave?: () => Promise<void>;
-  isGenerating?: boolean;
-  isImproving?: boolean;
-  isSubmitting?: boolean;
-}
-
 export const AssignmentEditor = ({
   content,
   assignment,
   onChange,
-  onImprove,
-  onGenerate,
   onSave,
-  isGenerating = false,
-  isImproving = false,
   isSubmitting = false
 }: EditorProps) => {
   const [versions, setVersions] = useState<Version[]>([]);
-  const [selectedText, setSelectedText] = useState('');
-  const [adjustLength, setAdjustLength] = useState(1);
-
-  const handleTextSelect = () => {
-    const selection = window.getSelection();
-    if (selection && selection.toString()) {
-      setSelectedText(selection.toString());
-    } else {
-      setSelectedText('');
-    }
-  };
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [quality, setQuality] = useState<'elementary' | 'middle_school' | 'high_school' | 'college'>('middle_school');
 
   const saveVersion = () => {
     setVersions(prev => [...prev, { content, timestamp: new Date() }]);
-    toast.success("Version saved to history!");
+    toast.success("Version saved!");
   };
 
-  const restoreVersion = (version: Version) => {
-    onChange(version.content);
-    toast.success("Previous version restored!");
-  };
-
-  const adjustText = async () => {
-    const textToAdjust = selectedText || content;
-    if (!textToAdjust) {
-      toast.error("No text to adjust");
+  const handleStyleChange = async (level: 'elementary' | 'middle_school' | 'high_school' | 'college') => {
+    if (!content.trim()) {
+      toast.error("Please add some content first");
       return;
     }
 
     try {
+      setIsProcessing(true);
+      setQuality(level);
+
       const { data, error } = await supabase.functions.invoke('gemini-processor', {
         body: {
-          content: textToAdjust,
-          type: 'adjust_length',
-          config: {
-            assignment,
-            lengthFactor: adjustLength,
-            selection: !!selectedText,
-            currentGrade: 'B',
-            writingStyle: 'middle_school'
-          }
-        }
-      });
-
-      if (error) throw error;
-
-      if (selectedText) {
-        const newContent = content.replace(selectedText, data.result);
-        onChange(newContent);
-      } else {
-        onChange(data.result);
-      }
-      
-      toast.success(`Text adjusted successfully`);
-    } catch (error) {
-      console.error('Adjust text error:', error);
-      toast.error("Failed to adjust text");
-    }
-  };
-
-  const changeReadingLevel = async (level: string) => {
-    const textToAdjust = selectedText || content;
-    if (!textToAdjust) {
-      toast.error("No text to adjust");
-      return;
-    }
-
-    try {
-      const { data, error } = await supabase.functions.invoke('gemini-processor', {
-        body: {
-          content: textToAdjust,
+          content,
           type: 'adjust_reading_level',
           level,
-          config: { 
+          config: { assignment }
+        }
+      });
+
+      if (error) throw error;
+
+      onChange(data.result);
+      toast.success(`Style adjusted to ${level.replace('_', ' ')} level`);
+    } catch (error) {
+      console.error('Style adjustment error:', error);
+      toast.error("Failed to adjust writing style");
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const improveWriting = async () => {
+    if (!content.trim()) {
+      toast.error("Please add some content first");
+      return;
+    }
+
+    try {
+      setIsProcessing(true);
+
+      const { data, error } = await supabase.functions.invoke('gemini-processor', {
+        body: {
+          content,
+          type: 'improve_writing',
+          config: {
             assignment,
-            selection: !!selectedText
+            writingLevel: quality
           }
         }
       });
 
       if (error) throw error;
 
-      if (selectedText) {
-        const newContent = content.replace(selectedText, data.result);
-        onChange(newContent);
-      } else {
-        onChange(data.result);
-      }
-      toast.success(`Reading level adjusted to ${level}`);
+      onChange(data.result);
+      toast.success("Writing improved!");
     } catch (error) {
-      console.error('Reading level error:', error);
-      toast.error("Failed to adjust reading level");
+      console.error('Improvement error:', error);
+      toast.error("Failed to improve writing");
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const generateContent = async () => {
+    if (!assignment) {
+      toast.error("No assignment selected");
+      return;
+    }
+
+    try {
+      setIsProcessing(true);
+
+      const { data, error } = await supabase.functions.invoke('gemini-processor', {
+        body: {
+          content: assignment.description,
+          type: 'generate_content',
+          config: {
+            assignment,
+            writingLevel: quality
+          }
+        }
+      });
+
+      if (error) throw error;
+
+      onChange(data.result);
+      toast.success("Response generated!");
+    } catch (error) {
+      console.error('Generation error:', error);
+      toast.error("Failed to generate response");
+    } finally {
+      setIsProcessing(false);
     }
   };
 
   return (
-    <Card className="p-6 space-y-6 bg-gradient-to-br from-black/60 to-black/40 border-white/10 backdrop-blur-xl shadow-lg">
-      <div className="flex items-center justify-between">
-        <Label className="text-xl font-semibold bg-gradient-to-br from-white via-white/90 to-[#D6BCFA] bg-clip-text text-transparent">
-          Your Response
-        </Label>
-        <div className="flex items-center gap-3">
+    <Card className="p-4 space-y-4 bg-black/40 border-white/10 backdrop-blur-xl">
+      <div className="flex items-center justify-between mb-4">
+        <div className="space-y-1">
+          {assignment && (
+            <>
+              <h3 className="text-lg font-semibold text-white/90">{assignment.name}</h3>
+              <p className="text-sm text-white/60">
+                Due {new Date(assignment.due_at).toLocaleDateString()} • 
+                {assignment.points_possible} points
+              </p>
+            </>
+          )}
+        </div>
+
+        <div className="flex items-center gap-2">
           <Button
             variant="outline"
             size="sm"
-            onClick={onGenerate}
-            disabled={isGenerating}
-            className="gap-2 bg-white/5 hover:bg-white/10 border-white/10 text-white/90"
+            onClick={saveVersion}
+            className="bg-white/5 hover:bg-white/10 border-white/10"
           >
-            <Wand2 className="w-4 h-4" />
-            {isGenerating ? "Generating..." : "Generate Response"}
+            <Save className="w-4 h-4 mr-2" />
+            Save Version
           </Button>
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button 
                 variant="outline" 
-                size="sm" 
-                className="gap-2 bg-white/5 hover:bg-white/10 border-white/10 text-white/90"
+                size="sm"
+                className="bg-white/5 hover:bg-white/10 border-white/10"
               >
-                <History className="w-4 h-4" />
-                History
-                <ChevronDown className="w-4 h-4" />
+                <List className="w-4 h-4 mr-2" />
+                Past Versions
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56 bg-black/90 border-white/10">
-              <DropdownMenuLabel className="text-white/90">Previous Versions</DropdownMenuLabel>
-              <DropdownMenuSeparator className="bg-white/10" />
-              {versions.length === 0 ? (
-                <DropdownMenuItem disabled className="text-white/60">No versions saved</DropdownMenuItem>
-              ) : (
-                versions.map((version, index) => (
-                  <DropdownMenuItem
-                    key={index}
-                    onClick={() => restoreVersion(version)}
-                    className="text-white/90 hover:bg-white/10"
-                  >
-                    Version {index + 1} - {version.timestamp.toLocaleTimeString()}
-                  </DropdownMenuItem>
-                ))
+              {versions.map((version, index) => (
+                <DropdownMenuItem
+                  key={index}
+                  onClick={() => onChange(version.content)}
+                  className="text-white/90 hover:bg-white/10"
+                >
+                  Version {versions.length - index} • 
+                  {version.timestamp.toLocaleTimeString()}
+                </DropdownMenuItem>
+              ))}
+              {versions.length === 0 && (
+                <DropdownMenuItem disabled className="text-white/60">
+                  No saved versions
+                </DropdownMenuItem>
               )}
             </DropdownMenuContent>
           </DropdownMenu>
-
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={saveVersion}
-            className="gap-2 bg-white/5 hover:bg-white/10 border-white/10 text-white/90"
-          >
-            <Save className="w-4 h-4" />
-            Save
-          </Button>
         </div>
       </div>
 
@@ -227,100 +212,86 @@ export const AssignmentEditor = ({
         <Textarea
           value={content}
           onChange={(e) => onChange(e.target.value)}
-          onSelect={handleTextSelect}
-          className="min-h-[400px] bg-black/20 border-white/10 text-white/90 placeholder-white/50 font-mono rounded-xl resize-none"
-          placeholder="Start writing or generate content..."
+          className="min-h-[400px] bg-black/20 border-white/10 text-white/90 placeholder-white/50 font-mono resize-none"
+          placeholder="Start writing or generate a response..."
         />
 
-        <Card className="absolute bottom-4 right-4 p-2 bg-black/80 border-white/10 backdrop-blur-md">
+        <Card className="absolute bottom-4 right-4 p-2 bg-black/80 border-white/10">
           <div className="flex items-center gap-2">
-            <div className="flex items-center gap-2 pr-4 border-r border-white/10">
-              <Label className="text-xs text-white/60">Length</Label>
-              <div className="w-32">
-                <Slider
-                  value={[adjustLength]}
-                  onValueChange={([value]) => setAdjustLength(value)}
-                  min={0.5}
-                  max={2}
-                  step={0.1}
-                  className="my-1.5"
-                />
-              </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={adjustText}
-                className="h-8 px-2 hover:bg-white/10 text-white/90"
-              >
-                <PenTool className="w-4 h-4" />
-              </Button>
-            </div>
-
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button 
                   size="sm" 
-                  variant="ghost" 
-                  className="h-8 px-2 hover:bg-white/10 text-white/90"
+                  variant="ghost"
+                  className="h-8 px-3 hover:bg-white/10 text-white/90"
                 >
                   <BookOpen className="w-4 h-4" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent className="w-40 bg-black/90 border-white/10">
-                <DropdownMenuLabel className="text-white/60">Reading Level</DropdownMenuLabel>
-                <DropdownMenuSeparator className="bg-white/10" />
                 <DropdownMenuItem 
-                  onClick={() => changeReadingLevel('elementary')}
+                  onClick={() => handleStyleChange('elementary')}
                   className="text-white/90 hover:bg-white/10"
                 >
                   Elementary
                 </DropdownMenuItem>
                 <DropdownMenuItem 
-                  onClick={() => changeReadingLevel('middle_school')}
+                  onClick={() => handleStyleChange('middle_school')}
                   className="text-white/90 hover:bg-white/10"
                 >
                   Middle School
                 </DropdownMenuItem>
                 <DropdownMenuItem 
-                  onClick={() => changeReadingLevel('high_school')}
+                  onClick={() => handleStyleChange('high_school')}
                   className="text-white/90 hover:bg-white/10"
                 >
                   High School
                 </DropdownMenuItem>
                 <DropdownMenuItem 
-                  onClick={() => changeReadingLevel('college')}
+                  onClick={() => handleStyleChange('college')}
                   className="text-white/90 hover:bg-white/10"
                 >
-                  Graduate Level
+                  College Level
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onImprove}
-              disabled={isImproving}
-              className="h-8 px-2 hover:bg-white/10 text-white/90"
-            >
-              <Sparkles className="w-4 h-4" />
-            </Button>
           </div>
         </Card>
       </div>
 
-      <div className="flex justify-between items-center">
-        <div className="text-sm text-white/60">
-          {content.length} characters
+      <div className="flex justify-between items-center pt-2">
+        <div className="flex items-center gap-4">
+          <Button
+            variant="outline"
+            onClick={generateContent}
+            disabled={isProcessing || !assignment}
+            className="bg-white/5 hover:bg-white/10 border-white/10"
+          >
+            Generate Response
+          </Button>
+          <Button
+            variant="outline"
+            onClick={improveWriting}
+            disabled={isProcessing || !content.trim()}
+            className="bg-white/5 hover:bg-white/10 border-white/10"
+          >
+            Improve Writing
+          </Button>
         </div>
-        <Button
-          onClick={onSave}
-          disabled={isSubmitting || !content.trim()}
-          className="gap-2 bg-[#9b87f5] hover:bg-[#8b77e5] text-white border-none"
-        >
-          <Send className="w-4 h-4" />
-          {isSubmitting ? "Submitting..." : "Submit to Canvas"}
-        </Button>
+
+        <div className="flex items-center gap-4">
+          <span className="text-sm text-white/60">
+            {content.length} characters
+          </span>
+          <Button
+            onClick={onSave}
+            disabled={isSubmitting || !content.trim()}
+            className="bg-[#9b87f5] hover:bg-[#8b77e5] text-white"
+          >
+            <Send className="w-4 h-4 mr-2" />
+            {isSubmitting ? "Submitting..." : "Submit to Canvas"}
+          </Button>
+        </div>
       </div>
     </Card>
   );
