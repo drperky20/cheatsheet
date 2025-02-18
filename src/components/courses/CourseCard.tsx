@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -42,10 +43,6 @@ export const CourseCard = ({ course }: CourseCardProps) => {
       'from-teal-500/10 to-cyan-500/10',
     ];
     return gradients[Math.floor(Math.random() * gradients.length)];
-  };
-
-  const handleViewAssignments = () => {
-    console.log("View assignments for course:", course.id);
   };
 
   return (

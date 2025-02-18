@@ -49,7 +49,7 @@ export const CoursesDashboard = () => {
       }
 
       console.log('Fetching courses from Canvas...');
-      const { data, error } = await supabase.functions.invoke('canvas-proxy', {
+      const { data: coursesData, error: coursesError } = await supabase.functions.invoke('canvas-proxy', {
         body: {
           endpoint: '/courses?enrollment_state=active&state[]=available',
           method: 'GET',
@@ -58,23 +58,48 @@ export const CoursesDashboard = () => {
         }
       });
 
-      if (error) throw error;
+      if (coursesError) throw coursesError;
 
-      // Ensure data is an array and process courses
-      const activeCourses = Array.isArray(data) ? data
-        .filter(course => course && course.id && course.name)
-        .map(course => ({
-          id: course.id,
-          name: course.name,
-          course_code: course.course_code || course.name,
-          assignments_count: 0,
-          pending_assignments: 0,
-          term: course.term,
-          nickname: null
-        })) : [];
+      // Fetch assignment counts for each course
+      const coursesWithAssignments = await Promise.all(
+        (Array.isArray(coursesData) ? coursesData : []).map(async (course) => {
+          const { data: assignments, error: assignmentsError } = await supabase.functions.invoke('canvas-proxy', {
+            body: {
+              endpoint: `/courses/${course.id}/assignments`,
+              method: 'GET',
+              domain: canvasConfig.domain,
+              apiKey: canvasConfig.api_key
+            }
+          });
 
-      console.log('Active courses:', activeCourses);
-      setCourses(sortCourses(activeCourses, sortBy));
+          if (assignmentsError) {
+            console.error('Error fetching assignments for course:', course.id, assignmentsError);
+            return null;
+          }
+
+          const totalAssignments = Array.isArray(assignments) ? assignments.length : 0;
+          const pendingAssignments = Array.isArray(assignments) 
+            ? assignments.filter(a => 
+                new Date(a.due_at) > new Date() && 
+                !a.has_submitted_submissions
+              ).length 
+            : 0;
+
+          return {
+            id: course.id,
+            name: course.name,
+            course_code: course.course_code || course.name,
+            assignments_count: totalAssignments,
+            pending_assignments: pendingAssignments,
+            term: course.term,
+            nickname: null
+          };
+        })
+      );
+
+      const validCourses = coursesWithAssignments.filter((course): course is Course => course !== null);
+      console.log('Courses with assignments:', validCourses);
+      setCourses(sortCourses(validCourses, sortBy));
     } catch (error: any) {
       console.error('Error fetching courses:', error);
       toast({
@@ -95,8 +120,8 @@ export const CoursesDashboard = () => {
         case "pending":
           return b.pending_assignments - a.pending_assignments;
         case "progress":
-          const progressA = (a.assignments_count - a.pending_assignments) / a.assignments_count;
-          const progressB = (b.assignments_count - b.pending_assignments) / b.assignments_count;
+          const progressA = (a.assignments_count - a.pending_assignments) / Math.max(a.assignments_count, 1);
+          const progressB = (b.assignments_count - b.pending_assignments) / Math.max(b.assignments_count, 1);
           return progressB - progressA;
         default:
           return 0;
