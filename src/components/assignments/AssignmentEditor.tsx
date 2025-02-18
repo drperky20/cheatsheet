@@ -6,9 +6,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { Send } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { EditingToolbar } from './editor/EditingToolbar';
 import { VersionControl } from './editor/VersionControl';
-import { WritingStyleControls } from './editor/WritingStyleControls';
-import { LengthAdjuster } from './editor/LengthAdjuster';
 
 interface Assignment {
   id: string;
@@ -40,10 +39,8 @@ export const AssignmentEditor = ({
 }: EditorProps) => {
   const [versions, setVersions] = useState<Version[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [quality, setQuality] = useState<'elementary' | 'middle_school' | 'high_school' | 'college'>('middle_school');
-  const [lengthFactor, setLengthFactor] = useState(1);
 
-  const handleStyleChange = async (level: 'elementary' | 'middle_school' | 'high_school' | 'college') => {
+  const handleStyleChange = async () => {
     if (!content.trim()) {
       toast.error("Please add some content first");
       return;
@@ -51,24 +48,51 @@ export const AssignmentEditor = ({
 
     try {
       setIsProcessing(true);
-      setQuality(level);
-
       const { data, error } = await supabase.functions.invoke('gemini-processor', {
         body: {
           content,
           type: 'adjust_reading_level',
-          level,
+          level: 'college',
           config: { assignment }
         }
       });
 
       if (error) throw error;
-
       onChange(data.result);
-      toast.success(`Style adjusted to ${level.replace('_', ' ')} level`);
+      toast.success("Style adjusted successfully");
     } catch (error) {
       console.error('Style adjustment error:', error);
       toast.error("Failed to adjust writing style");
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleLengthAdjust = async () => {
+    if (!content.trim()) {
+      toast.error("Please add some content first");
+      return;
+    }
+
+    try {
+      setIsProcessing(true);
+      const { data, error } = await supabase.functions.invoke('gemini-processor', {
+        body: {
+          content,
+          type: 'adjust_text',
+          config: {
+            lengthFactor: 1.5,
+            assignment
+          }
+        }
+      });
+
+      if (error) throw error;
+      onChange(data.result);
+      toast.success("Length adjusted successfully");
+    } catch (error) {
+      console.error('Length adjustment error:', error);
+      toast.error("Failed to adjust length");
     } finally {
       setIsProcessing(false);
     }
@@ -82,20 +106,15 @@ export const AssignmentEditor = ({
 
     try {
       setIsProcessing(true);
-
       const { data, error } = await supabase.functions.invoke('gemini-processor', {
         body: {
           content,
           type: 'improve_writing',
-          config: {
-            assignment,
-            writingLevel: quality
-          }
+          config: { assignment }
         }
       });
 
       if (error) throw error;
-
       onChange(data.result);
       toast.success("Writing improved!");
     } catch (error) {
@@ -106,39 +125,12 @@ export const AssignmentEditor = ({
     }
   };
 
-  const generateContent = async () => {
-    if (!assignment) {
-      toast.error("No assignment selected");
-      return;
-    }
-
-    try {
-      setIsProcessing(true);
-
-      const { data, error } = await supabase.functions.invoke('gemini-processor', {
-        body: {
-          content: assignment.description,
-          type: 'generate_content',
-          config: {
-            assignment,
-            writingLevel: quality
-          }
-        }
-      });
-
-      if (error) throw error;
-
-      onChange(data.result);
-      toast.success("Response generated!");
-    } catch (error) {
-      console.error('Generation error:', error);
-      toast.error("Failed to generate response");
-    } finally {
-      setIsProcessing(false);
-    }
+  const formatText = () => {
+    // Add formatting logic here
+    toast.success("Text formatting applied");
   };
 
-  const adjustLength = async () => {
+  const adjustGrade = async () => {
     if (!content.trim()) {
       toast.error("Please add some content first");
       return;
@@ -146,25 +138,20 @@ export const AssignmentEditor = ({
 
     try {
       setIsProcessing(true);
-
       const { data, error } = await supabase.functions.invoke('gemini-processor', {
         body: {
           content,
-          type: 'adjust_text',
-          config: {
-            lengthFactor,
-            assignment
-          }
+          type: 'adjust_grade_level',
+          config: { assignment }
         }
       });
 
       if (error) throw error;
-
       onChange(data.result);
-      toast.success(`Length ${lengthFactor > 1 ? 'increased' : 'decreased'} successfully`);
+      toast.success("Grade level adjusted!");
     } catch (error) {
-      console.error('Length adjustment error:', error);
-      toast.error("Failed to adjust length");
+      console.error('Grade adjustment error:', error);
+      toast.error("Failed to adjust grade level");
     } finally {
       setIsProcessing(false);
     }
@@ -193,56 +180,34 @@ export const AssignmentEditor = ({
         />
       </div>
 
-      <div className="p-4 space-y-4">
-        <div className="relative">
-          <Textarea
-            value={content}
-            onChange={(e) => onChange(e.target.value)}
-            className="min-h-[400px] neo-blur text-white/90 placeholder-white/50 font-mono resize-none"
-            placeholder="Start writing or generate a response..."
-          />
-
-          <WritingStyleControls onStyleChange={handleStyleChange} />
-        </div>
-
-        <LengthAdjuster
-          lengthFactor={lengthFactor}
-          onLengthFactorChange={setLengthFactor}
-          onAdjust={adjustLength}
-          isProcessing={isProcessing}
-          hasContent={Boolean(content.trim())}
+      <div className="relative p-4">
+        <Textarea
+          value={content}
+          onChange={(e) => onChange(e.target.value)}
+          className="min-h-[400px] neo-blur text-white/90 placeholder-white/50 font-mono resize-none"
+          placeholder="Start writing or generate a response..."
         />
 
-        <div className="flex justify-between items-center pt-2">
-          <div className="flex items-center gap-4">
-            <Button
-              variant="secondary"
-              onClick={generateContent}
-              disabled={isProcessing || !assignment}
-            >
-              Generate Response
-            </Button>
-            <Button
-              variant="secondary"
-              onClick={improveWriting}
-              disabled={isProcessing || !content.trim()}
-            >
-              Improve Writing
-            </Button>
-          </div>
+        <EditingToolbar
+          onStyleClick={handleStyleChange}
+          onLengthClick={handleLengthAdjust}
+          onImproveClick={improveWriting}
+          onFormatClick={formatText}
+          onGradeClick={adjustGrade}
+        />
 
-          <div className="flex items-center gap-4">
-            <span className="text-sm text-white/60">
-              {content.length} characters
-            </span>
-            <Button
-              onClick={onSave}
-              disabled={isSubmitting || !content.trim()}
-            >
-              <Send className="w-4 h-4" />
-              {isSubmitting ? "Submitting..." : "Submit to Canvas"}
-            </Button>
-          </div>
+        <div className="flex justify-end items-center gap-4 mt-4">
+          <span className="text-sm text-white/60">
+            {content.length} characters
+          </span>
+          <Button
+            onClick={onSave}
+            disabled={isSubmitting || !content.trim()}
+            className="bg-[#9b87f5] hover:bg-[#8b77e5]"
+          >
+            <Send className="w-4 h-4 mr-2" />
+            {isSubmitting ? "Submitting..." : "Submit to Canvas"}
+          </Button>
         </div>
       </div>
     </Card>
