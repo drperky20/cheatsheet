@@ -31,12 +31,11 @@ serve(async (req) => {
       url.searchParams.append('include[]', 'term')
     } else if (endpoint.includes('/assignments')) {
       // Parameters for assignments endpoint
-      url.searchParams.append('order_by', 'due_at')
       url.searchParams.append('include[]', 'submission')
       url.searchParams.append('include[]', 'overrides')
-      url.searchParams.append('per_page', '100') // Increased to get more assignments
-      url.searchParams.append('sort', 'due_at')
-      url.searchParams.append('order', 'desc') // Newest first
+      url.searchParams.append('per_page', '100')
+      url.searchParams.append('order_by', 'due_at')
+      url.searchParams.append('order', 'desc')
     }
     
     console.log('Requesting Canvas API URL:', url.toString())
@@ -80,8 +79,6 @@ serve(async (req) => {
     } else {
       // Filter assignments to show relevant ones
       const now = new Date()
-      const threeMonthsAgo = new Date(now)
-      threeMonthsAgo.setMonth(now.getMonth() - 3)
       
       const activeAssignments = Array.isArray(data) ? data.filter((assignment: any) => {
         if (!assignment) return false
@@ -89,20 +86,8 @@ serve(async (req) => {
         // Only show published assignments
         if (!assignment.published) return false
         
-        // Parse the due date
-        const dueDate = assignment.due_at ? new Date(assignment.due_at) : null
-        
-        // Include assignments that:
-        // 1. Are due in the future, or
-        // 2. Were due within the last 3 months and aren't submitted yet
-        return (
-          assignment.published && 
-          (
-            (dueDate && dueDate > now) || // Future assignments
-            (dueDate && dueDate > threeMonthsAgo && 
-             (!assignment.submission || assignment.submission.workflow_state !== 'graded'))
-          )
-        )
+        // Don't filter by submission status - show all assignments
+        return assignment.published
       }) : []
       
       // Sort by due date (newest first)
