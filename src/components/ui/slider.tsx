@@ -16,7 +16,7 @@ const Slider = React.forwardRef<
     )}
     {...props}
   >
-    <SliderPrimitive.Track className="relative h-1.5 w-full grow overflow-hidden rounded-full bg-white/5">
+    <SliderPrimitive.Track className="relative h-1 w-full grow overflow-hidden rounded-full bg-white/5">
       <SliderPrimitive.Range className="absolute h-full bg-[#9b87f5]" />
     </SliderPrimitive.Track>
     <div className="absolute left-1/2 w-[1px] h-full -translate-x-1/2 bg-white/5" />
@@ -29,7 +29,8 @@ const Slider = React.forwardRef<
         )}
         style={{
           left: '50%',
-          transform: `translate(-50%, ${i * 10}%)`,
+          top: `${i * 10}%`,
+          transform: 'translate(-50%, 0)',
         }}
       />
     ))}

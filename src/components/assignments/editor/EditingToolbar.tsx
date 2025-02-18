@@ -22,6 +22,7 @@ interface EditingToolbarProps {
   onFormatClick: () => void;
   onGradeClick: () => void;
   onGenerate?: () => void;
+  isSliderVisible?: boolean;
 }
 
 export const EditingToolbar = ({
@@ -30,11 +31,14 @@ export const EditingToolbar = ({
   onImproveClick,
   onFormatClick,
   onGradeClick,
-  onGenerate
+  onGenerate,
+  isSliderVisible
 }: EditingToolbarProps) => {
+  if (isSliderVisible) return null;
+
   return (
     <div className="fixed right-6 top-1/2 -translate-y-1/2 z-50">
-      <div className="flex flex-col gap-4 p-3 rounded-full neo-blur">
+      <div className="flex flex-col gap-4 p-3 rounded-full bg-[#222222]/90 backdrop-blur-md border border-white/10">
         <TooltipProvider>
           {onGenerate && (
             <Tooltip>
