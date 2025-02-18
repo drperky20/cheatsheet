@@ -9,6 +9,7 @@ interface AuthContextType extends AuthState {
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string, fullName: string) => Promise<void>;
   signOut: () => Promise<void>;
+  signInWithGoogle: () => Promise<void>;
   updateCanvasConfig: (domain: string, apiKey: string) => Promise<void>;
 }
 
@@ -78,6 +79,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch (error) {
       console.error("Error fetching user data:", error);
       setState(s => ({ ...s, isLoading: false }));
+    }
+  };
+
+  const signInWithGoogle = async () => {
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'consent',
+            scope: 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email'
+          },
+        },
+      });
+
+      if (error) throw error;
+      
+      // The redirect will happen automatically
+      // When the user returns, the session will be handled by the onAuthStateChange listener
+    } catch (error: any) {
+      toast.error(error.message);
     }
   };
 
@@ -165,6 +188,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         signIn,
         signUp,
         signOut,
+        signInWithGoogle,
         updateCanvasConfig,
       }}
     >
