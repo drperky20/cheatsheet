@@ -14,14 +14,29 @@ serve(async (req) => {
 
   try {
     const { endpoint, method, domain, apiKey } = await req.json()
-    console.log('Received request for endpoint:', endpoint)
+    
+    // Add more detailed logging
+    console.log('Request details:', {
+      endpoint,
+      method,
+      domain,
+      hasApiKey: !!apiKey,
+    })
 
     if (!domain || !apiKey) {
       throw new Error('Missing required parameters: domain or apiKey')
     }
 
-    const baseUrl = `https://${domain}/api/v1${endpoint}`
+    // Ensure the domain format is correct
+    const cleanDomain = domain.replace(/^https?:\/\//, '').replace(/\/$/, '')
+    const baseUrl = `https://${cleanDomain}/api/v1${endpoint}`
     console.log('Making request to:', baseUrl)
+
+    // Log headers (without exposing the full API key)
+    console.log('Request headers:', {
+      Authorization: apiKey ? `Bearer ${apiKey.substring(0, 5)}...` : 'Missing',
+      'Content-Type': 'application/json'
+    })
 
     const response = await fetch(baseUrl, {
       method: method || 'GET',
@@ -32,8 +47,16 @@ serve(async (req) => {
     })
 
     if (!response.ok) {
-      console.error('Canvas API error:', response.status, response.statusText)
-      throw new Error(`Canvas API error: ${response.status} ${response.statusText}`)
+      // Add more detailed error logging
+      const errorText = await response.text()
+      console.error('Canvas API error details:', {
+        status: response.status,
+        statusText: response.statusText,
+        responseBody: errorText,
+        url: baseUrl,
+      })
+      
+      throw new Error(`Canvas API error: ${response.status} ${response.statusText}\nDetails: ${errorText}`)
     }
 
     const responseData = await response.json()
@@ -44,7 +67,11 @@ serve(async (req) => {
       status: 200,
     })
   } catch (error) {
-    console.error('Edge Function Error:', error)
+    console.error('Edge Function Error:', {
+      message: error.message,
+      stack: error.stack,
+    })
+
     return new Response(
       JSON.stringify({
         error: error.message || 'An unexpected error occurred',
