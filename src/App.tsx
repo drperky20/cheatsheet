@@ -7,6 +7,7 @@ import Dashboard from "@/pages/Dashboard";
 import Settings from "@/pages/Settings";
 import Profile from "@/pages/Profile";
 import { useAuth } from "@/contexts/AuthContext";
+import { Watermark } from "@/components/ui/watermark";
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { profile, isLoading } = useAuth();
@@ -40,6 +41,7 @@ const App = () => {
   return (
     <Router>
       <AuthProvider>
+        <Watermark />
         <Routes>
           <Route
             path="/auth"
