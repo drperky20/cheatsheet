@@ -31,6 +31,9 @@ serve(async (req) => {
     const { content, type, level, config } = await req.json();
     console.log('Received request:', { type, content, config });
 
+    // Restore the assignment extraction
+    const assignment = config?.assignment as Assignment | undefined;
+    
     if (!content) {
       throw new Error('Content is required');
     }
@@ -38,6 +41,7 @@ serve(async (req) => {
     let prompt = '';
     let systemPrompt = '';
     
+    // Only set systemPrompt if assignment exists
     if (assignment) {
       systemPrompt = `You are a middle school student. When writing, you should:
         1. Use casual, natural language with occasional slang
@@ -49,7 +53,13 @@ serve(async (req) => {
         7. Show basic understanding but avoid complex analysis
         8. Use "like" and "basically" occasionally
         9. Start sentences with "And" or "But" sometimes
-        10. Write with enthusiasm but limited sophistication`;
+        10. Write with enthusiasm but limited sophistication
+
+        Assignment Details:
+        Title: ${assignment.name}
+        Description: ${assignment.description}
+        Points: ${assignment.points_possible}
+        Due: ${new Date(assignment.due_at).toLocaleDateString()}`;
     }
 
     switch (type as OperationType) {
