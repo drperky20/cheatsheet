@@ -1,3 +1,4 @@
+
 import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Send, Loader2, Upload } from "lucide-react";
@@ -16,6 +17,18 @@ interface Message {
   content: string;
 }
 
+// Supported file formats and their descriptions
+const SUPPORTED_FORMATS = {
+  'application/pdf': 'PDF documents',
+  'text/plain': 'Text files (.txt)',
+  'application/msword': 'Word documents (.doc)',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'Word documents (.docx)',
+  'text/markdown': 'Markdown files (.md)',
+  'text/rtf': 'Rich Text Format (.rtf)',
+  'application/x-latex': 'LaTeX documents (.tex)',
+  'text/csv': 'CSV files',
+} as const;
+
 export const ChatInterface = ({ onBack, initialQuestion = '', initialFile = null }: ChatInterfaceProps) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState(initialQuestion);
@@ -26,13 +39,24 @@ export const ChatInterface = ({ onBack, initialQuestion = '', initialFile = null
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      setUploadedFile(file);
+    if (!file) return;
+
+    // Check if file type is supported
+    if (!Object.keys(SUPPORTED_FORMATS).includes(file.type)) {
       toast({
-        title: "File uploaded",
-        description: `${file.name} has been uploaded successfully.`
+        title: "Unsupported file format",
+        description: "Please upload one of the following formats:\n" +
+          Object.values(SUPPORTED_FORMATS).join(", "),
+        variant: "destructive"
       });
+      return;
     }
+
+    setUploadedFile(file);
+    toast({
+      title: "File uploaded",
+      description: `${file.name} has been uploaded successfully.`
+    });
   };
 
   const processWithGemini = async (content: string, type: string) => {
@@ -104,6 +128,9 @@ export const ChatInterface = ({ onBack, initialQuestion = '', initialFile = null
     }
   };
 
+  // Generate the accept string for file input
+  const acceptedFileTypes = Object.keys(SUPPORTED_FORMATS).join(',');
+
   return (
     <div className="min-h-screen flex flex-col relative overflow-hidden bg-black">
       {/* Background gradients */}
@@ -172,17 +199,27 @@ export const ChatInterface = ({ onBack, initialQuestion = '', initialFile = null
                 ref={fileInputRef}
                 onChange={handleFileUpload}
                 className="hidden"
-                accept=".pdf,.doc,.docx,.txt"
+                accept={acceptedFileTypes}
               />
-              <Button
-                type="button"
-                size="icon"
-                variant="ghost"
-                onClick={() => fileInputRef.current?.click()}
-                className="h-12 w-12 rounded-xl hover:bg-white/10"
-              >
-                <Upload className="h-5 w-5" />
-              </Button>
+              <div className="relative group">
+                <Button
+                  type="button"
+                  size="icon"
+                  variant="ghost"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="h-12 w-12 rounded-xl hover:bg-white/10"
+                >
+                  <Upload className="h-5 w-5" />
+                </Button>
+                <div className="absolute bottom-full right-0 mb-2 w-64 p-2 bg-black/90 rounded-lg text-xs text-white opacity-0 group-hover:opacity-100 transition-opacity">
+                  Supported formats:
+                  <ul className="mt-1 space-y-1">
+                    {Object.values(SUPPORTED_FORMATS).map((format, index) => (
+                      <li key={index}>• {format}</li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
               <Button
                 type="submit"
                 size="icon"
