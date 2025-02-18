@@ -92,8 +92,8 @@ export const CoursesDashboard = () => {
             assignments_count: totalAssignments,
             pending_assignments: pendingAssignments,
             term: course.term,
-            nickname: null
-          };
+            nickname: undefined
+          } as Course;
         })
       );
 
