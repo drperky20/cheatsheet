@@ -1,16 +1,14 @@
-
 import { useState, useEffect } from "react";
-import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Save, Send, RotateCcw, FileText, Link } from "lucide-react";
-import { extractGoogleDocLinks, extractAllExternalLinks, sanitizeHTML } from "@/utils/docProcessor";
-import { AssignmentQualityControls } from "./AssignmentQualityControls";
-import { AssignmentEditor } from "./AssignmentEditor";
+import { extractAllExternalLinks } from "@/utils/docProcessor";
 import { AssignmentQualityConfig } from "@/types/assignment";
 import pdfMake from "pdfmake/build/pdfmake";
 import "pdfmake/build/vfs_fonts";
+import { AssignmentHeader } from "./workspace/AssignmentHeader";
+import { AssignmentDescription } from "./workspace/AssignmentDescription";
+import { AssignmentContent } from "./workspace/AssignmentContent";
 
 interface Assignment {
   id: string;
@@ -42,7 +40,6 @@ export const AssignmentWorkspace = ({ assignment, onClose }: AssignmentWorkspace
   });
 
   useEffect(() => {
-    // Only extract links from the assignment description
     if (assignment.description) {
       const links = extractAllExternalLinks(assignment.description);
       setExternalLinks(links);
@@ -167,49 +164,28 @@ export const AssignmentWorkspace = ({ assignment, onClose }: AssignmentWorkspace
   return (
     <div className="fixed inset-0 bg-black/90 backdrop-blur-sm z-50 flex items-center justify-center p-4">
       <Card className="w-full max-w-4xl h-[90vh] glass overflow-hidden flex flex-col">
-        <div className="p-4 border-b border-white/10 flex items-center justify-between bg-black/40">
-          <div>
-            <h2 className="text-xl font-semibold text-white">{assignment.name}</h2>
-            <p className="text-sm text-gray-400">Due {new Date(assignment.due_at).toLocaleDateString()}</p>
-          </div>
-          <Button variant="ghost" onClick={onClose}>Close</Button>
-        </div>
+        <AssignmentHeader
+          name={assignment.name}
+          dueDate={assignment.due_at}
+          onClose={onClose}
+        />
 
         <div className="flex-1 p-4 space-y-4 overflow-auto">
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-white">Assignment Description</label>
-            <Card className="p-4 bg-black/40 border-white/10">
-              <div 
-                className="prose prose-invert max-w-none"
-                dangerouslySetInnerHTML={{ __html: sanitizeHTML(assignment.description) }} 
-              />
-              
-              {externalLinks.length > 0 && (
-                <div className="mt-4 p-3 bg-blue-500/10 rounded-lg border border-blue-500/20">
-                  <h3 className="text-sm font-medium text-blue-400 mb-2">
-                    Found {externalLinks.length} external link{externalLinks.length > 1 ? 's' : ''} in description
-                  </h3>
-                  <Button
-                    onClick={processExternalLinks}
-                    disabled={processingLinks}
-                    className="w-full bg-blue-500/20 hover:bg-blue-500/30"
-                  >
-                    <Link className="w-4 h-4 mr-2" />
-                    {processingLinks ? "Processing Links..." : "Process External Links"}
-                  </Button>
-                </div>
-              )}
-            </Card>
-          </div>
+          <AssignmentDescription
+            description={assignment.description}
+            externalLinks={externalLinks}
+            onProcessLinks={processExternalLinks}
+            processingLinks={processingLinks}
+          />
 
-          <AssignmentQualityControls onConfigChange={setQualityConfig} />
-
-          <AssignmentEditor
+          <AssignmentContent
             content={content}
-            onChange={setContent}
+            onContentChange={setContent}
             assignment={assignment}
             onSave={handleSubmit}
             isSubmitting={isSubmitting}
+            qualityConfig={qualityConfig}
+            onQualityConfigChange={setQualityConfig}
           />
         </div>
       </Card>
