@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";  // Added useEffect import
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -28,7 +28,8 @@ const Profile = () => {
     setIsGoogleConnected(session?.user?.app_metadata?.provider === 'google');
   };
 
-  useState(() => {
+  // Changed from useState to useEffect
+  useEffect(() => {
     checkGoogleConnection();
   }, []);
 
@@ -60,7 +61,18 @@ const Profile = () => {
 
   const handleDisconnectGoogle = async () => {
     try {
-      const { error } = await supabase.auth.unlinkIdentity('google');
+      // Get current session to get the provider ID
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) throw new Error("No active session");
+
+      // Create proper UserIdentity object
+      const identity = {
+        id: session.user.id,
+        provider: 'google',
+        user_id: session.user.id
+      };
+
+      const { error } = await supabase.auth.unlinkIdentity(identity);
       if (error) throw error;
 
       setIsGoogleConnected(false);
