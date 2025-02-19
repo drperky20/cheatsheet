@@ -4,8 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Wand2, Save, Send, RotateCcw, FileText } from "lucide-react";
-import { extractGoogleDocLinks, sanitizeHTML } from "@/utils/docProcessor";
+import { Wand2, Save, Send, RotateCcw, FileText, Link } from "lucide-react";
+import { extractGoogleDocLinks, sanitizeHTML, extractAllExternalLinks, logProcessingActivity } from "@/utils/docProcessor";
 import { AssignmentQualityControls } from "./AssignmentQualityControls";
 import { AssignmentEditor } from "./AssignmentEditor";
 import { AssignmentQualityConfig } from "@/types/assignment";
@@ -33,6 +33,7 @@ export const AssignmentWorkspace = ({ assignment, onClose }: AssignmentWorkspace
   const [content, setContent] = useState("");
   const [isSubmitting, setSubmitting] = useState(false);
   const [googleDocs, setGoogleDocs] = useState<string[]>([]);
+  const [externalLinks, setExternalLinks] = useState<Array<{ url: string; type: 'google_doc' | 'other' }>>([]);
   const [processingDocs, setProcessingDocs] = useState(false);
   const [qualityConfig, setQualityConfig] = useState<AssignmentQualityConfig>({
     targetGrade: 'B',
@@ -42,8 +43,11 @@ export const AssignmentWorkspace = ({ assignment, onClose }: AssignmentWorkspace
   });
 
   useEffect(() => {
+    logProcessingActivity('Processing assignment description', { assignmentId: assignment.id });
     const links = extractGoogleDocLinks(assignment.description);
+    const allLinks = extractAllExternalLinks(assignment.description);
     setGoogleDocs(links);
+    setExternalLinks(allLinks);
   }, [assignment.description]);
 
   const generatePDF = async (content: string) => {
@@ -91,6 +95,82 @@ export const AssignmentWorkspace = ({ assignment, onClose }: AssignmentWorkspace
     });
   };
 
+  const processExternalLinks = async () => {
+    const nonGoogleDocs = externalLinks.filter(link => link.type === 'other');
+    if (nonGoogleDocs.length === 0) {
+      toast({
+        title: "No external links found",
+        description: "No additional external links to process"
+      });
+      return;
+    }
+
+    try {
+      setProcessingDocs(true);
+      
+      for (const { url } of nonGoogleDocs) {
+        logProcessingActivity('Processing external link', { url });
+        
+        const { data, error } = await supabase.functions.invoke('gemini-processor', {
+          body: {
+            content: `Process this external link and provide a detailed analysis: ${url}\n\nAssignment Context: ${assignment.name}\n\nAssignment Description: ${assignment.description}`,
+            type: 'analyze_external_link'
+          }
+        });
+
+        if (error) throw error;
+
+        setContent(prev => {
+          const newContent = `${prev}\n\n### Analysis of External Link (${url}):\n${data.result}`;
+          return newContent.trim();
+        });
+        
+        toast.success("External link processed successfully");
+      }
+    } catch (error) {
+      console.error('Error processing external links:', error);
+      toast.error("Failed to process external links");
+    } finally {
+      setProcessingDocs(false);
+    }
+  };
+
+  const processGoogleDocs = async () => {
+    if (googleDocs.length === 0) {
+      toast.error("No Google Docs found in this assignment");
+      return;
+    }
+
+    try {
+      setProcessingDocs(true);
+      
+      for (const docUrl of googleDocs) {
+        logProcessingActivity('Processing Google Doc', { url: docUrl });
+        
+        const { data, error } = await supabase.functions.invoke('gemini-processor', {
+          body: {
+            content: `Process this Google Doc and provide a detailed analysis: ${docUrl}\n\nAssignment Context: ${assignment.name}\n\nAssignment Description: ${assignment.description}`,
+            type: 'analyze_requirements'
+          }
+        });
+
+        if (error) throw error;
+
+        setContent(prev => {
+          const newContent = `${prev}\n\n### Analysis of Google Doc (${docUrl}):\n${data.result}`;
+          return newContent.trim();
+        });
+        
+        toast.success("Google Doc processed successfully");
+      }
+    } catch (error) {
+      console.error('Error processing Google Docs:', error);
+      toast.error("Failed to process Google Docs");
+    } finally {
+      setProcessingDocs(false);
+    }
+  };
+
   const handleSubmit = async () => {
     if (!content.trim()) {
       toast.error("Please add some content before submitting");
@@ -125,39 +205,7 @@ export const AssignmentWorkspace = ({ assignment, onClose }: AssignmentWorkspace
     }
   };
 
-  const processGoogleDocs = async () => {
-    if (googleDocs.length === 0) {
-      toast.error("No Google Docs found in this assignment");
-      return;
-    }
-
-    try {
-      setProcessingDocs(true);
-      
-      for (const docUrl of googleDocs) {
-        const { data, error } = await supabase.functions.invoke('gemini-processor', {
-          body: {
-            content: `Process this Google Doc and provide a detailed analysis: ${docUrl}\n\nAssignment Context: ${assignment.name}\n\nAssignment Description: ${assignment.description}`,
-            type: 'analyze_requirements'
-          }
-        });
-
-        if (error) throw error;
-
-        setContent(prev => {
-          const newContent = `${prev}\n\n### Analysis of Google Doc (${docUrl}):\n${data.result}`;
-          return newContent.trim();
-        });
-        
-        toast.success("Google Doc processed successfully");
-      }
-    } catch (error) {
-      console.error('Error processing Google Docs:', error);
-      toast.error("Failed to process Google Docs");
-    } finally {
-      setProcessingDocs(false);
-    }
-  };
+  const hasExternalLinks = externalLinks.some(link => link.type === 'other');
 
   return (
     <div className="fixed inset-0 bg-black/90 backdrop-blur-sm z-50 flex items-center justify-center p-4">
@@ -179,21 +227,39 @@ export const AssignmentWorkspace = ({ assignment, onClose }: AssignmentWorkspace
                 dangerouslySetInnerHTML={{ __html: sanitizeHTML(assignment.description) }} 
               />
               
-              {googleDocs.length > 0 && (
-                <div className="mt-4 p-3 bg-blue-500/10 rounded-lg border border-blue-500/20">
-                  <h3 className="text-sm font-medium text-blue-400 mb-2">
-                    Found {googleDocs.length} Google Doc{googleDocs.length > 1 ? 's' : ''}
-                  </h3>
-                  <Button
-                    onClick={processGoogleDocs}
-                    disabled={processingDocs}
-                    className="w-full bg-blue-500/20 hover:bg-blue-500/30"
-                  >
-                    <FileText className="w-4 h-4 mr-2" />
-                    {processingDocs ? "Processing Documents..." : "Process Google Docs"}
-                  </Button>
-                </div>
-              )}
+              <div className="mt-4 space-y-4">
+                {googleDocs.length > 0 && (
+                  <div className="p-3 bg-blue-500/10 rounded-lg border border-blue-500/20">
+                    <h3 className="text-sm font-medium text-blue-400 mb-2">
+                      Found {googleDocs.length} Google Doc{googleDocs.length > 1 ? 's' : ''}
+                    </h3>
+                    <Button
+                      onClick={processGoogleDocs}
+                      disabled={processingDocs}
+                      className="w-full bg-blue-500/20 hover:bg-blue-500/30"
+                    >
+                      <FileText className="w-4 h-4 mr-2" />
+                      {processingDocs ? "Processing Documents..." : "Process Google Docs"}
+                    </Button>
+                  </div>
+                )}
+
+                {hasExternalLinks && (
+                  <div className="p-3 bg-purple-500/10 rounded-lg border border-purple-500/20">
+                    <h3 className="text-sm font-medium text-purple-400 mb-2">
+                      Found {externalLinks.filter(link => link.type === 'other').length} External Link{externalLinks.filter(link => link.type === 'other').length > 1 ? 's' : ''}
+                    </h3>
+                    <Button
+                      onClick={processExternalLinks}
+                      disabled={processingDocs}
+                      className="w-full bg-purple-500/20 hover:bg-purple-500/30"
+                    >
+                      <Link className="w-4 h-4 mr-2" />
+                      {processingDocs ? "Processing Links..." : "Process External Links"}
+                    </Button>
+                  </div>
+                )}
+              </div>
             </Card>
           </div>
 
