@@ -1,7 +1,7 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { BrowserLauncher } from "https://deno.land/x/browser_launcher@0.1.0/mod.ts";
 import { corsHeaders } from '../_shared/cors.ts';
+import puppeteer from "https://deno.land/x/puppeteer@16.2.0/mod.ts";
 
 interface RequestBody {
   url: string;
@@ -17,34 +17,54 @@ serve(async (req) => {
   try {
     const { url, type } = await req.json() as RequestBody;
 
-    // Initialize browser
-    const browser = new BrowserLauncher();
-    await browser.launch();
+    // Launch browser
+    const browser = await puppeteer.launch({
+      headless: true,
+      args: ['--no-sandbox', '--disable-setuid-sandbox']
+    });
 
     const page = await browser.newPage();
-    await page.goto(url, { waitUntil: 'networkidle2' });
+    
+    // Set a reasonable timeout
+    await page.setDefaultNavigationTimeout(30000);
+    
+    console.log(`Navigating to URL: ${url}`);
+    await page.goto(url, { waitUntil: 'networkidle0' });
 
     let content = '';
 
     if (type === 'google_doc') {
-      // Extract content from Google Doc
+      // Wait for Google Doc content to load
+      await page.waitForSelector('.kix-appview-editor', { timeout: 5000 });
+      
       content = await page.evaluate(() => {
         const docContent = document.querySelector('.kix-appview-editor');
-        return docContent ? docContent.textContent : '';
+        return docContent ? docContent.textContent || '' : '';
       });
     } else {
-      // Extract content from general webpage
+      // For regular web pages, get the main content
       content = await page.evaluate(() => {
-        return document.body.innerText;
+        // Remove script and style elements
+        const scripts = document.getElementsByTagName('script');
+        const styles = document.getElementsByTagName('style');
+        
+        for (const element of [...scripts, ...styles]) {
+          element.remove();
+        }
+        
+        // Get the text content
+        return document.body.innerText || '';
       });
     }
 
     await browser.close();
+    
+    console.log('Successfully processed URL');
 
     return new Response(
       JSON.stringify({
         success: true,
-        content,
+        content: content.trim(),
         url
       }),
       {
@@ -54,10 +74,11 @@ serve(async (req) => {
     );
   } catch (error) {
     console.error('Browser processing error:', error);
+    
     return new Response(
       JSON.stringify({
         success: false,
-        error: error.message
+        error: error.message || 'Unknown error occurred'
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
