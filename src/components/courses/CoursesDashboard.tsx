@@ -1,10 +1,10 @@
+
 import { useEffect, useState } from "react";
 import { CourseCard } from "./CourseCard";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { BookOpen, Clock, ArrowUpDown } from "lucide-react";
+import { ArrowUpDown } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -41,7 +41,6 @@ export const CoursesDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [sortBy, setSortBy] = useState<SortOption>("name");
   const [showDisclaimer, setShowDisclaimer] = useState(false);
-  const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
   const [hasSeenDisclaimer, setHasSeenDisclaimer] = useState(false);
   const { toast } = useToast();
   const { canvasConfig } = useAuth();
