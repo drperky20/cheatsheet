@@ -1,11 +1,11 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { GoogleGenerativeAI } from "https://esm.sh/@google/generative-ai@0.1.3";
 import { corsHeaders } from '../_shared/cors.ts';
 
 interface RequestBody {
-  url: string;
-  type: 'google_doc' | 'external_link';
+  url?: string;
+  content?: string;
+  type: 'google_doc' | 'external_link' | 'direct_input';
 }
 
 const GEMINI_MODEL = 'gemini-pro';
@@ -17,74 +17,63 @@ serve(async (req) => {
   }
 
   try {
-    const { url, type } = await req.json() as RequestBody;
+    const { url, content: directContent, type } = await req.json() as RequestBody;
     const apiKey = Deno.env.get('GEMINI_API_KEY');
 
     if (!apiKey) {
       throw new Error('GEMINI_API_KEY not found in environment variables');
     }
 
-    console.log(`Processing ${type} URL: ${url}`);
+    let content = '';
+
+    // If direct content is provided, use it
+    if (directContent) {
+      content = directContent;
+      console.log('Using provided direct content');
+    } 
+    // Otherwise try to fetch from URL
+    else if (url) {
+      console.log(`Attempting to fetch content from URL: ${url}`);
+      
+      const response = await fetch(url, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+          'Accept-Language': 'en-US,en;q=0.5',
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('URL requires authentication or is not accessible. Please paste the content directly.');
+      }
+
+      content = await response.text();
+      
+      // Clean up the content based on type
+      if (type === 'google_doc' || type === 'external_link') {
+        content = content
+          .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+          .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '')
+          .replace(/<[^>]*>/g, ' ')
+          .replace(/\s+/g, ' ')
+          .trim();
+      }
+    } else {
+      throw new Error('Either URL or direct content must be provided');
+    }
+
+    if (!content.trim()) {
+      throw new Error('No content found to process');
+    }
 
     // Initialize Gemini
     const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({ model: GEMINI_MODEL });
 
-    // Fetch the content with custom headers
-    const response = await fetch(url, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-        'Accept-Language': 'en-US,en;q=0.5',
-        'Connection': 'keep-alive',
-        'Upgrade-Insecure-Requests': '1',
-      }
-    });
-
-    if (!response.ok) {
-      let errorMessage = '';
-      if (response.status === 401) {
-        errorMessage = 'This resource requires authentication. Please copy and paste the content directly.';
-      } else if (response.status === 403) {
-        errorMessage = 'Access to this resource is forbidden. Please copy and paste the content directly.';
-      } else {
-        errorMessage = `Failed to fetch URL (Status ${response.status}): ${response.statusText}`;
-      }
-      throw new Error(errorMessage);
-    }
-
-    const contentType = response.headers.get('content-type') || '';
-    if (!contentType.includes('text/html') && !contentType.includes('text/plain')) {
-      throw new Error('URL does not point to readable content. Please copy and paste the content directly.');
-    }
-
-    let content = await response.text();
-    console.log('Content fetched successfully, length:', content.length);
-
-    // Clean up the content based on type
-    if (type === 'google_doc') {
-      // Basic HTML cleanup for Google Docs
-      content = content
-        .replace(/<[^>]*>/g, ' ') // Remove HTML tags
-        .replace(/\s+/g, ' ')     // Normalize whitespace
-        .trim();
-    } else {
-      // Basic cleanup for other content
-      content = content
-        .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
-        .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '')
-        .replace(/<[^>]*>/g, ' ')
-        .replace(/\s+/g, ' ')
-        .trim();
-    }
-
-    if (!content.trim()) {
-      throw new Error('No readable content found. Please copy and paste the content directly.');
-    }
-
     // Process content with Gemini
     const prompt = `
-    Analyze the following content from a ${type}. Extract the key information and requirements.
+    Analyze the following content${type !== 'direct_input' ? ' from a ' + type : ''}.
+    Extract the key information and requirements.
     If this is an assignment or task, identify:
     1. Main objectives
     2. Requirements
@@ -93,16 +82,16 @@ serve(async (req) => {
     5. Any specific instructions or constraints
 
     Content:
-    ${content.substring(0, 10000)} // Limit content length to avoid token limits
+    ${content.substring(0, 10000)} // Limit content length
 
     Provide a structured response focusing on the essential information needed to complete the task.
     `;
 
-    console.log('Sending to Gemini...');
+    console.log('Processing content with Gemini...');
     const result = await model.generateContent(prompt);
     const processedContent = result.response.text();
 
-    console.log('Successfully processed content with Gemini');
+    console.log('Successfully processed content');
 
     return new Response(
       JSON.stringify({
@@ -122,7 +111,7 @@ serve(async (req) => {
       JSON.stringify({
         success: false,
         error: error.message || 'Unknown error occurred',
-        suggestion: 'Try copying and pasting the content directly instead of using the URL.'
+        suggestion: 'Please paste the content directly into the chat'
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

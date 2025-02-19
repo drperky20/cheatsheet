@@ -90,15 +90,23 @@ export const ChatInterface = ({ onBack, initialQuestion = '', initialFile = null
         if (error) throw error;
         response = data.result;
       } else {
-        const { data, error } = await supabase.functions.invoke('gemini-processor', {
-          body: JSON.stringify({ content: input, type: 'generate_content' }),
+        // Check if the input looks like a URL
+        const urlPattern = /^(https?:\/\/)[^\s$.?#].[^\s]*$/i;
+        const isUrl = urlPattern.test(input.trim());
+
+        const { data, error } = await supabase.functions.invoke('browser-processor', {
+          body: JSON.stringify({
+            url: isUrl ? input : undefined,
+            content: !isUrl ? input : undefined,
+            type: isUrl ? (input.includes('docs.google.com') ? 'google_doc' : 'external_link') : 'direct_input'
+          }),
           headers: {
             'Content-Type': 'application/json',
           },
         });
 
         if (error) throw error;
-        response = data.result;
+        response = data.content;
       }
 
       setMessages(prev => [...prev, { role: 'assistant', content: response }]);
@@ -108,13 +116,11 @@ export const ChatInterface = ({ onBack, initialQuestion = '', initialFile = null
       console.error('Error in handleSubmit:', error);
       
       const isRateLimit = error.message?.toLowerCase().includes('rate limit') || 
-                         error.message?.includes('429');
+                       error.message?.includes('429');
       
       toast({
         title: isRateLimit ? "Too Many Requests" : "Error",
-        description: isRateLimit 
-          ? "Gemini 2.0 flash-thinking - Please wait a moment before trying again."
-          : error.message || "Failed to get a response. Please try again.",
+        description: error.message || "Failed to get a response. Please try again.",
         variant: "destructive"
       });
     } finally {
