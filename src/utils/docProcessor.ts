@@ -12,16 +12,22 @@ export const extractGoogleDocLinks = (html: string): string[] => {
 };
 
 export const extractAllExternalLinks = (html: string): Array<{ url: string; type: 'google_doc' | 'external_link' }> => {
+  if (!html) return [];
+  
   const links: Array<{ url: string; type: 'google_doc' | 'external_link' }> = [];
+  // Only match links that are in the actual HTML content, not in any attributes or scripts
   const urlRegex = /href=['"]([^'"]+)['"]/g;
   let match;
 
   while ((match = urlRegex.exec(html)) !== null) {
     const url = match[1];
-    if (url.includes('docs.google.com')) {
-      links.push({ url, type: 'google_doc' });
-    } else if (url.startsWith('http') || url.startsWith('https')) {
-      links.push({ url, type: 'external_link' });
+    // Filter out non-http links, anchor links, and javascript: links
+    if (url.startsWith('http') || url.startsWith('https')) {
+      if (url.includes('docs.google.com')) {
+        links.push({ url, type: 'google_doc' });
+      } else {
+        links.push({ url, type: 'external_link' });
+      }
     }
   }
 

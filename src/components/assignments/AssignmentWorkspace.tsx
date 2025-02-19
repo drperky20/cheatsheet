@@ -1,9 +1,10 @@
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Wand2, Save, Send, RotateCcw, FileText, Link } from "lucide-react";
+import { Save, Send, RotateCcw, FileText, Link } from "lucide-react";
 import { extractGoogleDocLinks, extractAllExternalLinks, sanitizeHTML } from "@/utils/docProcessor";
 import { AssignmentQualityControls } from "./AssignmentQualityControls";
 import { AssignmentEditor } from "./AssignmentEditor";
@@ -41,8 +42,11 @@ export const AssignmentWorkspace = ({ assignment, onClose }: AssignmentWorkspace
   });
 
   useEffect(() => {
-    const links = extractAllExternalLinks(assignment.description);
-    setExternalLinks(links);
+    // Only extract links from the assignment description
+    if (assignment.description) {
+      const links = extractAllExternalLinks(assignment.description);
+      setExternalLinks(links);
+    }
   }, [assignment.description]);
 
   const generatePDF = async (content: string) => {
@@ -126,7 +130,7 @@ export const AssignmentWorkspace = ({ assignment, onClose }: AssignmentWorkspace
 
   const processExternalLinks = async () => {
     if (externalLinks.length === 0) {
-      toast.error("No external links found in this assignment");
+      toast.error("No external links found in the assignment description");
       return;
     }
 
@@ -183,7 +187,7 @@ export const AssignmentWorkspace = ({ assignment, onClose }: AssignmentWorkspace
               {externalLinks.length > 0 && (
                 <div className="mt-4 p-3 bg-blue-500/10 rounded-lg border border-blue-500/20">
                   <h3 className="text-sm font-medium text-blue-400 mb-2">
-                    Found {externalLinks.length} external link{externalLinks.length > 1 ? 's' : ''}
+                    Found {externalLinks.length} external link{externalLinks.length > 1 ? 's' : ''} in description
                   </h3>
                   <Button
                     onClick={processExternalLinks}
