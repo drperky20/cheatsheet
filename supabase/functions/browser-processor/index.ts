@@ -2,13 +2,10 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { GoogleGenerativeAI } from "https://esm.sh/@google/generative-ai@0.1.3";
 import { corsHeaders } from '../_shared/cors.ts';
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
 
 interface RequestBody {
-  url?: string;
-  content?: string;
-  type: 'google_doc' | 'external_link' | 'direct_input';
-  accessToken?: string;
+  url: string;
+  type: 'google_doc' | 'external_link';
 }
 
 const GEMINI_MODEL = 'gemini-pro';
@@ -20,163 +17,112 @@ serve(async (req) => {
   }
 
   try {
-    const { url, content: directContent, type, accessToken } = await req.json() as RequestBody;
+    const { url, type } = await req.json() as RequestBody;
     const apiKey = Deno.env.get('GEMINI_API_KEY');
 
     if (!apiKey) {
       throw new Error('GEMINI_API_KEY not found in environment variables');
     }
 
-    let contentToProcess = '';
+    console.log(`Processing ${type} URL: ${url}`);
 
-    // If direct content is provided, use it immediately
-    if (directContent) {
-      console.log('Processing direct content input');
-      contentToProcess = directContent;
-    } 
-    // For URLs, attempt API-based access where possible
-    else if (url) {
-      console.log(`Processing URL: ${url}`);
-      
-      if (url.includes('docs.google.com')) {
-        if (!accessToken) {
-          return new Response(
-            JSON.stringify({
-              success: false,
-              error: 'Google authentication required',
-              requiresAuth: true,
-              authProvider: 'google'
-            }),
-            {
-              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-              status: 401,
-            }
-          );
-        }
-
-        // Extract the document ID from the Google Docs URL
-        const docId = url.match(/\/d\/(.*?)(\/|$)/)?.[1];
-        if (!docId) {
-          throw new Error('Invalid Google Docs URL');
-        }
-
-        try {
-          // Attempt to fetch the document content using the Google Docs API
-          const response = await fetch(
-            `https://docs.googleapis.com/v1/documents/${docId}`,
-            {
-              headers: {
-                'Authorization': `Bearer ${accessToken}`,
-                'Accept': 'application/json',
-              }
-            }
-          );
-
-          if (!response.ok) {
-            throw new Error('Failed to access Google Doc. Please ensure you have permission to view this document.');
-          }
-
-          const doc = await response.json();
-          
-          // Extract text content from the document
-          let text = '';
-          if (doc.body && doc.body.content) {
-            const extractText = (content: any[]) => {
-              for (const element of content) {
-                if (element.paragraph) {
-                  for (const pe of element.paragraph.elements) {
-                    if (pe.textRun && pe.textRun.content) {
-                      text += pe.textRun.content;
-                    }
-                  }
-                }
-                if (element.table) {
-                  for (const row of element.table.tableRows) {
-                    for (const cell of row.tableCells) {
-                      if (cell.content) {
-                        extractText(cell.content);
-                      }
-                    }
-                  }
-                }
-              }
-            };
-            
-            extractText(doc.body.content);
-          }
-          
-          contentToProcess = text.trim();
-        } catch (error) {
-          console.error('Google Docs API error:', error);
-          throw new Error('Failed to access Google Doc. Please copy and paste the content directly.');
-        }
-      } else {
-        // For other URLs, attempt a simple fetch
-        try {
-          const response = await fetch(url, {
-            headers: {
-              'Accept': 'text/html,application/xhtml+xml,text/plain',
-            },
-            redirect: 'follow',
-          });
-
-          if (!response.ok) {
-            throw new Error('Unable to access URL. Please copy and paste the content directly.');
-          }
-
-          contentToProcess = await response.text();
-        } catch (fetchError) {
-          throw new Error('Unable to access URL. Please copy and paste the content directly.');
-        }
-      }
-    } else {
-      throw new Error('Please provide either a URL or content to process');
-    }
-
-    if (!contentToProcess.trim()) {
-      throw new Error('No content found to process');
-    }
-
-    // Initialize Gemini and process the content
+    // Initialize Gemini
     const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({ model: GEMINI_MODEL });
 
+    // Fetch the content with custom headers
+    const response = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.5',
+        'Connection': 'keep-alive',
+        'Upgrade-Insecure-Requests': '1',
+      }
+    });
+
+    if (!response.ok) {
+      let errorMessage = '';
+      if (response.status === 401) {
+        errorMessage = 'This resource requires authentication. Please copy and paste the content directly.';
+      } else if (response.status === 403) {
+        errorMessage = 'Access to this resource is forbidden. Please copy and paste the content directly.';
+      } else {
+        errorMessage = `Failed to fetch URL (Status ${response.status}): ${response.statusText}`;
+      }
+      throw new Error(errorMessage);
+    }
+
+    const contentType = response.headers.get('content-type') || '';
+    if (!contentType.includes('text/html') && !contentType.includes('text/plain')) {
+      throw new Error('URL does not point to readable content. Please copy and paste the content directly.');
+    }
+
+    let content = await response.text();
+    console.log('Content fetched successfully, length:', content.length);
+
+    // Clean up the content based on type
+    if (type === 'google_doc') {
+      // Basic HTML cleanup for Google Docs
+      content = content
+        .replace(/<[^>]*>/g, ' ') // Remove HTML tags
+        .replace(/\s+/g, ' ')     // Normalize whitespace
+        .trim();
+    } else {
+      // Basic cleanup for other content
+      content = content
+        .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+        .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '')
+        .replace(/<[^>]*>/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+    }
+
+    if (!content.trim()) {
+      throw new Error('No readable content found. Please copy and paste the content directly.');
+    }
+
+    // Process content with Gemini
     const prompt = `
-    Analyze this ${type === 'direct_input' ? 'content' : type}:
+    Analyze the following content from a ${type}. Extract the key information and requirements.
+    If this is an assignment or task, identify:
+    1. Main objectives
+    2. Requirements
+    3. Formatting guidelines
+    4. Due dates or deadlines (if any)
+    5. Any specific instructions or constraints
 
-    ${contentToProcess.substring(0, 10000)}
+    Content:
+    ${content.substring(0, 10000)} // Limit content length to avoid token limits
 
-    Provide a detailed but concise analysis including:
-    1. Main objectives or key points
-    2. Requirements or expectations
-    3. Important deadlines or dates
-    4. Key instructions or guidelines
-    5. Any specific formatting requirements
+    Provide a structured response focusing on the essential information needed to complete the task.
     `;
 
-    console.log('Processing content with Gemini...');
+    console.log('Sending to Gemini...');
     const result = await model.generateContent(prompt);
-    const analysis = result.response.text();
+    const processedContent = result.response.text();
+
+    console.log('Successfully processed content with Gemini');
 
     return new Response(
       JSON.stringify({
         success: true,
-        content: analysis
+        content: processedContent,
+        url
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200,
       }
     );
-
   } catch (error) {
-    console.error('Error:', error);
+    console.error('Processing error:', error);
     
     return new Response(
       JSON.stringify({
         success: false,
-        error: error.message,
-        suggestion: 'For content requiring authentication, please copy and paste it directly into the chat'
+        error: error.message || 'Unknown error occurred',
+        suggestion: 'Try copying and pasting the content directly instead of using the URL.'
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

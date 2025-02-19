@@ -4,7 +4,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { BookOpen, Clock, ArrowUpDown, AlertCircle } from "lucide-react";
+import { BookOpen, Clock, ArrowUpDown } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -41,52 +41,14 @@ export const CoursesDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [sortBy, setSortBy] = useState<SortOption>("name");
   const [showDisclaimer, setShowDisclaimer] = useState(false);
-  const [showGoogleAuth, setShowGoogleAuth] = useState(false);
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
   const [hasSeenDisclaimer, setHasSeenDisclaimer] = useState(false);
   const { toast } = useToast();
   const { canvasConfig } = useAuth();
 
   useEffect(() => {
-    checkGoogleConnection();
-    if (canvasConfig) {
-      fetchCourses();
-    }
+    fetchCourses();
   }, [canvasConfig]);
-
-  const checkGoogleConnection = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    const hasGoogleProvider = session?.user?.app_metadata?.provider === 'google';
-    if (!hasGoogleProvider) {
-      setShowGoogleAuth(true);
-    }
-  };
-
-  const handleGoogleAuth = async () => {
-    try {
-      const { data, error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          scopes: 'https://www.googleapis.com/auth/documents.readonly',
-          redirectTo: `${window.location.origin}/dashboard`,
-        },
-      });
-
-      if (error) throw error;
-
-      toast({
-        title: "Google Authentication",
-        description: "Please complete the Google sign-in process.",
-      });
-    } catch (error: any) {
-      console.error('Google Auth Error:', error);
-      toast({
-        title: "Authentication Error",
-        description: error.message || "Failed to connect Google account",
-        variant: "destructive"
-      });
-    }
-  };
 
   const fetchAllAssignments = async (courseId: string) => {
     let allAssignments: any[] = [];
@@ -279,45 +241,6 @@ export const CoursesDashboard = () => {
               className="bg-[#9b87f5] hover:bg-[#8b5cf6]"
             >
               I Understand, Continue
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={showGoogleAuth} onOpenChange={setShowGoogleAuth}>
-        <DialogContent className="bg-black/90 border border-white/10 text-white">
-          <DialogHeader>
-            <DialogTitle className="text-xl font-bold text-[#9b87f5]">
-              <AlertCircle className="w-5 h-5 inline-block mr-2" />
-              Connect Google Account
-            </DialogTitle>
-            <DialogDescription className="text-white/80 space-y-4">
-              <p className="text-lg">
-                To access Google Docs assignments, you'll need to connect your Google account.
-              </p>
-              <div className="space-y-2">
-                <p>This will allow CheatSheet to:</p>
-                <ul className="list-disc pl-5 space-y-1">
-                  <li>Read your Google Docs assignments</li>
-                  <li>Process assignment content automatically</li>
-                  <li>Maintain secure access to your documents</li>
-                </ul>
-              </div>
-            </DialogDescription>
-          </DialogHeader>
-          <div className="flex justify-end space-x-2">
-            <Button
-              variant="ghost"
-              onClick={() => setShowGoogleAuth(false)}
-              className="bg-white/10 hover:bg-white/20"
-            >
-              Later
-            </Button>
-            <Button
-              onClick={handleGoogleAuth}
-              className="bg-[#9b87f5] hover:bg-[#8b5cf6]"
-            >
-              Connect Google Account
             </Button>
           </div>
         </DialogContent>
