@@ -17,21 +17,3 @@ export const sanitizeHTML = (html: string): string => {
     .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
     .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '');
 };
-
-export const extractAllExternalLinks = (html: string): Array<{ url: string; type: 'google_doc' | 'other' }> => {
-  const urlRegex = /href=['"]([^'"]+)['"]/g;
-  const links: Array<{ url: string; type: 'google_doc' | 'other' }> = [];
-  let match;
-
-  while ((match = urlRegex.exec(html)) !== null) {
-    const url = match[1];
-    const type = url.includes('docs.google.com') ? 'google_doc' : 'other';
-    links.push({ url, type });
-  }
-
-  return links;
-};
-
-export const logProcessingActivity = (action: string, details: any) => {
-  console.log(`[DocProcessor] ${action}:`, details);
-};
