@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { GoogleGenerativeAI } from "https://esm.sh/@google/generative-ai@0.1.3";
 import { corsHeaders } from '../_shared/cors.ts';
@@ -24,94 +25,82 @@ serve(async (req) => {
       throw new Error('GEMINI_API_KEY not found in environment variables');
     }
 
-    let content = '';
+    let contentToProcess = '';
 
-    // If direct content is provided, use it
+    // If direct content is provided, use it immediately
     if (directContent) {
-      content = directContent;
-      console.log('Using provided direct content');
+      console.log('Processing direct content input');
+      contentToProcess = directContent;
     } 
-    // Otherwise try to fetch from URL
+    // For URLs, attempt API-based access where possible
     else if (url) {
-      console.log(`Attempting to fetch content from URL: ${url}`);
+      console.log(`Processing URL: ${url}`);
       
-      const response = await fetch(url, {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-          'Accept-Language': 'en-US,en;q=0.5',
-        }
-      });
-
-      if (!response.ok) {
-        throw new Error('URL requires authentication or is not accessible. Please paste the content directly.');
+      if (url.includes('docs.google.com')) {
+        throw new Error('Google Docs requires authentication. Please copy and paste the document content directly.');
       }
 
-      content = await response.text();
-      
-      // Clean up the content based on type
-      if (type === 'google_doc' || type === 'external_link') {
-        content = content
-          .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
-          .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '')
-          .replace(/<[^>]*>/g, ' ')
-          .replace(/\s+/g, ' ')
-          .trim();
+      // For other URLs, attempt a simple fetch but expect it might fail
+      try {
+        const response = await fetch(url, {
+          headers: {
+            'Accept': 'text/html,application/xhtml+xml,text/plain',
+          },
+          redirect: 'follow',
+        });
+
+        if (!response.ok) {
+          throw new Error('Unable to access URL. Please copy and paste the content directly.');
+        }
+
+        contentToProcess = await response.text();
+      } catch (fetchError) {
+        throw new Error('Unable to access URL. Please copy and paste the content directly.');
       }
     } else {
-      throw new Error('Either URL or direct content must be provided');
+      throw new Error('Please provide either a URL or content to process');
     }
 
-    if (!content.trim()) {
-      throw new Error('No content found to process');
-    }
-
-    // Initialize Gemini
+    // Initialize Gemini and process the content
     const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({ model: GEMINI_MODEL });
 
-    // Process content with Gemini
     const prompt = `
-    Analyze the following content${type !== 'direct_input' ? ' from a ' + type : ''}.
-    Extract the key information and requirements.
-    If this is an assignment or task, identify:
-    1. Main objectives
-    2. Requirements
-    3. Formatting guidelines
-    4. Due dates or deadlines (if any)
-    5. Any specific instructions or constraints
+    Analyze this ${type === 'direct_input' ? 'content' : type}:
 
-    Content:
-    ${content.substring(0, 10000)} // Limit content length
+    ${contentToProcess.substring(0, 10000)}
 
-    Provide a structured response focusing on the essential information needed to complete the task.
+    Provide a detailed but concise analysis including:
+    1. Main objectives or key points
+    2. Requirements or expectations
+    3. Important deadlines or dates
+    4. Key instructions or guidelines
+    5. Any specific formatting requirements
     `;
 
-    console.log('Processing content with Gemini...');
+    console.log('Sending to Gemini for analysis...');
     const result = await model.generateContent(prompt);
-    const processedContent = result.response.text();
-
-    console.log('Successfully processed content');
+    const analysis = result.response.text();
 
     return new Response(
       JSON.stringify({
         success: true,
-        content: processedContent,
-        url
+        content: analysis
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200,
       }
     );
+
   } catch (error) {
-    console.error('Processing error:', error);
+    console.error('Error:', error);
     
     return new Response(
       JSON.stringify({
         success: false,
-        error: error.message || 'Unknown error occurred',
-        suggestion: 'Please paste the content directly into the chat'
+        error: error.message,
+        suggestion: 'For content requiring authentication, please copy and paste it directly into the chat'
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
