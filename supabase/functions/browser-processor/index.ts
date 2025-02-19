@@ -30,13 +30,36 @@ serve(async (req) => {
     const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({ model: GEMINI_MODEL });
 
-    // Fetch the content directly
-    const response = await fetch(url);
+    // Fetch the content with custom headers
+    const response = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.5',
+        'Connection': 'keep-alive',
+        'Upgrade-Insecure-Requests': '1',
+      }
+    });
+
     if (!response.ok) {
-      throw new Error(`Failed to fetch URL: ${response.statusText}`);
+      let errorMessage = '';
+      if (response.status === 401) {
+        errorMessage = 'This resource requires authentication. Please copy and paste the content directly.';
+      } else if (response.status === 403) {
+        errorMessage = 'Access to this resource is forbidden. Please copy and paste the content directly.';
+      } else {
+        errorMessage = `Failed to fetch URL (Status ${response.status}): ${response.statusText}`;
+      }
+      throw new Error(errorMessage);
+    }
+
+    const contentType = response.headers.get('content-type') || '';
+    if (!contentType.includes('text/html') && !contentType.includes('text/plain')) {
+      throw new Error('URL does not point to readable content. Please copy and paste the content directly.');
     }
 
     let content = await response.text();
+    console.log('Content fetched successfully, length:', content.length);
 
     // Clean up the content based on type
     if (type === 'google_doc') {
@@ -53,6 +76,10 @@ serve(async (req) => {
         .replace(/<[^>]*>/g, ' ')
         .replace(/\s+/g, ' ')
         .trim();
+    }
+
+    if (!content.trim()) {
+      throw new Error('No readable content found. Please copy and paste the content directly.');
     }
 
     // Process content with Gemini
@@ -94,7 +121,8 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({
         success: false,
-        error: error.message || 'Unknown error occurred'
+        error: error.message || 'Unknown error occurred',
+        suggestion: 'Try copying and pasting the content directly instead of using the URL.'
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
