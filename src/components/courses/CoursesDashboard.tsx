@@ -49,7 +49,10 @@ export const CoursesDashboard = () => {
 
   useEffect(() => {
     checkGoogleConnection();
-  }, []);
+    if (canvasConfig) {
+      fetchCourses();
+    }
+  }, [canvasConfig]);
 
   const checkGoogleConnection = async () => {
     const { data: { session } } = await supabase.auth.getSession();
