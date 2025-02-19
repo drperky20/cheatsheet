@@ -1,6 +1,5 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import puppeteer from "https://deno.land/x/puppeteer@16.2.0/mod.ts";
 import { GoogleGenerativeAI } from "https://esm.sh/@google/generative-ai@0.1.3";
 import { corsHeaders } from '../_shared/cors.ts';
 
@@ -31,45 +30,30 @@ serve(async (req) => {
     const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({ model: GEMINI_MODEL });
 
-    // Launch browser
-    const browser = await puppeteer.launch({
-      headless: true,
-      args: ['--no-sandbox', '--disable-setuid-sandbox']
-    });
-
-    console.log('Browser launched');
-
-    const page = await browser.newPage();
-    await page.setDefaultNavigationTimeout(30000);
-
-    console.log('Navigating to page...');
-    await page.goto(url, { waitUntil: 'networkidle0' });
-
-    let content = '';
-
-    if (type === 'google_doc') {
-      try {
-        await page.waitForSelector('.kix-appview-editor', { timeout: 5000 });
-        content = await page.evaluate(() => {
-          const docContent = document.querySelector('.kix-appview-editor');
-          return docContent ? docContent.textContent || '' : '';
-        });
-      } catch (error) {
-        console.error('Error extracting Google Doc content:', error);
-        content = await page.evaluate(() => document.body.innerText);
-      }
-    } else {
-      content = await page.evaluate(() => {
-        // Remove unwanted elements
-        const elementsToRemove = document.querySelectorAll('script, style, link, meta');
-        elementsToRemove.forEach(el => el.remove());
-        
-        return document.body.innerText;
-      });
+    // Fetch the content directly
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch URL: ${response.statusText}`);
     }
 
-    await browser.close();
-    console.log('Browser closed');
+    let content = await response.text();
+
+    // Clean up the content based on type
+    if (type === 'google_doc') {
+      // Basic HTML cleanup for Google Docs
+      content = content
+        .replace(/<[^>]*>/g, ' ') // Remove HTML tags
+        .replace(/\s+/g, ' ')     // Normalize whitespace
+        .trim();
+    } else {
+      // Basic cleanup for other content
+      content = content
+        .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+        .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '')
+        .replace(/<[^>]*>/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+    }
 
     // Process content with Gemini
     const prompt = `
@@ -82,15 +66,14 @@ serve(async (req) => {
     5. Any specific instructions or constraints
 
     Content:
-    ${content}
+    ${content.substring(0, 10000)} // Limit content length to avoid token limits
 
     Provide a structured response focusing on the essential information needed to complete the task.
     `;
 
     console.log('Sending to Gemini...');
     const result = await model.generateContent(prompt);
-    const response = result.response;
-    const processedContent = response.text();
+    const processedContent = result.response.text();
 
     console.log('Successfully processed content with Gemini');
 
@@ -98,8 +81,7 @@ serve(async (req) => {
       JSON.stringify({
         success: true,
         content: processedContent,
-        url,
-        raw_content: content
+        url
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
