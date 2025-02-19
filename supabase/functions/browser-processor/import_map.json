@@ -1,0 +1,7 @@
+
+{
+  "imports": {
+    "puppeteer": "https://deno.land/x/puppeteer@16.2.0/mod.ts",
+    "@google/generative-ai": "https://esm.sh/@google/generative-ai@0.1.3"
+  }
+}

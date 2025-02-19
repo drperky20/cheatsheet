@@ -1,11 +1,15 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import puppeteer from "https://deno.land/x/puppeteer@16.2.0/mod.ts";
+import { GoogleGenerativeAI } from "https://esm.sh/@google/generative-ai@0.1.3";
 import { corsHeaders } from '../_shared/cors.ts';
 
 interface RequestBody {
   url: string;
   type: 'google_doc' | 'external_link';
 }
+
+const GEMINI_MODEL = 'gemini-pro';
 
 serve(async (req) => {
   // Handle CORS preflight requests
@@ -15,42 +19,87 @@ serve(async (req) => {
 
   try {
     const { url, type } = await req.json() as RequestBody;
-    
-    console.log(`Processing URL: ${url} of type: ${type}`);
+    const apiKey = Deno.env.get('GEMINI_API_KEY');
 
-    // Fetch the content
-    const response = await fetch(url, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-      }
+    if (!apiKey) {
+      throw new Error('GEMINI_API_KEY not found in environment variables');
+    }
+
+    console.log(`Processing ${type} URL: ${url}`);
+
+    // Initialize Gemini
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({ model: GEMINI_MODEL });
+
+    // Launch browser
+    const browser = await puppeteer.launch({
+      headless: true,
+      args: ['--no-sandbox', '--disable-setuid-sandbox']
     });
 
-    if (!response.ok) {
-      throw new Error(`Failed to fetch URL: ${response.status} ${response.statusText}`);
-    }
+    console.log('Browser launched');
 
-    const html = await response.text();
-    
-    // Basic HTML parsing without browser automation
+    const page = await browser.newPage();
+    await page.setDefaultNavigationTimeout(30000);
+
+    console.log('Navigating to page...');
+    await page.goto(url, { waitUntil: 'networkidle0' });
+
     let content = '';
-    
+
     if (type === 'google_doc') {
-      // Extract content between specific Google Doc markers
-      const docContent = html.match(/<div[^>]*class="[^"]*kix-appview-editor[^"]*"[^>]*>(.*?)<\/div>/s);
-      content = docContent ? cleanHtml(docContent[1]) : 'Could not extract Google Doc content';
+      try {
+        await page.waitForSelector('.kix-appview-editor', { timeout: 5000 });
+        content = await page.evaluate(() => {
+          const docContent = document.querySelector('.kix-appview-editor');
+          return docContent ? docContent.textContent || '' : '';
+        });
+      } catch (error) {
+        console.error('Error extracting Google Doc content:', error);
+        content = await page.evaluate(() => document.body.innerText);
+      }
     } else {
-      // For regular pages, extract content from the body
-      const bodyContent = html.match(/<body[^>]*>(.*?)<\/body>/s);
-      content = bodyContent ? cleanHtml(bodyContent[1]) : 'Could not extract page content';
+      content = await page.evaluate(() => {
+        // Remove unwanted elements
+        const elementsToRemove = document.querySelectorAll('script, style, link, meta');
+        elementsToRemove.forEach(el => el.remove());
+        
+        return document.body.innerText;
+      });
     }
 
-    console.log('Successfully processed URL');
+    await browser.close();
+    console.log('Browser closed');
+
+    // Process content with Gemini
+    const prompt = `
+    Analyze the following content from a ${type}. Extract the key information and requirements.
+    If this is an assignment or task, identify:
+    1. Main objectives
+    2. Requirements
+    3. Formatting guidelines
+    4. Due dates or deadlines (if any)
+    5. Any specific instructions or constraints
+
+    Content:
+    ${content}
+
+    Provide a structured response focusing on the essential information needed to complete the task.
+    `;
+
+    console.log('Sending to Gemini...');
+    const result = await model.generateContent(prompt);
+    const response = result.response;
+    const processedContent = response.text();
+
+    console.log('Successfully processed content with Gemini');
 
     return new Response(
       JSON.stringify({
         success: true,
-        content: content.trim(),
-        url
+        content: processedContent,
+        url,
+        raw_content: content
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -72,13 +121,3 @@ serve(async (req) => {
     );
   }
 });
-
-// Helper function to clean HTML content
-function cleanHtml(html: string): string {
-  return html
-    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '') // Remove scripts
-    .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '') // Remove styles
-    .replace(/<[^>]+>/g, ' ') // Remove HTML tags
-    .replace(/\s+/g, ' ') // Normalize whitespace
-    .trim();
-}
