@@ -21,8 +21,11 @@ export const extractAllExternalLinks = (html: string): Array<{ url: string; type
 
   while ((match = urlRegex.exec(html)) !== null) {
     const url = match[1];
-    // Filter out non-http links, anchor links, and javascript: links
-    if (url.startsWith('http') || url.startsWith('https')) {
+    // Filter out non-http links, anchor links, javascript: links, and instructure uploads
+    if (
+      (url.startsWith('http') || url.startsWith('https')) && 
+      !url.startsWith('https://instructure-uploads.s3.amazonaws.com')
+    ) {
       if (url.includes('docs.google.com')) {
         links.push({ url, type: 'google_doc' });
       } else {
