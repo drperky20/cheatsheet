@@ -62,6 +62,29 @@ export const ChatInterface = ({ onBack, initialQuestion = '', initialFile = null
     });
   };
 
+  const handleGoogleAuth = async () => {
+    try {
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          scopes: 'https://www.googleapis.com/auth/documents.readonly',
+        },
+      });
+
+      if (error) throw error;
+
+      // The OAuth flow will redirect and then come back with the token
+      // No need to handle the redirect here as Supabase handles it
+    } catch (error) {
+      console.error('Google Auth Error:', error);
+      toast({
+        title: "Authentication Error",
+        description: "Failed to authenticate with Google. Please try again.",
+        variant: "destructive"
+      });
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim() && !uploadedFile) return;
@@ -94,18 +117,30 @@ export const ChatInterface = ({ onBack, initialQuestion = '', initialFile = null
         const urlPattern = /^(https?:\/\/)[^\s$.?#].[^\s]*$/i;
         const isUrl = urlPattern.test(input.trim());
 
+        const { data: { session } } = await supabase.auth.getSession();
+        const accessToken = session?.provider_token;
+
         const { data, error } = await supabase.functions.invoke('browser-processor', {
           body: JSON.stringify({
             url: isUrl ? input : undefined,
             content: !isUrl ? input : undefined,
-            type: isUrl ? (input.includes('docs.google.com') ? 'google_doc' : 'external_link') : 'direct_input'
+            type: isUrl ? (input.includes('docs.google.com') ? 'google_doc' : 'external_link') : 'direct_input',
+            accessToken: input.includes('docs.google.com') ? accessToken : undefined
           }),
           headers: {
             'Content-Type': 'application/json',
           },
         });
 
-        if (error) throw error;
+        if (error) {
+          // Check if we need Google authentication
+          if (error.status === 401 && error.message.includes('Google authentication required')) {
+            await handleGoogleAuth();
+            return; // The auth flow will redirect
+          }
+          throw error;
+        }
+
         response = data.content;
       }
 

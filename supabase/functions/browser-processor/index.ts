@@ -2,11 +2,13 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { GoogleGenerativeAI } from "https://esm.sh/@google/generative-ai@0.1.3";
 import { corsHeaders } from '../_shared/cors.ts';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
 
 interface RequestBody {
   url?: string;
   content?: string;
   type: 'google_doc' | 'external_link' | 'direct_input';
+  accessToken?: string;
 }
 
 const GEMINI_MODEL = 'gemini-pro';
@@ -18,7 +20,7 @@ serve(async (req) => {
   }
 
   try {
-    const { url, content: directContent, type } = await req.json() as RequestBody;
+    const { url, content: directContent, type, accessToken } = await req.json() as RequestBody;
     const apiKey = Deno.env.get('GEMINI_API_KEY');
 
     if (!apiKey) {
@@ -37,28 +39,102 @@ serve(async (req) => {
       console.log(`Processing URL: ${url}`);
       
       if (url.includes('docs.google.com')) {
-        throw new Error('Google Docs requires authentication. Please copy and paste the document content directly.');
-      }
-
-      // For other URLs, attempt a simple fetch but expect it might fail
-      try {
-        const response = await fetch(url, {
-          headers: {
-            'Accept': 'text/html,application/xhtml+xml,text/plain',
-          },
-          redirect: 'follow',
-        });
-
-        if (!response.ok) {
-          throw new Error('Unable to access URL. Please copy and paste the content directly.');
+        if (!accessToken) {
+          return new Response(
+            JSON.stringify({
+              success: false,
+              error: 'Google authentication required',
+              requiresAuth: true,
+              authProvider: 'google'
+            }),
+            {
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+              status: 401,
+            }
+          );
         }
 
-        contentToProcess = await response.text();
-      } catch (fetchError) {
-        throw new Error('Unable to access URL. Please copy and paste the content directly.');
+        // Extract the document ID from the Google Docs URL
+        const docId = url.match(/\/d\/(.*?)(\/|$)/)?.[1];
+        if (!docId) {
+          throw new Error('Invalid Google Docs URL');
+        }
+
+        try {
+          // Attempt to fetch the document content using the Google Docs API
+          const response = await fetch(
+            `https://docs.googleapis.com/v1/documents/${docId}`,
+            {
+              headers: {
+                'Authorization': `Bearer ${accessToken}`,
+                'Accept': 'application/json',
+              }
+            }
+          );
+
+          if (!response.ok) {
+            throw new Error('Failed to access Google Doc. Please ensure you have permission to view this document.');
+          }
+
+          const doc = await response.json();
+          
+          // Extract text content from the document
+          let text = '';
+          if (doc.body && doc.body.content) {
+            const extractText = (content: any[]) => {
+              for (const element of content) {
+                if (element.paragraph) {
+                  for (const pe of element.paragraph.elements) {
+                    if (pe.textRun && pe.textRun.content) {
+                      text += pe.textRun.content;
+                    }
+                  }
+                }
+                if (element.table) {
+                  for (const row of element.table.tableRows) {
+                    for (const cell of row.tableCells) {
+                      if (cell.content) {
+                        extractText(cell.content);
+                      }
+                    }
+                  }
+                }
+              }
+            };
+            
+            extractText(doc.body.content);
+          }
+          
+          contentToProcess = text.trim();
+        } catch (error) {
+          console.error('Google Docs API error:', error);
+          throw new Error('Failed to access Google Doc. Please copy and paste the content directly.');
+        }
+      } else {
+        // For other URLs, attempt a simple fetch
+        try {
+          const response = await fetch(url, {
+            headers: {
+              'Accept': 'text/html,application/xhtml+xml,text/plain',
+            },
+            redirect: 'follow',
+          });
+
+          if (!response.ok) {
+            throw new Error('Unable to access URL. Please copy and paste the content directly.');
+          }
+
+          contentToProcess = await response.text();
+        } catch (fetchError) {
+          throw new Error('Unable to access URL. Please copy and paste the content directly.');
+        }
       }
     } else {
       throw new Error('Please provide either a URL or content to process');
+    }
+
+    if (!contentToProcess.trim()) {
+      throw new Error('No content found to process');
     }
 
     // Initialize Gemini and process the content
@@ -78,7 +154,7 @@ serve(async (req) => {
     5. Any specific formatting requirements
     `;
 
-    console.log('Sending to Gemini for analysis...');
+    console.log('Processing content with Gemini...');
     const result = await model.generateContent(prompt);
     const analysis = result.response.text();
 
