@@ -1,7 +1,7 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { LambdaClient, InvokeCommand } from "@aws-sdk/client-lambda";
-import { createClient } from '@supabase/supabase-js';
+import { LambdaClient, InvokeCommand } from "https://esm.sh/@aws-sdk/client-lambda@3.535.0";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
