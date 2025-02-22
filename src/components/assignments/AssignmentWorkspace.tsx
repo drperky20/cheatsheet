@@ -41,9 +41,14 @@ interface ProcessedLink {
 
 interface AutomationResult {
   id: string;
+  task_id: string;
+  url: string;
   status: string;
   result: any;
   error: string | null;
+  created_at: string;
+  updated_at: string;
+  processed_link_id: string;
 }
 
 export const AssignmentWorkspace = ({ assignment, onClose }: AssignmentWorkspaceProps) => {
@@ -87,24 +92,40 @@ export const AssignmentWorkspace = ({ assignment, onClose }: AssignmentWorkspace
     }
   };
 
-  const pollAutomationResult = async (automationId: string): Promise<void> => {
-    const maxAttempts = 30; // 30 seconds timeout
+  const pollAutomationResult = async (processedLinkId: string): Promise<AutomationResult> => {
+    const maxAttempts = 30;
     let attempts = 0;
 
-    const poll = async () => {
-      const { data: result, error } = await supabase
-        .from('automation_results')
-        .select('*')
-        .eq('id', automationId)
+    const poll = async (): Promise<AutomationResult> => {
+      const { data, error } = await supabase
+        .from('processed_links')
+        .select(`
+          *,
+          automation_results (*)
+        `)
+        .eq('id', processedLinkId)
         .single();
 
       if (error) throw error;
 
-      if (result.status === 'completed') {
-        return result;
-      } else if (result.status === 'failed') {
-        throw new Error(result.error || 'Processing failed');
-      } else if (attempts >= maxAttempts) {
+      const automationResult = data.automation_results[0];
+      
+      if (!automationResult) {
+        if (attempts >= maxAttempts) {
+          throw new Error('Processing timed out');
+        }
+        attempts++;
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        return poll();
+      }
+
+      if (automationResult.status === 'completed') {
+        return automationResult;
+      } else if (automationResult.status === 'failed') {
+        throw new Error(automationResult.error || 'Processing failed');
+      }
+
+      if (attempts >= maxAttempts) {
         throw new Error('Processing timed out');
       }
 
@@ -138,7 +159,7 @@ export const AssignmentWorkspace = ({ assignment, onClose }: AssignmentWorkspace
       if (error) throw error;
 
       try {
-        const automationResult = await pollAutomationResult(data.automationId);
+        const automationResult = await pollAutomationResult(processedLink.id);
         
         const { error: updateError } = await supabase
           .from('processed_links')
@@ -151,11 +172,13 @@ export const AssignmentWorkspace = ({ assignment, onClose }: AssignmentWorkspace
 
         if (updateError) throw updateError;
 
-        setContent(prev => {
-          const newContent = `${prev}\n\n### Content from ${url}:\n${automationResult.result?.content}`;
-          return newContent.trim();
-        });
-        toast.success(`Processed ${type === 'google_doc' ? 'Google Doc' : 'external link'} successfully`);
+        if (automationResult.result?.content) {
+          setContent(prev => {
+            const newContent = `${prev}\n\n### Content from ${url}:\n${automationResult.result.content}`;
+            return newContent.trim();
+          });
+          toast.success(`Processed ${type === 'google_doc' ? 'Google Doc' : 'external link'} successfully`);
+        }
       } catch (pollError) {
         const { error: updateError } = await supabase
           .from('processed_links')
