@@ -24,7 +24,8 @@ export const extractAllExternalLinks = (html: string): Array<{ url: string; type
     // Filter out non-http links, anchor links, javascript: links, and instructure uploads
     if (
       (url.startsWith('http') || url.startsWith('https')) && 
-      !url.startsWith('https://instructure-uploads.s3.amazonaws.com')
+      !url.startsWith('https://instructure-uploads.s3.amazonaws.com') &&
+      !url.includes('javascript:')
     ) {
       if (url.includes('docs.google.com')) {
         links.push({ url, type: 'google_doc' });
@@ -40,5 +41,6 @@ export const extractAllExternalLinks = (html: string): Array<{ url: string; type
 export const sanitizeHTML = (html: string): string => {
   return html
     .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
-    .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '');
+    .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '')
+    .replace(/<iframe\b[^<]*(?:(?!<\/iframe>)<[^<]*)*<\/iframe>/gi, '');
 };

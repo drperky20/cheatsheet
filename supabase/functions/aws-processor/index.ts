@@ -1,11 +1,12 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { corsHeaders } from "../_shared/cors.ts";
+import { LambdaClient, InvokeCommand } from "@aws-sdk/client-lambda";
 import { createClient } from '@supabase/supabase-js';
 
-const AWS_ACCESS_KEY_ID = Deno.env.get('AWS_ACCESS_KEY_ID');
-const AWS_SECRET_ACCESS_KEY = Deno.env.get('AWS_SECRET_ACCESS_KEY');
-const AWS_REGION = Deno.env.get('AWS_REGION');
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -16,24 +17,26 @@ serve(async (req) => {
     const { url, type, processedLinkId } = await req.json();
 
     // Create AWS Lambda client
-    const lambda = new AWS.Lambda({
-      region: AWS_REGION,
-      credentials: new AWS.Credentials({
-        accessKeyId: AWS_ACCESS_KEY_ID!,
-        secretAccessKey: AWS_SECRET_ACCESS_KEY!
-      })
+    const lambda = new LambdaClient({
+      region: Deno.env.get('AWS_REGION'),
+      credentials: {
+        accessKeyId: Deno.env.get('AWS_ACCESS_KEY_ID')!,
+        secretAccessKey: Deno.env.get('AWS_SECRET_ACCESS_KEY')!,
+      },
     });
 
-    // Create automation result record
+    // Create Supabase client
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     );
 
+    // Create automation result record
     const { data: automationResult, error: insertError } = await supabase
       .from('automation_results')
       .insert({
         url,
+        task_id: crypto.randomUUID(),
         status: 'processing',
         processed_link_id: processedLinkId
       })
@@ -43,18 +46,18 @@ serve(async (req) => {
     if (insertError) throw insertError;
 
     // Invoke Lambda function
-    const params = {
+    const command = new InvokeCommand({
       FunctionName: 'link-processor',
       InvocationType: 'RequestResponse',
-      Payload: JSON.stringify({
+      Payload: new TextEncoder().encode(JSON.stringify({
         url,
         type,
         task_id: automationResult.id
-      })
-    };
+      }))
+    });
 
-    const response = await lambda.invoke(params).promise();
-    const result = JSON.parse(response.Payload as string);
+    const response = await lambda.send(command);
+    const result = JSON.parse(new TextDecoder().decode(response.Payload));
 
     // Update automation result
     const { error: updateError } = await supabase
@@ -67,6 +70,8 @@ serve(async (req) => {
       .eq('id', automationResult.id);
 
     if (updateError) throw updateError;
+
+    console.log(`Processed link ${url} with result:`, result);
 
     return new Response(JSON.stringify(result), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
