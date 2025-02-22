@@ -1,8 +1,10 @@
 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Link } from "lucide-react";
+import { Link, Loader2 } from "lucide-react";
 import { sanitizeHTML } from "@/utils/docProcessor";
+import { toast } from "sonner";
+import { useEffect } from "react";
 
 interface AssignmentDescriptionProps {
   description: string;
@@ -17,6 +19,22 @@ export const AssignmentDescription = ({
   onProcessLinks,
   processingLinks
 }: AssignmentDescriptionProps) => {
+  // Automatically process links when component mounts
+  useEffect(() => {
+    if (externalLinks.length > 0) {
+      handleProcessLinks();
+    }
+  }, [externalLinks]);
+
+  const handleProcessLinks = async () => {
+    try {
+      await onProcessLinks();
+    } catch (error) {
+      console.error('Error processing links:', error);
+      toast.error("Failed to process external links");
+    }
+  };
+
   return (
     <div className="space-y-2">
       <label className="text-sm font-medium text-white">Assignment Description</label>
@@ -29,16 +47,26 @@ export const AssignmentDescription = ({
         {externalLinks.length > 0 && (
           <div className="mt-4 p-3 bg-blue-500/10 rounded-lg border border-blue-500/20">
             <h3 className="text-sm font-medium text-blue-400 mb-2">
-              Found {externalLinks.length} external link{externalLinks.length > 1 ? 's' : ''} in description
+              {processingLinks ? (
+                <span className="flex items-center gap-2">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Processing {externalLinks.length} link{externalLinks.length > 1 ? 's' : ''}...
+                </span>
+              ) : (
+                <span className="flex items-center gap-2">
+                  <Link className="w-4 h-4" />
+                  Found {externalLinks.length} external link{externalLinks.length > 1 ? 's' : ''}
+                </span>
+              )}
             </h3>
-            <Button
-              onClick={onProcessLinks}
-              disabled={processingLinks}
-              className="w-full bg-blue-500/20 hover:bg-blue-500/30"
-            >
-              <Link className="w-4 h-4 mr-2" />
-              {processingLinks ? "Processing Links..." : "Process External Links"}
-            </Button>
+            <div className="text-xs text-gray-400 mt-1 space-y-1">
+              {externalLinks.map((link, index) => (
+                <div key={index} className="flex items-center gap-2">
+                  <span className={`w-2 h-2 rounded-full ${processingLinks ? 'bg-blue-500 animate-pulse' : 'bg-blue-400'}`} />
+                  <span className="truncate">{link.url}</span>
+                </div>
+              ))}
+            </div>
           </div>
         )}
       </Card>
