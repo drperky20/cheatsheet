@@ -27,11 +27,21 @@ interface AssignmentWorkspaceProps {
   onClose: () => void;
 }
 
+interface ProcessedLink {
+  id: string;
+  url: string;
+  type: 'google_doc' | 'external_link';
+  status: string;
+  content: string | null;
+  error: string | null;
+}
+
 export const AssignmentWorkspace = ({ assignment, onClose }: AssignmentWorkspaceProps) => {
   const [content, setContent] = useState("");
   const [isSubmitting, setSubmitting] = useState(false);
   const [processingLinks, setProcessingLinks] = useState(false);
   const [externalLinks, setExternalLinks] = useState<Array<{ url: string; type: 'google_doc' | 'external_link' }>>([]);
+  const [processedLinks, setProcessedLinks] = useState<ProcessedLink[]>([]);
   const [qualityConfig, setQualityConfig] = useState<AssignmentQualityConfig>({
     targetGrade: 'B',
     selectedFlaws: [],
@@ -43,8 +53,101 @@ export const AssignmentWorkspace = ({ assignment, onClose }: AssignmentWorkspace
     if (assignment.description) {
       const links = extractAllExternalLinks(assignment.description);
       setExternalLinks(links);
+      fetchProcessedLinks();
     }
   }, [assignment.description]);
+
+  const fetchProcessedLinks = async () => {
+    try {
+      const { data: links, error } = await supabase
+        .from('processed_links')
+        .select('*')
+        .eq('assignment_id', assignment.id);
+
+      if (error) throw error;
+      setProcessedLinks(links || []);
+    } catch (error) {
+      console.error('Error fetching processed links:', error);
+      toast.error("Failed to fetch processed links");
+    }
+  };
+
+  const processLink = async (url: string, type: 'google_doc' | 'external_link') => {
+    try {
+      const { data: processedLink, error: insertError } = await supabase
+        .from('processed_links')
+        .insert({
+          url,
+          type,
+          status: 'processing',
+          assignment_id: assignment.id
+        })
+        .select()
+        .single();
+
+      if (insertError) throw insertError;
+
+      const { data, error } = await supabase.functions.invoke('browser-processor', {
+        body: { url, type }
+      });
+
+      if (error) throw error;
+
+      const { error: updateError } = await supabase
+        .from('processed_links')
+        .update({
+          status: data.success ? 'completed' : 'failed',
+          content: data.content || null,
+          error: data.error || null
+        })
+        .eq('id', processedLink.id);
+
+      if (updateError) throw updateError;
+
+      if (data.success) {
+        setContent(prev => {
+          const newContent = `${prev}\n\n### Content from ${url}:\n${data.content}`;
+          return newContent.trim();
+        });
+        toast.success(`Processed ${type === 'google_doc' ? 'Google Doc' : 'external link'} successfully`);
+      }
+
+      fetchProcessedLinks();
+    } catch (error) {
+      console.error('Error processing link:', error);
+      toast.error("Failed to process link");
+    }
+  };
+
+  const processExternalLinks = async () => {
+    if (externalLinks.length === 0) {
+      toast.error("No external links found in the assignment description");
+      return;
+    }
+
+    try {
+      setProcessingLinks(true);
+      
+      for (const link of externalLinks) {
+        const existingProcessed = processedLinks.find(pl => pl.url === link.url && pl.status === 'completed');
+        
+        if (existingProcessed) {
+          setContent(prev => {
+            const newContent = `${prev}\n\n### Content from ${link.url}:\n${existingProcessed.content}`;
+            return newContent.trim();
+          });
+          toast.success(`Using cached content for ${link.type === 'google_doc' ? 'Google Doc' : 'external link'}`);
+        } else {
+          await processLink(link.url, link.type);
+        }
+      }
+    } catch (error) {
+      console.error('Error processing external links:', error);
+      toast.error("Failed to process external links");
+    } finally {
+      setProcessingLinks(false);
+    }
+  };
 
   const generatePDF = async (content: string) => {
     const docDefinition = {
@@ -122,42 +225,6 @@ export const AssignmentWorkspace = ({ assignment, onClose }: AssignmentWorkspace
       toast.error("Failed to submit assignment to Canvas");
     } finally {
       setSubmitting(false);
-    }
-  };
-
-  const processExternalLinks = async () => {
-    if (externalLinks.length === 0) {
-      toast.error("No external links found in the assignment description");
-      return;
-    }
-
-    try {
-      setProcessingLinks(true);
-      
-      for (const link of externalLinks) {
-        const { data, error } = await supabase.functions.invoke('browser-processor', {
-          body: {
-            url: link.url,
-            type: link.type
-          }
-        });
-
-        if (error) throw error;
-
-        if (data.success) {
-          setContent(prev => {
-            const newContent = `${prev}\n\n### Content from ${link.url}:\n${data.content}`;
-            return newContent.trim();
-          });
-          
-          toast.success(`Processed ${link.type === 'google_doc' ? 'Google Doc' : 'external link'} successfully`);
-        }
-      }
-    } catch (error) {
-      console.error('Error processing external links:', error);
-      toast.error("Failed to process external links");
-    } finally {
-      setProcessingLinks(false);
     }
   };
 

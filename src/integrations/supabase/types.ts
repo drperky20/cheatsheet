@@ -177,6 +177,50 @@ export type Database = {
           },
         ]
       }
+      processed_links: {
+        Row: {
+          assignment_id: string | null
+          content: string | null
+          created_at: string
+          error: string | null
+          id: string
+          status: string
+          type: string
+          updated_at: string
+          url: string
+        }
+        Insert: {
+          assignment_id?: string | null
+          content?: string | null
+          created_at?: string
+          error?: string | null
+          id?: string
+          status?: string
+          type: string
+          updated_at?: string
+          url: string
+        }
+        Update: {
+          assignment_id?: string | null
+          content?: string | null
+          created_at?: string
+          error?: string | null
+          id?: string
+          status?: string
+          type?: string
+          updated_at?: string
+          url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "processed_links_assignment_id_fkey"
+            columns: ["assignment_id"]
+            isOneToOne: false
+            referencedRelation: "assignments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           created_at: string | null
