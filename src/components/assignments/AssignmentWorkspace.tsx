@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
@@ -34,6 +35,9 @@ interface ProcessedLink {
   status: string;
   content: string | null;
   error: string | null;
+  assignment_id: string;
+  created_at: string;
+  updated_at: string;
 }
 
 export const AssignmentWorkspace = ({ assignment, onClose }: AssignmentWorkspaceProps) => {
@@ -65,7 +69,13 @@ export const AssignmentWorkspace = ({ assignment, onClose }: AssignmentWorkspace
         .eq('assignment_id', assignment.id);
 
       if (error) throw error;
-      setProcessedLinks(links || []);
+      
+      // Validate and transform the data to ensure type safety
+      const validLinks = links?.filter((link): link is ProcessedLink => {
+        return link.type === 'google_doc' || link.type === 'external_link';
+      }) || [];
+
+      setProcessedLinks(validLinks);
     } catch (error) {
       console.error('Error fetching processed links:', error);
       toast.error("Failed to fetch processed links");
