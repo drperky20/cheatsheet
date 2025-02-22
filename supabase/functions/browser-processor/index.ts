@@ -1,8 +1,9 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { corsHeaders } from "../_shared/cors.ts";
-import * as googleai from "@google/generative-ai";
-import puppeteer from "puppeteer";
+import * as googleai from "https://esm.sh/@google/generative-ai@0.1.3";
+import puppeteer from "https://deno.land/x/puppeteer@16.2.0/mod.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -54,7 +55,7 @@ serve(async (req) => {
       };
 
       // Create Supabase client
-      const supabase = await createClient(
+      const supabase = createClient(
         Deno.env.get('SUPABASE_URL')!,
         Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
       );
