@@ -152,7 +152,7 @@ export const AssignmentWorkspace = ({ assignment, onClose }: AssignmentWorkspace
 
       if (insertError) throw insertError;
 
-      const { data, error } = await supabase.functions.invoke('aws-processor', {
+      const { data, error } = await supabase.functions.invoke('browser-processor', {
         body: { url, type, processedLinkId: processedLink.id }
       });
 
