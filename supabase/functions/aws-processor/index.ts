@@ -1,12 +1,13 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { LambdaClient, InvokeCommand } from "https://esm.sh/@aws-sdk/client-lambda@3.535.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
+
+const AUTOMATION_API_ENDPOINT = "https://o5y4yt3q3m.execute-api.us-east-2.amazonaws.com/prod/automate";
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -15,15 +16,6 @@ serve(async (req) => {
 
   try {
     const { url, type, processedLinkId } = await req.json();
-
-    // Create AWS Lambda client
-    const lambda = new LambdaClient({
-      region: Deno.env.get('AWS_REGION'),
-      credentials: {
-        accessKeyId: Deno.env.get('AWS_ACCESS_KEY_ID')!,
-        secretAccessKey: Deno.env.get('AWS_SECRET_ACCESS_KEY')!,
-      },
-    });
 
     // Create Supabase client
     const supabase = createClient(
@@ -45,19 +37,24 @@ serve(async (req) => {
 
     if (insertError) throw insertError;
 
-    // Invoke Lambda function
-    const command = new InvokeCommand({
-      FunctionName: 'link-processor',
-      InvocationType: 'RequestResponse',
-      Payload: new TextEncoder().encode(JSON.stringify({
+    // Call the Automation API
+    const response = await fetch(AUTOMATION_API_ENDPOINT, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
         url,
         type,
         task_id: automationResult.id
-      }))
+      })
     });
 
-    const response = await lambda.send(command);
-    const result = JSON.parse(new TextDecoder().decode(response.Payload));
+    if (!response.ok) {
+      throw new Error(`API call failed: ${response.statusText}`);
+    }
+
+    const result = await response.json();
 
     // Update automation result
     const { error: updateError } = await supabase
