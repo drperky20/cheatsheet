@@ -7,10 +7,10 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// API Gateway endpoint for the FastAPI service
 const AUTOMATION_API_ENDPOINT = "https://o5y4yt3q3m.execute-api.us-east-2.amazonaws.com/prod/automate";
 
 serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -18,16 +18,7 @@ serve(async (req) => {
   try {
     const { url, type, processedLinkId } = await req.json();
     
-    console.log(`Processing request for URL: ${url}, Type: ${type}, ID: ${processedLinkId}`);
-
-    // Get AWS credentials from environment
-    const awsAccessKeyId = Deno.env.get('AWS_ACCESS_KEY_ID');
-    const awsSecretKey = Deno.env.get('AWS_SECRET_ACCESS_KEY');
-    const awsRegion = Deno.env.get('AWS_REGION');
-
-    if (!awsAccessKeyId || !awsSecretKey || !awsRegion) {
-      throw new Error('Missing AWS credentials');
-    }
+    console.log(`Starting automation request for URL: ${url}, Type: ${type}, ID: ${processedLinkId}`);
 
     // Create Supabase client
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
@@ -38,10 +29,10 @@ serve(async (req) => {
     }
 
     const supabase = createClient(supabaseUrl, supabaseKey);
-    console.log('Supabase client initialized');
+    console.log('Initialized Supabase client');
 
     // Create automation result record
-    console.log('Creating automation result record...');
+    console.log('Creating initial automation record...');
     const { data: automationResult, error: insertError } = await supabase
       .from('automation_results')
       .insert({
@@ -54,31 +45,29 @@ serve(async (req) => {
       .single();
 
     if (insertError) {
-      console.error('Error creating automation result:', insertError);
+      console.error('Failed to create automation record:', insertError);
       throw insertError;
     }
 
-    console.log('Created automation result:', automationResult);
+    console.log('Created automation record:', automationResult.id);
 
-    // Call the Automation API with AWS credentials
-    console.log('Calling Automation API...');
+    // Call the FastAPI Automation endpoint
+    console.log('Calling FastAPI automation service...');
     const response = await fetch(AUTOMATION_API_ENDPOINT, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-        'X-API-Key': awsAccessKeyId,
-        'X-API-Secret': awsSecretKey,
-        'X-API-Region': awsRegion
+        'Content-Type': 'application/json'
       },
       body: JSON.stringify({
         url,
         type,
-        task_id: automationResult.id
+        task_id: automationResult.id,
+        instructions: type === 'google_doc' ? 'extract_content' : 'analyze_webpage'
       })
     });
 
-    // Log the full response for debugging
-    console.log('Raw API Response:', {
+    // Log the raw response for debugging
+    console.log('Automation API Response:', {
       status: response.status,
       statusText: response.statusText,
       headers: Object.fromEntries(response.headers.entries())
@@ -86,41 +75,56 @@ serve(async (req) => {
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('API response not OK:', response.status, errorText);
-      throw new Error(`API call failed: ${response.status} - ${errorText}`);
+      console.error('Automation API error:', errorText);
+      
+      // Update automation result with error
+      await supabase
+        .from('automation_results')
+        .update({
+          status: 'failed',
+          error: `API Error: ${response.status} - ${errorText}`
+        })
+        .eq('id', automationResult.id);
+
+      throw new Error(`Automation API failed: ${response.status} - ${errorText}`);
     }
 
     const result = await response.json();
-    console.log('Received API response:', result);
+    console.log('Received automation result:', result);
 
-    // Update automation result
-    console.log('Updating automation result...');
+    // Update automation result with success
+    console.log('Updating automation record with results...');
     const { error: updateError } = await supabase
       .from('automation_results')
       .update({
-        status: result.success ? 'completed' : 'failed',
-        result: result.success ? result.data : null,
-        error: result.error || null
+        status: 'completed',
+        result: result.result || result,
+        error: null
       })
       .eq('id', automationResult.id);
 
     if (updateError) {
-      console.error('Error updating automation result:', updateError);
+      console.error('Failed to update automation record:', updateError);
       throw updateError;
     }
 
-    console.log(`Successfully processed link ${url}`);
+    console.log(`Successfully completed automation for ${url}`);
 
-    return new Response(JSON.stringify(result), {
+    return new Response(JSON.stringify({
+      success: true,
+      data: result.result || result,
+      automationId: automationResult.id
+    }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,
     });
+
   } catch (error) {
-    console.error('Error in aws-processor:', error);
+    console.error('Error in automation process:', error);
     return new Response(JSON.stringify({ 
+      success: false,
       error: error.message,
-      stack: error.stack,
-      name: error.name
+      details: error.stack
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 500,
