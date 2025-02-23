@@ -16,14 +16,22 @@ serve(async (req) => {
 
   try {
     const { url, type, processedLinkId } = await req.json();
+    
+    console.log(`Processing request for URL: ${url}, Type: ${type}, ID: ${processedLinkId}`);
 
     // Create Supabase client
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-    );
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+
+    if (!supabaseUrl || !supabaseKey) {
+      throw new Error('Missing Supabase configuration');
+    }
+
+    const supabase = createClient(supabaseUrl, supabaseKey);
+    console.log('Supabase client initialized');
 
     // Create automation result record
+    console.log('Creating automation result record...');
     const { data: automationResult, error: insertError } = await supabase
       .from('automation_results')
       .insert({
@@ -35,9 +43,15 @@ serve(async (req) => {
       .select()
       .single();
 
-    if (insertError) throw insertError;
+    if (insertError) {
+      console.error('Error creating automation result:', insertError);
+      throw insertError;
+    }
+
+    console.log('Created automation result:', automationResult);
 
     // Call the Automation API
+    console.log('Calling Automation API...');
     const response = await fetch(AUTOMATION_API_ENDPOINT, {
       method: 'POST',
       headers: {
@@ -51,12 +65,16 @@ serve(async (req) => {
     });
 
     if (!response.ok) {
-      throw new Error(`API call failed: ${response.statusText}`);
+      const errorText = await response.text();
+      console.error('API response not OK:', response.status, errorText);
+      throw new Error(`API call failed: ${response.status} - ${errorText}`);
     }
 
     const result = await response.json();
+    console.log('Received API response:', result);
 
     // Update automation result
+    console.log('Updating automation result...');
     const { error: updateError } = await supabase
       .from('automation_results')
       .update({
@@ -66,17 +84,23 @@ serve(async (req) => {
       })
       .eq('id', automationResult.id);
 
-    if (updateError) throw updateError;
+    if (updateError) {
+      console.error('Error updating automation result:', updateError);
+      throw updateError;
+    }
 
-    console.log(`Processed link ${url} with result:`, result);
+    console.log(`Successfully processed link ${url}`);
 
     return new Response(JSON.stringify(result), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,
     });
   } catch (error) {
-    console.error('Error:', error);
-    return new Response(JSON.stringify({ error: error.message }), {
+    console.error('Error in aws-processor:', error);
+    return new Response(JSON.stringify({ 
+      error: error.message,
+      stack: error.stack
+    }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 500,
     });

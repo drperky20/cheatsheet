@@ -1,7 +1,7 @@
 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Link, Loader2 } from "lucide-react";
+import { Link, Loader2, ExternalLink } from "lucide-react";
 import { sanitizeHTML } from "@/utils/docProcessor";
 import { toast } from "sonner";
 import { useEffect } from "react";
@@ -19,13 +19,6 @@ export const AssignmentDescription = ({
   onProcessLinks,
   processingLinks
 }: AssignmentDescriptionProps) => {
-  // Automatically process links when component mounts
-  useEffect(() => {
-    if (externalLinks.length > 0) {
-      handleProcessLinks();
-    }
-  }, [externalLinks]);
-
   const handleProcessLinks = async () => {
     try {
       await onProcessLinks();
@@ -46,24 +39,43 @@ export const AssignmentDescription = ({
         
         {externalLinks.length > 0 && (
           <div className="mt-4 p-3 bg-blue-500/10 rounded-lg border border-blue-500/20">
-            <h3 className="text-sm font-medium text-blue-400 mb-2">
-              {processingLinks ? (
-                <span className="flex items-center gap-2">
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Processing {externalLinks.length} link{externalLinks.length > 1 ? 's' : ''}...
-                </span>
-              ) : (
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-sm font-medium text-blue-400">
                 <span className="flex items-center gap-2">
                   <Link className="w-4 h-4" />
                   Found {externalLinks.length} external link{externalLinks.length > 1 ? 's' : ''}
                 </span>
-              )}
-            </h3>
+              </h3>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleProcessLinks}
+                disabled={processingLinks}
+                className="h-8"
+              >
+                {processingLinks ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                    Analyzing...
+                  </>
+                ) : (
+                  <>
+                    <ExternalLink className="w-4 h-4 mr-2" />
+                    Analyze Links
+                  </>
+                )}
+              </Button>
+            </div>
             <div className="text-xs text-gray-400 mt-1 space-y-1">
               {externalLinks.map((link, index) => (
-                <div key={index} className="flex items-center gap-2">
-                  <span className={`w-2 h-2 rounded-full ${processingLinks ? 'bg-blue-500 animate-pulse' : 'bg-blue-400'}`} />
-                  <span className="truncate">{link.url}</span>
+                <div key={index} className="flex items-center justify-between gap-2 p-2 rounded bg-black/20">
+                  <div className="flex items-center gap-2 flex-1 min-w-0">
+                    <span className={`w-2 h-2 rounded-full ${processingLinks ? 'bg-blue-500 animate-pulse' : 'bg-blue-400'}`} />
+                    <span className="truncate">{link.url}</span>
+                  </div>
+                  <span className="text-xs text-blue-400/80">
+                    {link.type === 'google_doc' ? 'Google Doc' : 'External Link'}
+                  </span>
                 </div>
               ))}
             </div>
