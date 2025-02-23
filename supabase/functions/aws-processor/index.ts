@@ -10,6 +10,7 @@ const corsHeaders = {
 const AUTOMATION_API_ENDPOINT = "https://o5y4yt3q3m.execute-api.us-east-2.amazonaws.com/prod/automate";
 
 serve(async (req) => {
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -18,6 +19,15 @@ serve(async (req) => {
     const { url, type, processedLinkId } = await req.json();
     
     console.log(`Processing request for URL: ${url}, Type: ${type}, ID: ${processedLinkId}`);
+
+    // Get AWS credentials from environment
+    const awsAccessKeyId = Deno.env.get('AWS_ACCESS_KEY_ID');
+    const awsSecretKey = Deno.env.get('AWS_SECRET_ACCESS_KEY');
+    const awsRegion = Deno.env.get('AWS_REGION');
+
+    if (!awsAccessKeyId || !awsSecretKey || !awsRegion) {
+      throw new Error('Missing AWS credentials');
+    }
 
     // Create Supabase client
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
@@ -50,18 +60,28 @@ serve(async (req) => {
 
     console.log('Created automation result:', automationResult);
 
-    // Call the Automation API
+    // Call the Automation API with AWS credentials
     console.log('Calling Automation API...');
     const response = await fetch(AUTOMATION_API_ENDPOINT, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'X-API-Key': awsAccessKeyId,
+        'X-API-Secret': awsSecretKey,
+        'X-API-Region': awsRegion
       },
       body: JSON.stringify({
         url,
         type,
         task_id: automationResult.id
       })
+    });
+
+    // Log the full response for debugging
+    console.log('Raw API Response:', {
+      status: response.status,
+      statusText: response.statusText,
+      headers: Object.fromEntries(response.headers.entries())
     });
 
     if (!response.ok) {
@@ -99,7 +119,8 @@ serve(async (req) => {
     console.error('Error in aws-processor:', error);
     return new Response(JSON.stringify({ 
       error: error.message,
-      stack: error.stack
+      stack: error.stack,
+      name: error.name
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 500,
