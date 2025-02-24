@@ -82,9 +82,6 @@ export const ChatInterface = ({ onBack, initialQuestion = '', initialFile = null
         
         const { data, error } = await supabase.functions.invoke('gemini-processor', {
           body: formData,
-          headers: {
-            'Content-Type': 'multipart/form-data',
-          },
         });
 
         if (error) throw error;
@@ -92,9 +89,6 @@ export const ChatInterface = ({ onBack, initialQuestion = '', initialFile = null
       } else {
         const { data, error } = await supabase.functions.invoke('gemini-processor', {
           body: JSON.stringify({ content: input, type: 'generate_content' }),
-          headers: {
-            'Content-Type': 'application/json',
-          },
         });
 
         if (error) throw error;
