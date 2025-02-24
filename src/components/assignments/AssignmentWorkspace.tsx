@@ -30,12 +30,32 @@ interface AssignmentWorkspaceProps {
 export const AssignmentWorkspace = ({ assignment, onClose }: AssignmentWorkspaceProps) => {
   const [content, setContent] = useState("");
   const [isSubmitting, setSubmitting] = useState(false);
+  const [externalLinks, setExternalLinks] = useState<Array<{ url: string; type: 'google_doc' | 'external_link' }>>([]);
+  const [processingLinks, setProcessingLinks] = useState(false);
   const [qualityConfig, setQualityConfig] = useState<AssignmentQualityConfig>({
     targetGrade: 'B',
     selectedFlaws: [],
     writingStyle: 'mixed',
     confidenceLevel: 75
   });
+
+  useEffect(() => {
+    // Extract links from description
+    const extractLinks = () => {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(assignment.description, 'text/html');
+      const links = Array.from(doc.querySelectorAll('a'));
+      
+      const extracted = links.map(link => ({
+        url: link.href,
+        type: link.href.includes('docs.google.com') ? 'google_doc' : 'external_link'
+      } as const));
+
+      setExternalLinks(extracted);
+    };
+
+    extractLinks();
+  }, [assignment.description]);
 
   const generatePDF = async (content: string) => {
     const docDefinition = {
@@ -82,6 +102,20 @@ export const AssignmentWorkspace = ({ assignment, onClose }: AssignmentWorkspace
     });
   };
 
+  const handleProcessLinks = async () => {
+    setProcessingLinks(true);
+    try {
+      // We'll implement link processing logic later
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      toast.success("Links processed successfully");
+    } catch (error) {
+      console.error('Error processing links:', error);
+      toast.error("Failed to process links");
+    } finally {
+      setProcessingLinks(false);
+    }
+  };
+
   const handleSubmit = async () => {
     if (!content.trim()) {
       toast.error("Please add some content before submitting");
@@ -118,16 +152,19 @@ export const AssignmentWorkspace = ({ assignment, onClose }: AssignmentWorkspace
 
   return (
     <div className="fixed inset-0 bg-black/90 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <Card className="w-full max-w-4xl h-[90vh] glass overflow-hidden flex flex-col">
+      <Card className="w-full max-w-4xl h-[90vh] neo-blur overflow-hidden flex flex-col">
         <AssignmentHeader
           name={assignment.name}
           dueDate={assignment.due_at}
           onClose={onClose}
         />
 
-        <div className="flex-1 p-4 space-y-4 overflow-auto">
+        <div className="flex-1 p-6 space-y-6 overflow-auto">
           <AssignmentDescription
             description={assignment.description}
+            externalLinks={externalLinks}
+            onProcessLinks={handleProcessLinks}
+            processingLinks={processingLinks}
           />
 
           <AssignmentContent
