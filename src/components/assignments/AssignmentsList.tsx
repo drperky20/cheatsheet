@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -70,7 +69,6 @@ export const AssignmentsList = ({ courseId, onStartAssignment }: AssignmentsList
         } else {
           allAssignments = [...allAssignments, ...pageAssignments];
           
-          // If we received fewer assignments than the page size, we've reached the end
           if (pageAssignments.length < PER_PAGE) {
             hasMore = false;
           } else {
@@ -131,47 +129,88 @@ export const AssignmentsList = ({ courseId, onStartAssignment }: AssignmentsList
 
   if (loading) {
     return (
-      <div className="space-y-4 h-[calc(100vh-12rem)] overflow-y-auto p-4 border border-white/10 rounded-lg">
+      <div className="space-y-4 h-[calc(100vh-12rem)] overflow-y-auto p-4 neo-blur rounded-lg scrollbar-styled">
         {[1, 2, 3, 4, 5].map((i) => (
-          <Skeleton key={i} className="h-[100px] rounded-lg" />
+          <Skeleton 
+            key={i} 
+            className="h-[120px] rounded-lg bg-surface-100/50 animate-pulse"
+          />
         ))}
       </div>
     );
   }
 
   return (
-    <div className="h-[calc(100vh-12rem)] overflow-y-auto p-4 border border-white/10 rounded-lg">
-      <div className="sticky top-0 z-10 mb-4 bg-black/80 backdrop-blur-lg p-2 rounded-lg">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+    <div className="
+      h-[calc(100vh-12rem)] overflow-y-auto
+      neo-blur rounded-lg
+      border border-white/10
+      scrollbar-styled
+    ">
+      {/* Search Header */}
+      <div className="
+        sticky top-0 z-10 
+        backdrop-blur-2xl bg-black/80
+        border-b border-white/5
+        px-4 py-3 space-y-2
+      ">
+        <div className="relative group">
+          <Search className="
+            absolute left-3 top-1/2 transform -translate-y-1/2 
+            w-5 h-5 text-muted-foreground
+            group-focus-within:text-primary
+            transition-colors duration-200
+          " />
           <Input
             type="text"
             placeholder="Search assignments..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10 bg-black/20 border-white/10"
+            className="
+              pl-10 h-11
+              bg-surface-100/50 hover:bg-surface-100/70
+              border-white/10 focus:border-primary/50
+              placeholder:text-muted-foreground
+              transition-all duration-200
+            "
           />
         </div>
-        <div className="mt-2 text-sm text-gray-400">
+        <div className="text-sm text-muted-foreground font-medium px-1">
           {assignments.length} assignments found
         </div>
       </div>
 
-      <div className="space-y-4">
+      {/* Assignments Grid */}
+      <div className="p-4 space-y-4">
         {filteredAssignments.length > 0 ? (
-          filteredAssignments.map((assignment) => (
-            <AssignmentCard
+          filteredAssignments.map((assignment, index) => (
+            <div
               key={assignment.id}
-              assignment={assignment}
-              onStart={analyzeRequirements}
-              isAnalyzing={analyzing === assignment.id}
-            />
+              className="animate-fadeIn"
+              style={{ animationDelay: `${index * 50}ms` }}
+            >
+              <AssignmentCard
+                assignment={assignment}
+                onStart={analyzeRequirements}
+                isAnalyzing={analyzing === assignment.id}
+              />
+            </div>
           ))
         ) : (
-          <div className="text-center p-8 glass rounded-lg">
-            <AlertCircle className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-            <h3 className="text-xl font-semibold mb-2">No Assignments Found</h3>
-            <p className="text-gray-400">
+          <div className="
+            text-center p-8 glass-morphism
+            animate-fadeIn select-none
+          ">
+            <AlertCircle className="
+              mx-auto h-12 w-12 
+              text-muted-foreground
+              animate-float
+              mb-4
+            " />
+            <h3 className="text-xl font-semibold mb-2 text-gradient">
+              No Assignments Found
+            </h3>
+            <p className="text-muted-foreground max-w-md mx-auto">
               {searchQuery 
                 ? "No assignments match your search query." 
                 : "There are no pending assignments for this course at the moment."}

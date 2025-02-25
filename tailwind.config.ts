@@ -1,5 +1,5 @@
-
-import type { Config } from "tailwindcss";
+import { type Config } from "tailwindcss";
+import animate from "tailwindcss-animate";
 
 export default {
   darkMode: ["class"],
@@ -20,40 +20,45 @@ export default {
     },
     extend: {
       colors: {
-        border: "hsl(var(--border))",
+        border: {
+          DEFAULT: "hsl(var(--border))",
+          hover: "hsl(var(--border-hover))",
+        },
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",
         background: "hsl(var(--background))",
         foreground: "hsl(var(--foreground))",
         primary: {
           DEFAULT: "hsl(var(--primary))",
+          light: "hsl(var(--primary-light))",
+          dark: "hsl(var(--primary-dark))",
           foreground: "hsl(var(--primary-foreground))",
         },
-        secondary: {
-          DEFAULT: "hsl(var(--secondary))",
-          foreground: "hsl(var(--secondary-foreground))",
-        },
-        destructive: {
-          DEFAULT: "hsl(var(--destructive))",
-          foreground: "hsl(var(--destructive-foreground))",
-        },
-        muted: {
-          DEFAULT: "hsl(var(--muted))",
-          foreground: "hsl(var(--muted-foreground))",
-        },
         accent: {
-          DEFAULT: "hsl(var(--accent))",
-          foreground: "hsl(var(--accent-foreground))",
+          blue: "hsl(var(--accent-blue))",
+          purple: "hsl(var(--accent-purple))",
+          pink: "hsl(var(--accent-pink))",
         },
-        card: {
-          DEFAULT: "hsl(var(--card))",
-          foreground: "hsl(var(--card-foreground))",
+        surface: {
+          0: "hsl(var(--surface-0))",
+          50: "hsl(var(--surface-50))",
+          100: "hsl(var(--surface-100))",
+          200: "hsl(var(--surface-200))",
         },
+        success: "hsl(var(--success))",
+        warning: "hsl(var(--warning))",
+        destructive: "hsl(var(--destructive))",
       },
       borderRadius: {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
+      },
+      height: {
+        header: "var(--header-height)",
+      },
+      maxHeight: {
+        header: "var(--header-height)",
       },
       keyframes: {
         "accordion-down": {
@@ -76,6 +81,10 @@ export default {
           "0%, 100%": { transform: "translateY(0)" },
           "50%": { transform: "translateY(-5px)" },
         },
+        pulse: {
+          "0%, 100%": { opacity: "1" },
+          "50%": { opacity: "0.8" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
@@ -83,8 +92,9 @@ export default {
         fadeIn: "fadeIn 0.5s ease-out forwards",
         slideIn: "slideIn 0.5s ease-out forwards",
         float: "float 3s ease-in-out infinite",
+        "pulse-slow": "pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite",
       },
     },
   },
-  plugins: [require("tailwindcss-animate")],
+  plugins: [animate],
 } satisfies Config;
