@@ -62,16 +62,13 @@ const Dashboard = () => {
     const file = e.target.files?.[0];
     if (!file) return;
     if (!Object.keys(SUPPORTED_FORMATS).includes(file.type)) {
-      toast({
-        title: "Unsupported file format",
-        description: "Please upload one of the following formats:\n" + Object.values(SUPPORTED_FORMATS).join(", "),
-        variant: "destructive"
+      toast("Unsupported file format", {
+        description: "Please upload one of the following formats:\n" + Object.values(SUPPORTED_FORMATS).join(", ")
       });
       return;
     }
     setUploadedFile(file);
-    toast({
-      title: "File uploaded",
+    toast("File uploaded", {
       description: `${file.name} has been uploaded successfully.`
     });
   };
