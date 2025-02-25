@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { BookOpen, Clock, ArrowRight, X, Sparkles } from "lucide-react";
@@ -30,16 +31,6 @@ export const CourseCard = ({ course }: CourseCardProps) => {
   const [showAssignments, setShowAssignments] = useState(false);
   const [selectedAssignment, setSelectedAssignment] = useState<any>(null);
 
-  const getRandomGradient = () => {
-    const gradients = [
-      'from-[#403E43]/10 via-[#555555]/10 to-[#222222]/10',
-      'from-[#1A1F2C]/10 via-[#403E43]/10 to-[#222222]/10',
-      'from-[#222222]/10 via-[#403E43]/10 to-[#555555]/10',
-      'from-[#333333]/10 via-[#403E43]/10 to-[#1A1F2C]/10',
-    ];
-    return gradients[Math.floor(Math.random() * gradients.length)];
-  };
-
   return (
     <>
       <Card 
@@ -55,14 +46,8 @@ export const CourseCard = ({ course }: CourseCardProps) => {
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
       >
-        <div className={`
-          absolute inset-0 bg-gradient-to-br ${getRandomGradient()}
-          transition-opacity duration-700
-        `} />
-        <div className={`
-          absolute inset-0 bg-gradient-to-br from-[#403E43]/5 to-transparent
-          opacity-0 group-hover:opacity-100 transition-opacity duration-700
-        `} />
+        <div className="absolute inset-0 bg-gradient-to-br from-[#1A1F2C]/10 via-[#403E43]/5 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-br from-[#403E43]/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
         
         <div className="relative p-8 space-y-6">
           <div className="flex items-start justify-between">
@@ -74,11 +59,11 @@ export const CourseCard = ({ course }: CourseCardProps) => {
                 onUpdate={setNickname}
               />
               {course.term && (
-                <p className="text-sm text-[#403E43]/60 transition-colors duration-300">{course.term.name}</p>
+                <p className="text-sm text-[#403E43]">{course.term.name}</p>
               )}
             </div>
             {course.final_grade && (
-              <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#1A1F2C]/50 backdrop-blur-xl border border-white/5 transition-all duration-300 hover:bg-[#1A1F2C]/70">
+              <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#1A1F2C]/50 backdrop-blur-xl border border-white/5">
                 <Sparkles className="w-4 h-4 text-[#403E43]" />
                 <span className="text-[#E5DEFF] font-medium">{course.final_grade}</span>
               </div>
@@ -86,79 +71,38 @@ export const CourseCard = ({ course }: CourseCardProps) => {
           </div>
 
           <div className="flex items-center gap-4">
-            <div className="
-              flex items-center gap-2 px-4 py-2 rounded-xl
-              bg-[#1A1F2C]/50 backdrop-blur-xl border border-white/5
-              hover:bg-[#1A1F2C]/70 hover:border-white/10
-              transition-all duration-500 group/stat
-            ">
-              <BookOpen className="w-4 h-4 text-[#403E43] group-hover/stat:scale-110 transition-transform duration-500" />
+            <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#1A1F2C]/50 backdrop-blur-xl border border-white/5">
+              <BookOpen className="w-4 h-4 text-[#403E43]" />
               <div className="flex flex-col">
-                <span className="text-xs text-[#403E43]/60">Assignments</span>
+                <span className="text-xs text-[#403E43]">Assignments</span>
                 <span className="text-sm font-medium text-[#E5DEFF]">{course.assignments_count}</span>
               </div>
             </div>
             
-            <div className="
-              flex items-center gap-2 px-4 py-2 rounded-xl
-              bg-[#1A1F2C]/50 backdrop-blur-xl border border-white/5
-              hover:bg-[#1A1F2C]/70 hover:border-white/10
-              transition-all duration-500 group/stat
-            ">
-              <Clock className="w-4 h-4 text-[#403E43] group-hover/stat:scale-110 transition-transform duration-500" />
+            <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#1A1F2C]/50 backdrop-blur-xl border border-white/5">
+              <Clock className="w-4 h-4 text-[#403E43]" />
               <div className="flex flex-col">
-                <span className="text-xs text-[#403E43]/60">Missing</span>
+                <span className="text-xs text-[#403E43]">Missing</span>
                 <span className="text-sm font-medium text-[#E5DEFF]">{course.pending_assignments}</span>
               </div>
             </div>
           </div>
 
-          <div className="
-            absolute inset-0 flex items-center justify-center
-            bg-[#0F172A]/80 backdrop-blur-md
-            opacity-0 group-hover:opacity-100
-            transition-all duration-700
-          ">
+          <div className="absolute inset-0 flex items-center justify-center bg-[#0F172A]/90 backdrop-blur-md opacity-0 group-hover:opacity-100 transition-all duration-700">
             <Button 
               onClick={() => setShowAssignments(true)}
-              className="
-                relative overflow-hidden
-                bg-[#403E43] hover:bg-[#555555]
-                text-[#E5DEFF] font-medium px-6 py-2 rounded-xl
-                flex items-center gap-3
-                transition-all duration-500
-                hover:scale-105 transform
-                group/btn
-              "
+              className="relative overflow-hidden bg-[#403E43] hover:bg-[#555555] text-[#E5DEFF] font-medium px-6 py-2 rounded-xl"
             >
               <span>View Assignments</span>
-              <ArrowRight className="w-4 h-4 group-hover/btn:translate-x-1 transition-transform duration-500" />
-              <div className="
-                absolute inset-0 bg-gradient-to-r 
-                from-white/5 to-transparent opacity-0 
-                group-hover/btn:opacity-100 
-                transition-opacity duration-500
-              " />
+              <ArrowRight className="ml-2 w-4 h-4" />
             </Button>
           </div>
         </div>
       </Card>
 
       {showAssignments && (
-        <div className="
-          fixed inset-0 z-40
-          bg-black/90 backdrop-blur-xl
-          flex items-center justify-center p-6
-          animate-in fade-in slide-in-from-bottom-4
-          duration-300
-        ">
-          <Card className="
-            w-full max-w-3xl
-            glass-morphism border-0
-            shadow-2xl shadow-black/50
-            animate-in zoom-in-95
-            duration-300
-          ">
+        <div className="fixed inset-0 z-40 bg-black/90 backdrop-blur-xl flex items-center justify-center p-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
+          <Card className="w-full max-w-3xl glass-morphism border-0 shadow-2xl shadow-black/50 animate-in zoom-in-95 duration-300">
             <div className="p-6 border-b border-white/10 bg-gradient-to-r from-black/60 to-black/40">
               <div className="flex items-center justify-between">
                 <h2 className="text-2xl font-semibold text-gradient">
@@ -168,11 +112,7 @@ export const CourseCard = ({ course }: CourseCardProps) => {
                   variant="ghost" 
                   size="icon"
                   onClick={() => setShowAssignments(false)}
-                  className="
-                    rounded-full h-10 w-10
-                    hover:bg-white/10
-                    transition-colors duration-300
-                  "
+                  className="rounded-full h-10 w-10 hover:bg-white/10"
                 >
                   <X className="h-5 w-5" />
                 </Button>

@@ -6,13 +6,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { BookOpen, Clock, ArrowUpDown } from "lucide-react";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -40,9 +33,6 @@ export const CoursesDashboard = () => {
   const [courses, setCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
   const [sortBy, setSortBy] = useState<SortOption>("name");
-  const [showDisclaimer, setShowDisclaimer] = useState(false);
-  const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
-  const [hasSeenDisclaimer, setHasSeenDisclaimer] = useState(false);
   const { toast } = useToast();
   const { canvasConfig } = useAuth();
 
@@ -165,23 +155,27 @@ export const CoursesDashboard = () => {
 
   const handleSort = (option: SortOption) => {
     setSortBy(option);
-    setCourses(sortCourses(courses, option));
-  };
-
-  const handleCourseClick = (course: Course) => {
-    setSelectedCourse(course);
-    if (!hasSeenDisclaimer) {
-      setShowDisclaimer(true);
-    } else {
-      console.log("Proceeding with course:", course);
-    }
+    setCourses(prev => [...prev].sort((a, b) => {
+      switch (option) {
+        case "name":
+          return (a.nickname || a.name).localeCompare(b.nickname || b.name);
+        case "pending":
+          return b.pending_assignments - a.pending_assignments;
+        case "progress":
+          const progressA = (a.assignments_count - a.pending_assignments) / Math.max(a.assignments_count, 1);
+          const progressB = (b.assignments_count - b.pending_assignments) / Math.max(b.assignments_count, 1);
+          return progressB - progressA;
+        default:
+          return 0;
+      }
+    }));
   };
 
   if (loading) {
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {[1, 2, 3].map((i) => (
-          <Skeleton key={i} className="h-[200px] rounded-xl" />
+          <Skeleton key={i} className="h-[200px] rounded-xl bg-[#1A1F2C]/40" />
         ))}
       </div>
     );
@@ -189,9 +183,9 @@ export const CoursesDashboard = () => {
 
   if (courses.length === 0) {
     return (
-      <div className="text-center p-8 glass">
-        <h3 className="text-xl font-semibold mb-2">No Active Courses Found</h3>
-        <p className="text-gray-400">
+      <div className="text-center p-8 glass-morphism">
+        <h3 className="text-xl font-semibold mb-2 text-[#E5DEFF]">No Active Courses Found</h3>
+        <p className="text-[#403E43]">
           We couldn't find any active courses. If you believe this is an error, please check your Canvas configuration.
         </p>
       </div>
@@ -199,94 +193,50 @@ export const CoursesDashboard = () => {
   }
 
   return (
-    <>
-      <Dialog open={showDisclaimer} onOpenChange={setShowDisclaimer}>
-        <DialogContent className="bg-black/90 border border-white/10 text-white">
-          <DialogHeader>
-            <DialogTitle className="text-xl font-bold text-[#9b87f5]">⚠️ Alpha Feature Warning</DialogTitle>
-            <DialogDescription className="text-white/80 space-y-4">
-              <p className="text-lg font-semibold text-red-400">
-                This feature is currently in ALPHA testing!
-              </p>
-              <div className="space-y-2">
-                <p>Please be aware of the following:</p>
-                <ul className="list-disc pl-5 space-y-1">
-                  <li>The assignment completion feature is experimental and may break unexpectedly</li>
-                  <li>For best results, we recommend using the chat bar above to upload assignment information directly</li>
-                  <li>Some assignments may not be properly processed or may fail to submit</li>
-                  <li>Always review and verify any generated content before submission</li>
-                </ul>
-              </div>
-              <p className="font-medium text-[#9b87f5]">
-                Do you wish to continue anyway?
-              </p>
-            </DialogDescription>
-          </DialogHeader>
-          <div className="flex justify-end space-x-2">
-            <Button
-              variant="ghost"
-              onClick={() => setShowDisclaimer(false)}
-              className="bg-white/10 hover:bg-white/20"
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={() => {
-                setShowDisclaimer(false);
-                setHasSeenDisclaimer(true);
-                if (selectedCourse) {
-                  console.log("Proceeding with course:", selectedCourse);
-                }
-              }}
-              className="bg-[#9b87f5] hover:bg-[#8b5cf6]"
-            >
-              I Understand, Continue
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-2">
-            <BookOpen className="w-5 h-5" />
-            <h2 className="text-xl font-semibold">Your Courses</h2>
-          </div>
-          <div className="flex items-center space-x-4">
-            <div className="flex items-center space-x-2 text-sm text-gray-400">
-              <Clock className="w-4 h-4" />
-              <span>Real-time sync enabled</span>
-            </div>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="flex items-center gap-2">
-                  <ArrowUpDown className="h-4 w-4" />
-                  Sort
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="bg-black/80 backdrop-blur-lg border-white/10">
-                <DropdownMenuItem onClick={() => handleSort("name")}>
-                  Sort by Name
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleSort("pending")}>
-                  Sort by Missing
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleSort("progress")}>
-                  Sort by Progress
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center space-x-2">
+          <BookOpen className="w-5 h-5 text-[#403E43]" />
+          <h2 className="text-xl font-semibold text-[#E5DEFF]">Your Courses</h2>
         </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {courses.map((course) => (
-            <div key={course.id} onClick={() => handleCourseClick(course)} className="cursor-pointer">
-              <CourseCard course={course} />
-            </div>
-          ))}
+        <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-2 text-sm text-[#403E43]">
+            <Clock className="w-4 h-4" />
+            <span>Real-time sync enabled</span>
+          </div>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="flex items-center gap-2 text-[#E5DEFF] hover:bg-[#1A1F2C]/60"
+              >
+                <ArrowUpDown className="h-4 w-4" />
+                Sort
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="bg-[#1A1F2C]/90 backdrop-blur-xl border-white/10">
+              <DropdownMenuItem onClick={() => handleSort("name")} className="text-[#E5DEFF] hover:bg-[#403E43]/20">
+                Sort by Name
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleSort("pending")} className="text-[#E5DEFF] hover:bg-[#403E43]/20">
+                Sort by Missing
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleSort("progress")} className="text-[#E5DEFF] hover:bg-[#403E43]/20">
+                Sort by Progress
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
-    </>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {courses.map((course) => (
+          <div key={course.id} className="transform transition-all duration-500 hover:scale-[1.02]">
+            <CourseCard course={course} />
+          </div>
+        ))}
+      </div>
+    </div>
   );
 };
