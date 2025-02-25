@@ -45,7 +45,7 @@
   }
 
   body {
-    @apply bg-background text-foreground antialiased overflow-x-hidden;
+    @apply bg-[#0A0A0B] text-foreground antialiased overflow-x-hidden;
     font-feature-settings: "ss01", "ss02", "cv01", "cv02", "cv03";
   }
 }
@@ -57,29 +57,29 @@
   }
 
   .glass-morphism {
-    @apply backdrop-blur-2xl bg-black/50 border border-white/10 
-           shadow-[0_4px_20px_-4px_rgba(0,0,0,0.5)] 
-           hover:shadow-[0_4px_24px_-2px_rgba(0,0,0,0.6)]
-           transition-shadow duration-300;
+    @apply backdrop-blur-2xl bg-[#111827]/50 border border-white/10 
+           shadow-[0_8px_32px_rgba(0,0,0,0.3)] 
+           hover:shadow-[0_8px_32px_rgba(0,0,0,0.4)]
+           transition-all duration-300;
   }
 
   .neo-blur {
-    @apply backdrop-blur-3xl bg-black/70 border border-white/10
-           shadow-[0_8px_32px_-4px_rgba(0,0,0,0.5)]
-           hover:bg-black/75 transition-all duration-300;
+    @apply backdrop-blur-3xl bg-[#111827]/70 border border-white/10
+           shadow-[0_8px_32px_rgba(0,0,0,0.4)]
+           hover:bg-[#111827]/80 transition-all duration-300;
   }
 
   /* Enhanced gradients */
   .card-gradient {
-    @apply bg-gradient-to-br from-black/80 via-black/60 to-black/40 
-           backdrop-blur-sm hover:from-black/85 hover:via-black/65 hover:to-black/45
+    @apply bg-gradient-to-br from-[#111827]/80 via-[#111827]/60 to-[#111827]/40 
+           backdrop-blur-sm hover:from-[#111827]/85 hover:via-[#111827]/65 hover:to-[#111827]/45
            transition-all duration-300;
   }
 
   .input-gradient {
-    @apply bg-gradient-to-br from-black/70 via-black/60 to-transparent 
+    @apply bg-gradient-to-br from-[#111827]/70 via-[#111827]/60 to-transparent 
            backdrop-blur-md border border-white/10
-           focus-within:from-black/80 focus-within:via-black/70 
+           focus-within:from-[#111827]/80 focus-within:via-[#111827]/70 
            transition-all duration-300;
   }
   
@@ -99,7 +99,7 @@
 @layer utilities {
   /* Enhanced text gradients */
   .text-gradient {
-    @apply bg-gradient-to-br from-white via-white/90 to-white/70 
+    @apply bg-gradient-to-br from-[#E5DEFF] via-[#E5DEFF]/90 to-[#E5DEFF]/70 
            bg-clip-text text-transparent;
   }
   
@@ -109,7 +109,7 @@
   }
 
   .text-gradient-blue {
-    @apply bg-gradient-to-br from-blue-400 via-blue-500 to-blue-600
+    @apply bg-gradient-to-br from-[#6366F1] via-[#6366F1]/90 to-[#6366F1]/70
            bg-clip-text text-transparent;
   }
 

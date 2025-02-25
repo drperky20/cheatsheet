@@ -20,7 +20,9 @@ const Dashboard = () => {
         </div>
         
         <div className="relative z-10 w-full max-w-md">
-          <h1 className="text-2xl font-bold text-center mb-6 text-gradient">Connect to Canvas</h1>
+          <h1 className="text-2xl font-bold text-center mb-6 bg-gradient-to-r from-[#E5DEFF] via-[#E5DEFF]/90 to-[#E5DEFF]/70 bg-clip-text text-transparent">
+            Connect to Canvas
+          </h1>
           <CanvasSetup />
         </div>
       </div>
@@ -44,7 +46,7 @@ const Dashboard = () => {
         {uploadedFile && (
           <div className="mb-6">
             <div className="glass-morphism rounded-xl p-4 inline-flex items-center">
-              <Upload className="h-4 w-4 mr-2 opacity-70" />
+              <Upload className="h-4 w-4 mr-2 text-[#E5DEFF]/70" />
               <span className="text-sm text-[#E5DEFF]">{uploadedFile.name}</span>
             </div>
           </div>
