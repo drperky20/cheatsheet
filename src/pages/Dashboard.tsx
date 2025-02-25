@@ -12,11 +12,11 @@ const Dashboard = () => {
 
   if (!canvasConfig) {
     return (
-      <div className="min-h-screen w-full flex flex-col items-center justify-center p-4 bg-black relative overflow-hidden">
+      <div className="min-h-screen w-full flex flex-col items-center justify-center p-4 bg-[#0A0A0B] relative overflow-hidden">
         <div className="absolute inset-0">
-          <div className="absolute inset-0 bg-gradient-to-br from-[#1A1F2C] to-black" />
-          <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-[#9b87f5]/30 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-float" />
-          <div className="absolute bottom-0 left-0 w-[600px] h-[600px] bg-[#D6BCFA]/30 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-float" />
+          <div className="absolute inset-0 bg-gradient-to-br from-[#111827] to-[#0A0A0B]" />
+          <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-[#6366F1]/10 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-float" />
+          <div className="absolute bottom-0 left-0 w-[600px] h-[600px] bg-[#8B5CF6]/10 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-float" />
         </div>
         
         <div className="relative z-10 w-full max-w-md">
@@ -28,13 +28,13 @@ const Dashboard = () => {
   }
 
   return (
-    <div className="min-h-screen w-full relative overflow-hidden bg-black">
+    <div className="min-h-screen w-full relative overflow-hidden bg-[#0A0A0B]">
       {/* Background Effects */}
       <div className="absolute inset-0">
-        <div className="absolute inset-0 bg-gradient-to-br from-[#0F172A] to-black" />
-        <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-[#6366F1]/20 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-float" />
-        <div className="absolute bottom-0 left-0 w-[600px] h-[600px] bg-[#8B5CF6]/20 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-float" />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-[#EC4899]/10 rounded-full mix-blend-multiply filter blur-3xl opacity-10 animate-pulse" />
+        <div className="absolute inset-0 bg-gradient-to-br from-[#111827] to-[#0A0A0B]" />
+        <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-[#6366F1]/10 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-float" />
+        <div className="absolute bottom-0 left-0 w-[600px] h-[600px] bg-[#8B5CF6]/10 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-float" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-[#EC4899]/5 rounded-full mix-blend-multiply filter blur-3xl opacity-10 animate-pulse" />
       </div>
 
       <DashboardHeader />
