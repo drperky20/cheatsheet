@@ -5,25 +5,12 @@
 
 @layer base {
   :root {
-    --background: 240 10% 2%;
+    --background: 240 10% 3.9%;
     --foreground: 0 0% 98%;
-    --card: 240 10% 3%;
-    --card-foreground: 0 0% 98%;
-    --popover: 240 10% 2%;
-    --popover-foreground: 0 0% 98%;
-    --primary: 0 0% 98%;
-    --primary-foreground: 240 5.9% 10%;
-    --secondary: 240 3.7% 12%;
-    --secondary-foreground: 0 0% 98%;
-    --muted: 240 3.7% 12%;
-    --muted-foreground: 240 5% 64.9%;
-    --accent: 240 3.7% 12%;
-    --accent-foreground: 0 0% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 240 3.7% 12%;
-    --input: 240 3.7% 12%;
-    --ring: 240 4.9% 83.9%;
+    --primary: 265.1 89.7% 74.9%;
+    --primary-foreground: 0 0% 100%;
+    --border: 240 3.7% 15.9%;
+    --ring: 265.1 89.7% 74.9%;
     --radius: 0.75rem;
   }
 
@@ -32,7 +19,7 @@
   }
 
   body {
-    @apply bg-background text-foreground antialiased m-0 p-0;
+    @apply bg-background text-foreground antialiased overflow-x-hidden;
     font-feature-settings: "ss01", "ss02", "cv01", "cv02", "cv03";
   }
 }
@@ -40,6 +27,14 @@
 @layer components {
   .glass {
     @apply bg-black/40 backdrop-blur-lg border border-white/5;
+  }
+
+  .glass-morphism {
+    @apply backdrop-blur-xl bg-black/40 border border-white/5 shadow-[0_4px_12px_-2px_rgba(0,0,0,0.5)];
+  }
+
+  .neo-blur {
+    @apply backdrop-blur-2xl bg-black/60 border border-white/10;
   }
 
   .card-gradient {
@@ -52,6 +47,23 @@
 }
 
 @layer utilities {
+  .text-gradient {
+    @apply bg-gradient-to-br from-white via-white/90 to-white/70 bg-clip-text text-transparent;
+  }
+  
+  .text-gradient-primary {
+    @apply bg-gradient-to-br from-[#9b87f5] via-[#9b87f5]/90 to-[#9b87f5]/70 bg-clip-text text-transparent;
+  }
+
+  .animate-float {
+    animation: float 6s ease-in-out infinite;
+  }
+
+  @keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-10px); }
+  }
+
   .scrollbar-none {
     -ms-overflow-style: none;
     scrollbar-width: none;
@@ -60,28 +72,4 @@
   .scrollbar-none::-webkit-scrollbar {
     display: none;
   }
-
-  .glass-morphism {
-    @apply backdrop-blur-xl bg-black/40 border border-white/5 shadow-[0_4px_12px_-2px_rgba(0,0,0,0.5)];
-  }
-  
-  .neo-blur {
-    @apply backdrop-blur-2xl bg-black/60 border border-white/5;
-  }
-  
-  .text-gradient {
-    @apply bg-gradient-to-br from-white via-white/90 to-white/70 bg-clip-text text-transparent;
-  }
-  
-  .text-gradient-primary {
-    @apply bg-gradient-to-br from-primary via-primary/80 to-primary/60 bg-clip-text text-transparent;
-  }
-}
-
-/* Remove default root padding and margin */
-#root {
-  margin: 0;
-  padding: 0;
-  width: 100%;
-  min-height: 100vh;
 }

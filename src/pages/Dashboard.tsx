@@ -1,3 +1,4 @@
+
 import { useState, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { CanvasSetup } from "@/components/canvas/CanvasSetup";
@@ -8,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useNavigate } from "react-router-dom";
 import { ChatInterface } from "@/components/chat/ChatInterface";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 
 const SUPPORTED_FORMATS = {
   'application/pdf': 'PDF documents',
@@ -33,11 +34,10 @@ const Dashboard = () => {
   const [initialQuestion, setInitialQuestion] = useState("");
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const { toast } = useToast();
 
   if (!canvasConfig) {
     return (
-      <div className="min-h-screen w-full flex flex-col items-center justify-center p-4 relative overflow-hidden bg-black">
+      <div className="min-h-screen w-full flex flex-col items-center justify-center p-4 bg-black relative overflow-hidden">
         <div className="absolute inset-0">
           <div className="absolute inset-0 bg-gradient-to-br from-[#1A1F2C] to-black" />
           <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-[#9b87f5]/30 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-float" />
@@ -83,10 +83,9 @@ const Dashboard = () => {
     }
   };
 
-  const acceptedFileTypes = Object.keys(SUPPORTED_FORMATS).join(',');
-
   return (
     <div className="min-h-screen w-full relative overflow-hidden bg-black">
+      {/* Background Effects */}
       <div className="absolute inset-0">
         <div className="absolute inset-0 bg-gradient-to-br from-[#1A1F2C] to-black" />
         <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-[#9b87f5]/30 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-float" />
@@ -94,66 +93,79 @@ const Dashboard = () => {
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-[#6366f1]/10 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-pulse" />
       </div>
 
+      {/* Main Content */}
       <div className="relative z-10 w-full max-w-7xl mx-auto p-6">
-        <header className="mb-10 flex justify-between items-center">
-          <div className="neo-blur rounded-2xl p-8 transition-all duration-300 hover:bg-black/70 group">
-            <h1 className="text-4xl font-bold text-gradient group-hover:scale-105 transition-transform">
-              Welcome, {profile?.full_name}
-            </h1>
-            <p className="text-[#E5DEFF] mt-3 text-lg opacity-90">Your AI Powered Academic Super Weapon</p>
+        {/* Header */}
+        <header className="mb-10">
+          <div className="flex justify-between items-center">
+            <div className="glass-morphism rounded-2xl p-8">
+              <h1 className="text-4xl font-bold text-gradient">
+                Welcome, {profile?.full_name}
+              </h1>
+              <p className="text-[#E5DEFF] mt-3 text-lg">
+                Your AI Powered Academic Super Weapon
+              </p>
+            </div>
+            
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="relative h-14 w-14 rounded-full neo-blur hover:bg-white/10">
+                  <User className="h-6 w-6 text-white" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-64 glass-morphism" align="end">
+                <DropdownMenuLabel className="px-4 py-3">
+                  <div className="flex flex-col space-y-1">
+                    <p className="text-sm font-medium leading-none text-white">{profile?.full_name}</p>
+                    <p className="text-xs leading-none text-gray-400">{profile?.email}</p>
+                  </div>
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator className="bg-white/10" />
+                <DropdownMenuItem className="text-white hover:bg-white/10 cursor-pointer px-4 py-3" onClick={() => navigate('/profile')}>
+                  <User className="mr-3 h-4 w-4" />
+                  <span>Profile</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem className="text-white hover:bg-white/10 cursor-pointer px-4 py-3" onClick={() => navigate('/settings')}>
+                  <Settings className="mr-3 h-4 w-4" />
+                  <span>Settings</span>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator className="bg-white/10" />
+                <DropdownMenuItem className="text-white hover:bg-white/10 cursor-pointer px-4 py-3" onClick={() => signOut()}>
+                  <LogOut className="mr-3 h-4 w-4" />
+                  <span>Sign out</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
-          
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="relative h-14 w-14 rounded-full neo-blur hover:bg-white/10 transition-all duration-300 hover:scale-105">
-                <User className="h-6 w-6 text-white" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent className="w-64 glass-morphism border-0 shadow-2xl backdrop-blur-2xl" align="end">
-              <DropdownMenuLabel className="px-4 py-3">
-                <div className="flex flex-col space-y-1">
-                  <p className="text-sm font-medium leading-none text-white">{profile?.full_name}</p>
-                  <p className="text-xs leading-none text-gray-400">{profile?.email}</p>
-                </div>
-              </DropdownMenuLabel>
-              <DropdownMenuSeparator className="bg-white/10" />
-              <DropdownMenuItem className="text-white hover:bg-white/10 cursor-pointer px-4 py-3 transition-colors" onClick={() => navigate('/profile')}>
-                <User className="mr-3 h-4 w-4" />
-                <span>Profile</span>
-              </DropdownMenuItem>
-              <DropdownMenuItem className="text-white hover:bg-white/10 cursor-pointer px-4 py-3 transition-colors" onClick={() => navigate('/settings')}>
-                <Settings className="mr-3 h-4 w-4" />
-                <span>Settings</span>
-              </DropdownMenuItem>
-              <DropdownMenuSeparator className="bg-white/10" />
-              <DropdownMenuItem className="text-white hover:bg-white/10 cursor-pointer px-4 py-3 transition-colors" onClick={() => signOut()}>
-                <LogOut className="mr-3 h-4 w-4" />
-                <span>Sign out</span>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
         </header>
 
+        {/* AI Assistant Input */}
         <div className="mb-10">
-          <form onSubmit={handleAskQuestion}>
-            <div className="glass-morphism rounded-2xl p-3 transition-all duration-300 hover:shadow-lg">
+          <form onSubmit={handleAskQuestion} className="space-y-4">
+            <div className="glass-morphism rounded-2xl p-3">
               <div className="relative">
                 <Input 
                   type="text" 
                   placeholder={uploadedFile ? "Ask about your file..." : "Ask anything... Or upload a file and ask about it"} 
                   value={initialQuestion} 
                   onChange={e => setInitialQuestion(e.target.value)} 
-                  className="w-full h-16 pl-6 pr-28 bg-white/5 border-0 text-white placeholder:text-gray-400 rounded-xl focus:ring-2 focus:ring-[#9b87f5]/50 transition-all duration-300" 
+                  className="w-full h-16 pl-6 pr-28 bg-white/5 border-0 text-white placeholder:text-gray-400 rounded-xl focus:ring-2 focus:ring-[#9b87f5]/50" 
                 />
                 <div className="absolute right-2 top-1/2 -translate-y-1/2 flex gap-3">
-                  <input type="file" ref={fileInputRef} onChange={handleFileUpload} className="hidden" accept={acceptedFileTypes} />
+                  <input 
+                    type="file" 
+                    ref={fileInputRef} 
+                    onChange={handleFileUpload} 
+                    className="hidden" 
+                    accept={Object.keys(SUPPORTED_FORMATS).join(',')} 
+                  />
                   <div className="relative group">
                     <Button 
                       type="button" 
                       size="icon" 
                       variant="ghost" 
                       onClick={() => fileInputRef.current?.click()} 
-                      className="h-12 w-12 rounded-xl hover:bg-white/10 transition-all duration-300 hover:scale-105"
+                      className="h-12 w-12 rounded-xl hover:bg-white/10"
                     >
                       <Upload className="h-5 w-5" />
                     </Button>
@@ -172,7 +184,7 @@ const Dashboard = () => {
                   <Button 
                     type="submit" 
                     size="icon" 
-                    className="h-12 w-12 rounded-xl bg-gradient-to-r from-[#9b87f5] to-[#6366f1] hover:opacity-90 transition-all duration-300 hover:scale-105 disabled:opacity-50 disabled:hover:scale-100" 
+                    className="h-12 w-12 rounded-xl bg-gradient-to-r from-[#9b87f5] to-[#6366f1] hover:opacity-90 disabled:opacity-50" 
                     disabled={!initialQuestion.trim() && !uploadedFile}
                   >
                     <Send className="h-5 w-5" />
@@ -191,6 +203,7 @@ const Dashboard = () => {
           </form>
         </div>
 
+        {/* Courses Dashboard */}
         <CoursesDashboard />
       </div>
     </div>
