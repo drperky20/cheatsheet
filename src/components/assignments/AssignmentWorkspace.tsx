@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
@@ -150,27 +151,15 @@ export const AssignmentWorkspace = ({ assignment, onClose }: AssignmentWorkspace
   };
 
   return (
-    <div className="fixed inset-0 bg-black/90 backdrop-blur-xl z-50 flex items-center justify-center p-6 animate-in fade-in duration-200">
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-0 right-0 w-[800px] h-[800px] bg-[#9b87f5]/10 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-float" />
-        <div className="absolute bottom-0 left-0 w-[800px] h-[800px] bg-[#6366f1]/10 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-float-delayed" />
-      </div>
-      
-      <Card className="
-        w-full max-w-5xl h-[90vh] 
-        glass-morphism border-0 shadow-2xl
-        overflow-hidden flex flex-col
-        relative z-10
-        transform transition-all duration-300
-        animate-in slide-in-from-bottom-4
-      ">
+    <div className="fixed inset-0 bg-black/90 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <Card className="w-full max-w-4xl h-[90vh] neo-blur overflow-hidden flex flex-col">
         <AssignmentHeader
           name={assignment.name}
           dueDate={assignment.due_at}
           onClose={onClose}
         />
 
-        <div className="flex-1 p-8 space-y-8 overflow-auto scrollbar-none">
+        <div className="flex-1 p-6 space-y-6 overflow-auto">
           <AssignmentDescription
             description={assignment.description}
             externalLinks={externalLinks}

@@ -3,7 +3,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { Send, Loader2 } from "lucide-react";
+import { Send } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { EditingToolbar } from './editor/EditingToolbar';
 import { VersionControl } from './editor/VersionControl';
@@ -173,48 +173,35 @@ export const AssignmentEditor = ({
   };
 
   return (
-    <Card className="neo-blur border-0 overflow-hidden transition-all duration-300">
-      <div className="p-6 border-b border-white/10 bg-gradient-to-r from-black/60 to-black/40">
-        <div className="flex items-center justify-between">
-          <div className="space-y-2">
-            {assignment && (
-              <>
-                <h3 className="text-xl font-semibold text-gradient">{assignment.name}</h3>
-                <div className="flex items-center gap-4 text-sm">
-                  <div className="px-3 py-1.5 rounded-lg bg-white/5 backdrop-blur-sm text-[#E5DEFF]">
-                    Due {new Date(assignment.due_at).toLocaleDateString()}
-                  </div>
-                  <div className="px-3 py-1.5 rounded-lg bg-white/5 backdrop-blur-sm text-[#E5DEFF]">
-                    {assignment.points_possible} points
-                  </div>
-                </div>
-              </>
-            )}
-          </div>
-
-          <VersionControl
-            content={content}
-            versions={versions}
-            onVersionChange={onChange}
-            onVersionSave={setVersions}
-          />
-        </div>
-      </div>
-
-      <div className="relative p-6 space-y-6">
-        <div className="relative group">
-          <Textarea
-            value={content}
-            onChange={(e) => onChange(e.target.value)}
-            className="min-h-[400px] glass-morphism text-white/90 placeholder:text-white/40 font-mono resize-none p-4 focus:ring-1 focus:ring-[#9b87f5]/50 transition-all duration-300"
-            placeholder="Start writing or generate a response..."
-          />
-          {isProcessing && (
-            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center">
-              <Loader2 className="w-8 h-8 text-[#9b87f5] animate-spin" />
-            </div>
+    <Card className="glass-morphism">
+      <div className="flex items-center justify-between p-4 border-b border-white/10">
+        <div className="space-y-1">
+          {assignment && (
+            <>
+              <h3 className="text-lg font-semibold text-gradient">{assignment.name}</h3>
+              <p className="text-sm text-white/60">
+                Due {new Date(assignment.due_at).toLocaleDateString()} • 
+                {assignment.points_possible} points
+              </p>
+            </>
           )}
         </div>
+
+        <VersionControl
+          content={content}
+          versions={versions}
+          onVersionChange={onChange}
+          onVersionSave={setVersions}
+        />
+      </div>
+
+      <div className="relative p-4">
+        <Textarea
+          value={content}
+          onChange={(e) => onChange(e.target.value)}
+          className="min-h-[400px] neo-blur text-white/90 placeholder-white/50 font-mono resize-none"
+          placeholder="Start writing or generate a response..."
+        />
 
         <EditingToolbar
           onStyleClick={handleStyleChange}
@@ -223,7 +210,6 @@ export const AssignmentEditor = ({
           onFormatClick={formatText}
           onGradeClick={handleGradeClick}
           onGenerate={handleGenerate}
-          disabled={isProcessing}
         />
 
         {activeSlider && (
@@ -235,32 +221,17 @@ export const AssignmentEditor = ({
           />
         )}
 
-        <div className="flex justify-between items-center">
-          <span className="text-sm text-white/60 bg-white/5 px-3 py-1.5 rounded-lg backdrop-blur-sm">
-            {content.length.toLocaleString()} characters
+        <div className="flex justify-end items-center gap-4 mt-4">
+          <span className="text-sm text-white/60">
+            {content.length} characters
           </span>
           <Button
             onClick={onSave}
-            disabled={isSubmitting || !content.trim() || isProcessing}
-            className={`
-              bg-gradient-to-r from-[#9b87f5] to-[#6366f1] 
-              hover:opacity-90 transition-all duration-300
-              px-6 py-2 rounded-xl font-medium
-              disabled:opacity-50 disabled:cursor-not-allowed
-              group relative overflow-hidden
-            `}
+            disabled={isSubmitting || !content.trim()}
+            className="bg-[#9b87f5] hover:bg-[#8b77e5]"
           >
-            {isSubmitting ? (
-              <>
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                Submitting...
-              </>
-            ) : (
-              <>
-                <Send className="w-4 h-4 mr-2 group-hover:translate-x-1 transition-transform" />
-                Submit to Canvas
-              </>
-            )}
+            <Send className="w-4 h-4 mr-2" />
+            {isSubmitting ? "Submitting..." : "Submit to Canvas"}
           </Button>
         </div>
       </div>
