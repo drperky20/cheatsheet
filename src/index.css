@@ -1,57 +1,47 @@
 
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
   :root {
-    --background: 240 10% 2%;
+    --background: 240 10% 3.9%;
     --foreground: 0 0% 98%;
-    --card: 240 10% 3%;
+    --card: 240 10% 3.9%;
     --card-foreground: 0 0% 98%;
-    --popover: 240 10% 2%;
+    --popover: 240 10% 3.9%;
     --popover-foreground: 0 0% 98%;
-    --primary: 0 0% 98%;
-    --primary-foreground: 240 5.9% 10%;
-    --secondary: 240 3.7% 12%;
-    --secondary-foreground: 0 0% 98%;
-    --muted: 240 3.7% 12%;
+    --primary: 265.1 89.7% 74.9%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 174.5 98.4% 43.3%;
+    --secondary-foreground: 0 0% 100%;
+    --muted: 240 3.7% 15.9%;
     --muted-foreground: 240 5% 64.9%;
-    --accent: 240 3.7% 12%;
-    --accent-foreground: 0 0% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 240 3.7% 12%;
-    --input: 240 3.7% 12%;
-    --ring: 240 4.9% 83.9%;
+    --accent: 174.5 98.4% 43.3%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 347.3 77.2% 50.2%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 240 3.7% 15.9%;
+    --input: 240 3.7% 15.9%;
+    --ring: 265.1 89.7% 74.9%;
     --radius: 0.75rem;
   }
 
   * {
-    @apply border-border selection:bg-white/10 selection:text-white;
+    @apply border-border selection:bg-primary/20 selection:text-white;
   }
-
+  
   body {
-    @apply bg-background text-foreground antialiased m-0 p-0;
-    font-feature-settings: "ss01", "ss02", "cv01", "cv02", "cv03";
+    @apply bg-[#121212] text-foreground antialiased;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   }
 }
 
 @layer components {
   .glass {
-    @apply bg-black/40 backdrop-blur-lg border border-white/5;
-  }
-
-  .glass-morphism {
-    @apply backdrop-blur-xl bg-black/40 border border-white/5 shadow-[0_4px_12px_-2px_rgba(0,0,0,0.5)];
-  }
-
-  .card-gradient {
-    @apply bg-gradient-to-br from-black/60 to-black/40 backdrop-blur-sm;
-  }
-
-  .input-gradient {
-    @apply bg-gradient-to-br from-black/60 to-transparent backdrop-blur-sm;
+    @apply bg-white/[0.15] backdrop-blur-[8px] border border-white/[0.15];
   }
 
   .neo-glass {
@@ -62,7 +52,19 @@
            transition-all duration-300;
   }
 
-  .pill-button {
+  .glass-card {
+    @apply neo-glass rounded-xl p-6 transition-all duration-300 
+           hover:bg-white/[0.08];
+  }
+
+  .glass-input {
+    @apply bg-black/40 backdrop-blur-lg border border-white/10 rounded-xl 
+           px-4 h-10 text-white placeholder:text-white/40
+           focus:outline-none focus:ring-2 focus:ring-[#9b87f5]/50
+           transition-all duration-300;
+  }
+
+  .glass-button {
     @apply rounded-full px-6 py-2 font-medium
            bg-gradient-to-r from-[#9b87f5] to-[#8b77e5]
            hover:from-[#8b77e5] hover:to-[#7a66d4]
@@ -74,23 +76,6 @@
 }
 
 @layer utilities {
-  .scrollbar-none {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
-  }
-  
-  .scrollbar-none::-webkit-scrollbar {
-    display: none;
-  }
-
-  .glass-morphism {
-    @apply backdrop-blur-xl bg-black/40 border border-white/5 shadow-[0_4px_12px_-2px_rgba(0,0,0,0.5)];
-  }
-  
-  .neo-blur {
-    @apply backdrop-blur-2xl bg-black/40 border border-white/10;
-  }
-  
   .text-gradient {
     @apply bg-gradient-to-br from-white via-white/90 to-white/70 bg-clip-text text-transparent;
   }
@@ -107,11 +92,4 @@
     0%, 100% { transform: translateY(0); }
     50% { transform: translateY(-10px); }
   }
-}
-
-#root {
-  margin: 0;
-  padding: 0;
-  width: 100%;
-  min-height: 100vh;
 }
