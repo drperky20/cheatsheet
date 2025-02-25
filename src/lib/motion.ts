@@ -1,98 +1,90 @@
 import { Variants } from 'framer-motion';
 
-// Page transition variants
-export const pageVariants: Variants = {
-  hidden: { opacity: 0, y: 20 },
-  visible: { 
-    opacity: 1, 
-    y: 0,
-    transition: { 
-      duration: 0.8,
-      ease: [0.65, 0, 0.35, 1] 
-    }
+export const fadeIn = (direction: 'up' | 'down' | 'left' | 'right' = 'up'): Variants => {
+  return {
+    initial: {
+      opacity: 0,
+      y: direction === 'up' ? 40 : direction === 'down' ? -40 : 0,
+      x: direction === 'left' ? 40 : direction === 'right' ? -40 : 0,
+    },
+    animate: {
+      opacity: 1,
+      y: 0,
+      x: 0,
+      transition: {
+        duration: 0.5,
+        ease: [0.4, 0, 0.2, 1],
+      },
+    },
+    exit: {
+      opacity: 0,
+      y: direction === 'up' ? -40 : direction === 'down' ? 40 : 0,
+      x: direction === 'left' ? -40 : direction === 'right' ? 40 : 0,
+      transition: {
+        duration: 0.3,
+        ease: [0.4, 0, 1, 1],
+      },
+    },
+  };
+};
+
+export const stagger = (staggerChildren = 0.1): Variants => ({
+  initial: {},
+  animate: {
+    transition: {
+      staggerChildren,
+    },
   },
-  exit: { 
-    opacity: 0, 
-    y: -20, 
-    transition: {
-      duration: 0.6,
-      ease: [0.65, 0, 0.35, 1]
-    }
-  }
+});
+
+export const slideIn = (
+  direction: 'up' | 'down' | 'left' | 'right',
+  type: 'tween' | 'spring',
+  delay?: number,
+  duration?: number
+): Variants => {
+  return {
+    initial: {
+      opacity: 0,
+      y: direction === 'up' ? 100 : direction === 'down' ? -100 : 0,
+      x: direction === 'left' ? 100 : direction === 'right' ? -100 : 0,
+    },
+    animate: {
+      opacity: 1,
+      y: 0,
+      x: 0,
+      transition: {
+        type,
+        delay,
+        duration: duration ?? (type === 'spring' ? 0.8 : 0.5),
+        ease: 'easeOut',
+      },
+    },
+  };
 };
 
-// Element fade in variants
-export const fadeInVariants: Variants = {
-  hidden: { opacity: 0 },
-  visible: (custom: number = 0) => ({
-    opacity: 1,
-    transition: { 
-      delay: custom * 0.1,
-      duration: 0.4
-    }
-  })
-};
-
-// Container staggered children variants
-export const containerVariants: Variants = {
-  hidden: { opacity: 0 },
-  visible: {
-    opacity: 1,
-    transition: {
-      staggerChildren: 0.1,
-      when: "beforeChildren"
-    }
-  }
-};
-
-// Card scale hover variants
-export const cardVariants: Variants = {
-  initial: { scale: 1 },
-  hover: { 
-    scale: 1.04,
-    transition: {
-      duration: 0.3,
-      ease: 'easeOut'
-    }
-  },
-  tap: { 
-    scale: 0.98,
-    transition: {
-      duration: 0.15
-    }
-  }
-};
-
-// Button hover variants
-export const buttonVariants: Variants = {
-  initial: { scale: 1 },
-  hover: { 
-    scale: 1.05,
-    transition: {
-      duration: 0.3,
-      ease: 'easeOut'
-    }
-  },
-  tap: { 
-    scale: 0.95,
-    transition: {
-      duration: 0.15
-    }
-  }
-};
-
-// Skeleton loading variants
-export const skeletonVariants: Variants = {
+export const glassmorph: Variants = {
   initial: {
-    backgroundPosition: '0% 0%',
+    opacity: 0,
+    backdropFilter: 'blur(0px)',
+    backgroundColor: 'rgba(255, 255, 255, 0)',
   },
   animate: {
-    backgroundPosition: '100% 0%',
+    opacity: 1,
+    backdropFilter: 'blur(12px)',
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
     transition: {
-      repeat: Infinity,
-      repeatType: 'mirror',
-      duration: 1.5,
-      ease: 'linear'
-    }
-  }
+      duration: 0.4,
+      ease: 'easeOut',
+    },
+  },
+  exit: {
+    opacity: 0,
+    backdropFilter: 'blur(0px)',
+    backgroundColor: 'rgba(255, 255, 255, 0)',
+    transition: {
+      duration: 0.3,
+      ease: 'easeIn',
+    },
+  },
 };

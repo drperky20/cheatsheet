@@ -1,55 +1,68 @@
+import React, { useEffect, useRef } from 'react';
+import { motion } from 'framer-motion';
 
-import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { useAuth } from "@/contexts/AuthContext";
-import { Card } from "@/components/ui/card";
+interface CanvasSetupProps {
+  width?: number;
+  height?: number;
+  className?: string;
+  onSetup?: (context: CanvasRenderingContext2D) => void;
+}
 
-export const CanvasSetup = () => {
-  const { updateCanvasConfig } = useAuth();
-  const [loading, setLoading] = useState(false);
-  const [domain, setDomain] = useState("");
-  const [apiKey, setApiKey] = useState("");
+const CanvasSetup: React.FC<CanvasSetupProps> = ({
+  width = 800,
+  height = 600,
+  className = '',
+  onSetup,
+}) => {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    await updateCanvasConfig(domain, apiKey);
-    setLoading(false);
-  };
+  useEffect(() => {
+    if (!canvasRef.current) return;
+
+    const canvas = canvasRef.current;
+    const context = canvas.getContext('2d');
+
+    if (!context) return;
+
+    // Set canvas size with device pixel ratio for sharp rendering
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = width * dpr;
+    canvas.height = height * dpr;
+
+    // Scale context to match CSS size
+    context.scale(dpr, dpr);
+
+    // Apply base styles
+    context.lineCap = 'round';
+    context.lineJoin = 'round';
+    context.strokeStyle = 'rgba(255, 255, 255, 0.8)';
+    context.lineWidth = 2;
+
+    // Clear canvas
+    context.clearRect(0, 0, width, height);
+
+    // Call setup callback
+    if (onSetup) {
+      onSetup(context);
+    }
+  }, [width, height, onSetup]);
 
   return (
-    <Card className="p-6 glass">
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div className="space-y-2">
-          <Input
-            placeholder="Canvas Domain (e.g., school.instructure.com)"
-            className="input-gradient text-lg h-12"
-            value={domain}
-            onChange={(e) => setDomain(e.target.value)}
-            disabled={loading}
-            required
-          />
-        </div>
-        <div className="space-y-2">
-          <Input
-            type="password"
-            placeholder="Canvas API Key"
-            className="input-gradient text-lg h-12"
-            value={apiKey}
-            onChange={(e) => setApiKey(e.target.value)}
-            disabled={loading}
-            required
-          />
-        </div>
-        <Button
-          type="submit"
-          className="w-full h-12 text-lg font-medium transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
-          disabled={loading}
-        >
-          {loading ? "Connecting..." : "Connect to Canvas"}
-        </Button>
-      </form>
-    </Card>
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      className="relative"
+    >
+      <canvas
+        ref={canvasRef}
+        style={{
+          width: `${width}px`,
+          height: `${height}px`,
+        }}
+        className={`bg-white/5 backdrop-blur-lg rounded-xl border border-white/20 ${className}`}
+      />
+    </motion.div>
   );
 };
+
+export default CanvasSetup;

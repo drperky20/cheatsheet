@@ -1,31 +1,52 @@
 import React from 'react';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import {
+  QueryClient,
+  QueryClientProvider,
+  QueryCache,
+  MutationCache,
+} from '@tanstack/react-query';
+import { useToast } from '@/hooks/use-toast';
 
 interface QueryProviderProps {
   children: React.ReactNode;
 }
 
-/**
- * React Query provider with optimized settings
- * - Default stale time of 5 minutes (reduces unnecessary refetching)
- * - Cache time of 10 minutes
- * - Retry failed requests up to 1 time
- */
-export function QueryProvider({ children }: QueryProviderProps) {
-  const [queryClient] = React.useState(() => new QueryClient({
+const QueryProvider: React.FC<QueryProviderProps> = ({ children }) => {
+  const { toast } = useToast();
+
+  const queryClient = new QueryClient({
     defaultOptions: {
       queries: {
+        refetchOnWindowFocus: false,
+        retry: 1,
         staleTime: 5 * 60 * 1000, // 5 minutes
-        gcTime: 10 * 60 * 1000, // 10 minutes
-        retry: 1, // Retry failed requests only once
-        refetchOnWindowFocus: false, // Don't refetch on window focus by default
-      }
+      },
     },
-  }));
+    queryCache: new QueryCache({
+      onError: (error: any) => {
+        toast({
+          title: 'Error',
+          description: error?.message || 'An unexpected error occurred',
+          variant: 'destructive',
+          className: 'bg-white/10 backdrop-blur-lg border border-white/20',
+        });
+      },
+    }),
+    mutationCache: new MutationCache({
+      onError: (error: any) => {
+        toast({
+          title: 'Error',
+          description: error?.message || 'An unexpected error occurred',
+          variant: 'destructive',
+          className: 'bg-white/10 backdrop-blur-lg border border-white/20',
+        });
+      },
+    }),
+  });
 
   return (
-    <QueryClientProvider client={queryClient}>
-      {children}
-    </QueryClientProvider>
+    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
   );
-}
+};
+
+export default QueryProvider;

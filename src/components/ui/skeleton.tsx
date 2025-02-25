@@ -1,40 +1,61 @@
-import { cn } from "@/lib/utils";
-import { motion } from "framer-motion";
-import { skeletonVariants } from "@/lib/motion";
+import React from 'react';
+import { cn } from '@/lib/utils';
 
 interface SkeletonProps extends React.HTMLAttributes<HTMLDivElement> {
-  animated?: boolean;
+  variant?: 'default' | 'circular' | 'rounded';
+  width?: string | number;
+  height?: string | number;
+  animation?: 'pulse' | 'wave' | 'none';
 }
 
-/**
- * Skeleton component for loading states
- * Optionally accepts 'animated' prop to enable gradient animation
- */
-function Skeleton({ className, animated = true, ...props }: SkeletonProps) {
-  if (animated) {
-    return (
-      <motion.div
-        className={cn(
-          "rounded-md bg-gradient-to-r from-black/40 via-black/30 to-black/40 bg-[length:400%_100%]",
-          className
-        )}
-        variants={skeletonVariants}
-        initial="initial"
-        animate="animate"
-        {...props as any}
-      />
-    );
-  }
-  
+const Skeleton: React.FC<SkeletonProps> = ({
+  className,
+  variant = 'default',
+  width,
+  height,
+  animation = 'pulse',
+  ...props
+}) => {
+  const animationClass = {
+    pulse: 'animate-pulse',
+    wave: 'animate-shimmer',
+    none: '',
+  }[animation];
+
+  const variantClass = {
+    default: 'rounded-md',
+    circular: 'rounded-full',
+    rounded: 'rounded-xl',
+  }[variant];
+
+  const style: React.CSSProperties = {
+    width: width,
+    height: height,
+  };
+
   return (
     <div
+      style={style}
       className={cn(
-        "rounded-md bg-gradient-to-r from-black/40 via-black/30 to-black/40",
+        'bg-gradient-to-r from-white/5 to-white/10',
+        'backdrop-blur-lg',
+        variantClass,
+        animationClass,
         className
       )}
       {...props}
     />
   );
-}
+};
 
-export { Skeleton };
+export default Skeleton;
+
+// Define shimmer animation in your global CSS or tailwind.config.js
+// @keyframes shimmer {
+//   0% {
+//     background-position: -200% 0;
+//   }
+//   100% {
+//     background-position: 200% 0;
+//   }
+// }

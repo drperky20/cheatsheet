@@ -1,26 +1,20 @@
-
-import { Button } from "@/components/ui/button";
+import React from 'react';
+import { cn } from '@/lib/utils';
 
 interface AssignmentHeaderProps {
-  name: string;
-  dueDate: string;
-  onClose: () => void;
+  title: string;
+  className?: string;
 }
 
-export const AssignmentHeader = ({ name, dueDate, onClose }: AssignmentHeaderProps) => {
+export const AssignmentHeader: React.FC<AssignmentHeaderProps> = ({
+  title,
+  className,
+}) => {
   return (
-    <div className="p-4 border-b border-white/10 flex items-center justify-between bg-black/40 backdrop-blur-xl">
-      <div>
-        <h2 className="text-xl font-semibold text-gradient">{name}</h2>
-        <p className="text-sm text-[#9b87f5]/80">Due {new Date(dueDate).toLocaleDateString()}</p>
-      </div>
-      <Button 
-        variant="ghost" 
-        onClick={onClose}
-        className="hover:bg-white/10 transition-colors duration-300"
-      >
-        Close
-      </Button>
+    <div className={cn('flex items-center justify-between', className)}>
+      <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-200 to-purple-200 bg-clip-text text-transparent">
+        {title}
+      </h1>
     </div>
   );
 };

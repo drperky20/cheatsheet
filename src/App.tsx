@@ -1,30 +1,44 @@
-import React, { Suspense, lazy } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import React from 'react';
+import { Routes, Route } from 'react-router-dom';
+import { AnimatePresence } from 'framer-motion';
+import { Toaster } from './components/ui/sonner';
 
-const Home = lazy(() => import('./pages/Index'));
+// Pages
+import Dashboard from './pages/Dashboard';
+import Profile from './pages/Profile';
+import Settings from './pages/Settings';
+import Index from './pages/Index';
+import NotFound from './pages/NotFound';
 
-function App() {
+const App: React.FC = () => {
   return (
-    <AnimatePresence exitBeforeEnter>
-      <Suspense
-        fallback={
-          <div className="flex justify-center items-center min-h-screen">
-            <div className="skeleton w-24 h-24" />
-          </div>
-        }
-      >
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -10 }}
-          transition={{ duration: 0.7, ease: [0.65, 0, 0.35, 1] }}
-          className="min-h-screen bg-[#121212] text-white p-4 rounded-xl border border-white/10 shadow-glass"
-        >
-          <Home />
-        </motion.div>
-      </Suspense>
-    </AnimatePresence>
+    <div className="min-h-screen bg-gradient-to-br from-blue-900/30 to-purple-900/30">
+      <div className="container mx-auto px-4 py-8">
+        <AnimatePresence mode="wait">
+          <Routes>
+            <Route path="/" element={<Index />} />
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/profile" element={<Profile />} />
+            <Route path="/settings" element={<Settings />} />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </AnimatePresence>
+        
+        <Toaster
+          position="bottom-right"
+          toastOptions={{
+            style: {
+              background: 'rgba(255, 255, 255, 0.1)',
+              backdropFilter: 'blur(12px)',
+              border: '1px solid rgba(255, 255, 255, 0.2)',
+              color: 'white',
+            },
+            className: 'glassmorphic-toast',
+          }}
+        />
+      </div>
+    </div>
   );
-}
+};
 
 export default App;

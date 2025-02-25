@@ -1,22 +1,29 @@
 import React from 'react';
 
-type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
+export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: 'primary' | 'secondary';
-};
+}
 
-const Button: React.FC<ButtonProps> = ({ variant = 'primary', className = '', ...props }) => {
-  let baseClasses = "px-4 py-2 font-semibold ";
-  if (variant === 'primary') {
-    baseClasses += "bg-[#00B2A9] text-white ";
-  } else {
-    baseClasses += "bg-[#7B5EA7] text-white ";
-  }
+const Button: React.FC<ButtonProps> = ({
+  variant = 'primary',
+  className = '',
+  children,
+  ...props
+}) => {
+  const baseClasses =
+    'px-4 py-2 font-medium rounded-lg shadow-md transition-transform transform hover:scale-105';
+  const glassClasses = 'bg-white/20 backdrop-blur-lg border border-white/30';
+  const variantClasses =
+    variant === 'primary'
+      ? 'text-white hover:bg-white/30'
+      : 'text-gray-200 hover:bg-gray-700/30';
+
   return (
     <button
+      className={`${baseClasses} ${glassClasses} ${variantClasses} ${className}`}
       {...props}
-      className={`${baseClasses}rounded-xl border border-white/10 shadow-glass backdrop-blur-sm ${className}`}
     >
-      {props.children}
+      {children}
     </button>
   );
 };
