@@ -8,7 +8,6 @@ import "pdfmake/build/vfs_fonts";
 import { AssignmentHeader } from "./workspace/AssignmentHeader";
 import { AssignmentDescription } from "./workspace/AssignmentDescription";
 import { AssignmentContent } from "./workspace/AssignmentContent";
-import { themeConfig } from "@/app/theme-config";
 
 interface Assignment {
   id: string;
@@ -107,14 +106,10 @@ export const AssignmentWorkspace = ({ assignment, onClose }: AssignmentWorkspace
     try {
       // We'll implement link processing logic later
       await new Promise(resolve => setTimeout(resolve, 1500));
-      toast.success("Links processed successfully", {
-        style: { background: "rgba(20, 20, 30, 0.8)", backdropFilter: "blur(10px)", border: "1px solid rgba(255, 255, 255, 0.1)" }
-      });
+      toast.success("Links processed successfully");
     } catch (error) {
       console.error('Error processing links:', error);
-      toast.error("Failed to process links", {
-        style: { background: "rgba(30, 20, 20, 0.8)", backdropFilter: "blur(10px)", border: "1px solid rgba(255, 70, 70, 0.2)" }
-      });
+      toast.error("Failed to process links");
     } finally {
       setProcessingLinks(false);
     }
@@ -122,9 +117,7 @@ export const AssignmentWorkspace = ({ assignment, onClose }: AssignmentWorkspace
 
   const handleSubmit = async () => {
     if (!content.trim()) {
-      toast.error("Please add some content before submitting", {
-        style: { background: "rgba(30, 20, 20, 0.8)", backdropFilter: "blur(10px)", border: "1px solid rgba(255, 70, 70, 0.2)" }
-      });
+      toast.error("Please add some content before submitting");
       return;
     }
 
@@ -146,67 +139,38 @@ export const AssignmentWorkspace = ({ assignment, onClose }: AssignmentWorkspace
 
       if (error) throw error;
 
-      toast.success("Assignment submitted to Canvas successfully!", {
-        style: { background: "rgba(20, 30, 20, 0.8)", backdropFilter: "blur(10px)", border: "1px solid rgba(70, 255, 70, 0.2)" }
-      });
+      toast.success("Assignment submitted to Canvas successfully!");
       onClose();
     } catch (error) {
       console.error('Submission error:', error);
-      toast.error("Failed to submit assignment to Canvas", {
-        style: { background: "rgba(30, 20, 20, 0.8)", backdropFilter: "blur(10px)", border: "1px solid rgba(255, 70, 70, 0.2)" }
-      });
+      toast.error("Failed to submit assignment to Canvas");
     } finally {
       setSubmitting(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 bg-background-darker/95 backdrop-blur-2xl z-50 flex items-center justify-center p-6 animate-in fade-in duration-300">
-      {/* Atmospheric background effects */}
+    <div className="fixed inset-0 bg-black/90 backdrop-blur-xl z-50 flex items-center justify-center p-6 animate-in fade-in duration-200">
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        {/* Top right orb */}
-        <div className="absolute top-0 right-0 w-[900px] h-[900px] bg-primary/5 rounded-full mix-blend-screen filter blur-[100px] opacity-40 animate-pulse" />
-        
-        {/* Bottom left orb */}
-        <div className="absolute -bottom-20 -left-20 w-[800px] h-[800px] bg-secondary/5 rounded-full mix-blend-screen filter blur-[120px] opacity-30 animate-pulse" />
-        
-        {/* Center orb */}
-        <div className="absolute top-1/3 left-1/3 w-[600px] h-[600px] bg-accent/5 rounded-full mix-blend-screen filter blur-[80px] opacity-20" />
-        
-        {/* Static noise texture overlay */}
-        <div className="absolute inset-0 opacity-[0.02] mix-blend-overlay bg-[url('/noise.png')]"></div>
+        <div className="absolute top-0 right-0 w-[800px] h-[800px] bg-[#9b87f5]/10 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-float" />
+        <div className="absolute bottom-0 left-0 w-[800px] h-[800px] bg-[#6366f1]/10 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-float-delayed" />
       </div>
       
-      <Card className={`
-        w-full max-w-6xl h-[92vh]
-        ${themeConfig.glass.heavy}
-        ${themeConfig.shadow.lg}
-        border border-white/10
+      <Card className="
+        w-full max-w-5xl h-[90vh] 
+        glass-morphism border-0 shadow-2xl
         overflow-hidden flex flex-col
         relative z-10
-        transform transition-all duration-500
-        animate-in slide-in-from-bottom-4 zoom-in-95
-        ${themeConfig.radius.lg}
-      `}>
-        {/* Subtle inner border glow */}
-        <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/30 to-transparent"></div>
-          <div className="absolute inset-y-0 right-0 w-px bg-gradient-to-b from-transparent via-white/20 to-transparent"></div>
-          <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent"></div>
-          <div className="absolute inset-y-0 left-0 w-px bg-gradient-to-b from-transparent via-white/20 to-transparent"></div>
-        </div>
-        
+        transform transition-all duration-300
+        animate-in slide-in-from-bottom-4
+      ">
         <AssignmentHeader
           name={assignment.name}
           dueDate={assignment.due_at}
           onClose={onClose}
         />
 
-        <div className="
-          flex-1 p-8 space-y-8 overflow-auto
-          scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent
-          bg-gradient-to-b from-transparent to-background-darker/30
-        ">
+        <div className="flex-1 p-8 space-y-8 overflow-auto scrollbar-none">
           <AssignmentDescription
             description={assignment.description}
             externalLinks={externalLinks}
@@ -224,9 +188,6 @@ export const AssignmentWorkspace = ({ assignment, onClose }: AssignmentWorkspace
             onQualityConfigChange={setQualityConfig}
           />
         </div>
-        
-        {/* Bottom reflection */}
-        <div className="h-px bg-gradient-to-r from-transparent via-white/5 to-transparent w-full"></div>
       </Card>
     </div>
   );
