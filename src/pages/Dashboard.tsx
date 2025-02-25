@@ -3,7 +3,7 @@ import { useState, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { CanvasSetup } from "@/components/canvas/CanvasSetup";
 import { CoursesDashboard } from "@/components/courses/CoursesDashboard";
-import { Settings, LogOut, User, Send, Upload } from "lucide-react";
+import { Settings, LogOut, User, Send, Upload, Search } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -45,9 +45,7 @@ const Dashboard = () => {
         </div>
         
         <div className="relative z-10 w-full max-w-md">
-          <h1 className="text-2xl font-bold text-center mb-6 text-gradient">
-            Connect to Canvas
-          </h1>
+          <h1 className="text-2xl font-bold text-center mb-6 text-gradient">Connect to Canvas</h1>
           <CanvasSetup />
         </div>
       </div>
@@ -84,30 +82,86 @@ const Dashboard = () => {
     <div className="min-h-screen w-full relative overflow-hidden bg-black">
       {/* Background Effects */}
       <div className="absolute inset-0">
-        <div className="absolute inset-0 bg-gradient-to-br from-[#1A1F2C] to-black" />
-        <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-[#9b87f5]/30 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-float" />
-        <div className="absolute bottom-0 left-0 w-[600px] h-[600px] bg-[#D6BCFA]/30 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-float" />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-[#6366f1]/10 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-pulse" />
+        <div className="absolute inset-0 bg-gradient-to-br from-[#0F172A] to-black" />
+        <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-[#6366F1]/20 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-float" />
+        <div className="absolute bottom-0 left-0 w-[600px] h-[600px] bg-[#8B5CF6]/20 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-float" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-[#EC4899]/10 rounded-full mix-blend-multiply filter blur-3xl opacity-10 animate-pulse" />
       </div>
 
-      {/* Main Content */}
-      <div className="relative z-10 w-full max-w-7xl mx-auto p-6">
-        {/* Header */}
-        <header className="mb-10">
-          <div className="flex justify-between items-center">
-            <div className="glass-morphism rounded-2xl p-8">
-              <h1 className="text-4xl font-bold text-gradient">
-                Welcome, {profile?.full_name}
+      {/* Header */}
+      <header className="relative z-20">
+        <div className="fixed top-0 inset-x-0 h-24 glass-morphism border-b border-white/5">
+          <div className="max-w-7xl mx-auto h-full px-6 flex items-center justify-between gap-8">
+            {/* Logo & Branding */}
+            <div className="flex-shrink-0">
+              <h1 className="text-3xl font-bold bg-gradient-to-r from-[#6366F1] via-[#8B5CF6] to-[#EC4899] bg-clip-text text-transparent">
+                CheatSheet
               </h1>
-              <p className="text-[#E5DEFF] mt-3 text-lg">
-                Your AI Powered Academic Super Weapon
+              <p className="text-sm text-[#E5DEFF]/60">
+                Your academic super-weapon
               </p>
             </div>
-            
+
+            {/* Search & Upload Bar */}
+            <form onSubmit={handleAskQuestion} className="flex-1 max-w-3xl">
+              <div className="relative">
+                <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
+                  <Search className="h-5 w-5 text-white/40" />
+                </div>
+                <Input 
+                  type="text" 
+                  placeholder={uploadedFile ? "Ask about your file..." : "Ask anything... Or upload a file and ask about it"} 
+                  value={initialQuestion} 
+                  onChange={e => setInitialQuestion(e.target.value)} 
+                  className="w-full h-12 pl-12 pr-28 bg-white/5 border-0 text-white placeholder:text-white/40 rounded-2xl focus:ring-2 focus:ring-[#8B5CF6]/50 transition-all" 
+                />
+                <div className="absolute right-2 top-1/2 -translate-y-1/2 flex gap-2">
+                  <input 
+                    type="file" 
+                    ref={fileInputRef} 
+                    onChange={handleFileUpload} 
+                    className="hidden" 
+                    accept={Object.keys(SUPPORTED_FORMATS).join(',')} 
+                  />
+                  <div className="relative group">
+                    <Button 
+                      type="button" 
+                      size="icon" 
+                      variant="ghost" 
+                      onClick={() => fileInputRef.current?.click()} 
+                      className="h-8 w-8 rounded-xl hover:bg-white/10"
+                    >
+                      <Upload className="h-4 w-4" />
+                    </Button>
+                    <div className="absolute bottom-full right-0 mb-2 w-64 p-3 glass-morphism rounded-lg text-xs text-white opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-y-2 group-hover:translate-y-0">
+                      Supported formats:
+                      <ul className="mt-2 space-y-1">
+                        {Object.values(SUPPORTED_FORMATS).map((format, index) => (
+                          <li key={index} className="flex items-center space-x-2">
+                            <span className="w-1 h-1 bg-[#8B5CF6] rounded-full" />
+                            <span>{format}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+                  <Button 
+                    type="submit" 
+                    size="icon" 
+                    className="h-8 w-8 rounded-xl bg-gradient-to-r from-[#6366F1] to-[#8B5CF6] hover:opacity-90 disabled:opacity-50" 
+                    disabled={!initialQuestion.trim() && !uploadedFile}
+                  >
+                    <Send className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            </form>
+
+            {/* User Menu */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="relative h-14 w-14 rounded-full neo-blur hover:bg-white/10">
-                  <User className="h-6 w-6 text-white" />
+                <Button variant="ghost" className="relative h-10 w-10 rounded-full neo-blur hover:bg-white/10">
+                  <User className="h-5 w-5 text-white" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent className="w-64 glass-morphism" align="end">
@@ -134,75 +188,22 @@ const Dashboard = () => {
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
-        </header>
-
-        {/* AI Assistant Input */}
-        <div className="mb-10">
-          <form onSubmit={handleAskQuestion} className="space-y-4">
-            <div className="glass-morphism rounded-2xl p-3">
-              <div className="relative">
-                <Input 
-                  type="text" 
-                  placeholder={uploadedFile ? "Ask about your file..." : "Ask anything... Or upload a file and ask about it"} 
-                  value={initialQuestion} 
-                  onChange={e => setInitialQuestion(e.target.value)} 
-                  className="w-full h-16 pl-6 pr-28 bg-white/5 border-0 text-white placeholder:text-gray-400 rounded-xl focus:ring-2 focus:ring-[#9b87f5]/50" 
-                />
-                <div className="absolute right-2 top-1/2 -translate-y-1/2 flex gap-3">
-                  <input 
-                    type="file" 
-                    ref={fileInputRef} 
-                    onChange={handleFileUpload} 
-                    className="hidden" 
-                    accept={Object.keys(SUPPORTED_FORMATS).join(',')} 
-                  />
-                  <div className="relative group">
-                    <Button 
-                      type="button" 
-                      size="icon" 
-                      variant="ghost" 
-                      onClick={() => fileInputRef.current?.click()} 
-                      className="h-12 w-12 rounded-xl hover:bg-white/10"
-                    >
-                      <Upload className="h-5 w-5" />
-                    </Button>
-                    <div className="absolute bottom-full right-0 mb-2 w-64 p-3 glass-morphism rounded-lg text-xs text-white opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-y-2 group-hover:translate-y-0">
-                      Supported formats:
-                      <ul className="mt-2 space-y-1">
-                        {Object.values(SUPPORTED_FORMATS).map((format, index) => (
-                          <li key={index} className="flex items-center space-x-2">
-                            <span className="w-1 h-1 bg-[#9b87f5] rounded-full" />
-                            <span>{format}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  </div>
-                  <Button 
-                    type="submit" 
-                    size="icon" 
-                    className="h-12 w-12 rounded-xl bg-gradient-to-r from-[#9b87f5] to-[#6366f1] hover:opacity-90 disabled:opacity-50" 
-                    disabled={!initialQuestion.trim() && !uploadedFile}
-                  >
-                    <Send className="h-5 w-5" />
-                  </Button>
-                </div>
-              </div>
-              {uploadedFile && (
-                <div className="mt-3 px-4">
-                  <span className="text-sm text-[#E5DEFF] flex items-center">
-                    <Upload className="h-4 w-4 mr-2 opacity-70" />
-                    {uploadedFile.name}
-                  </span>
-                </div>
-              )}
-            </div>
-          </form>
         </div>
+      </header>
 
-        {/* Courses Dashboard */}
+      {/* Main Content */}
+      <main className="relative z-10 pt-32 pb-12 px-6 max-w-7xl mx-auto">
+        {uploadedFile && (
+          <div className="mb-6">
+            <div className="glass-morphism rounded-xl p-4 inline-flex items-center">
+              <Upload className="h-4 w-4 mr-2 opacity-70" />
+              <span className="text-sm text-[#E5DEFF]">{uploadedFile.name}</span>
+            </div>
+          </div>
+        )}
+        
         <CoursesDashboard />
-      </div>
+      </main>
     </div>
   );
 };
