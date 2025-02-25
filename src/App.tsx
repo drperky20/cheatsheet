@@ -1,86 +1,30 @@
+import React, { Suspense, lazy } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 
-import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
-import { Toaster } from "@/components/ui/sonner";
-import { AuthProvider } from "@/contexts/AuthContext";
-import Index from "@/pages/Index";
-import Dashboard from "@/pages/Dashboard";
-import Settings from "@/pages/Settings";
-import Profile from "@/pages/Profile";
-import { useAuth } from "@/contexts/AuthContext";
-import { Watermark } from "@/components/ui/watermark";
+const Home = lazy(() => import('./pages/Index'));
 
-const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const { profile, isLoading } = useAuth();
-  
-  if (isLoading) {
-    return <div>Loading...</div>;
-  }
-  
-  if (!profile) {
-    return <Navigate to="/auth" replace />;
-  }
-
-  return <>{children}</>;
-};
-
-const AuthRoute = ({ children }: { children: React.ReactNode }) => {
-  const { profile, isLoading } = useAuth();
-  
-  if (isLoading) {
-    return <div>Loading...</div>;
-  }
-  
-  if (profile) {
-    return <Navigate to="/dashboard" replace />;
-  }
-
-  return <>{children}</>;
-};
-
-const App = () => {
+function App() {
   return (
-    <Router>
-      <AuthProvider>
-        <Watermark />
-        <Routes>
-          <Route
-            path="/auth"
-            element={
-              <AuthRoute>
-                <Index />
-              </AuthRoute>
-            }
-          />
-          <Route
-            path="/dashboard"
-            element={
-              <ProtectedRoute>
-                <Dashboard />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/settings"
-            element={
-              <ProtectedRoute>
-                <Settings />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/profile"
-            element={
-              <ProtectedRoute>
-                <Profile />
-              </ProtectedRoute>
-            }
-          />
-          <Route path="/" element={<Navigate to="/auth" replace />} />
-        </Routes>
-        <Toaster />
-      </AuthProvider>
-    </Router>
+    <AnimatePresence exitBeforeEnter>
+      <Suspense
+        fallback={
+          <div className="flex justify-center items-center min-h-screen">
+            <div className="skeleton w-24 h-24" />
+          </div>
+        }
+      >
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -10 }}
+          transition={{ duration: 0.7, ease: [0.65, 0, 0.35, 1] }}
+          className="min-h-screen bg-[#121212] text-white p-4 rounded-xl border border-white/10 shadow-glass"
+        >
+          <Home />
+        </motion.div>
+      </Suspense>
+    </AnimatePresence>
   );
-};
+}
 
 export default App;

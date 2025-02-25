@@ -1,16 +1,40 @@
+import { cn } from "@/lib/utils";
+import { motion } from "framer-motion";
+import { skeletonVariants } from "@/lib/motion";
 
-import { cn } from "@/lib/utils"
-
-function Skeleton({
-  className,
-  ...props
-}: React.HTMLAttributes<HTMLDivElement>) {
-  return (
-    <div
-      className={cn("animate-pulse rounded-md bg-gray-200 dark:bg-gray-800", className)}
-      {...props}
-    />
-  )
+interface SkeletonProps extends React.HTMLAttributes<HTMLDivElement> {
+  animated?: boolean;
 }
 
-export { Skeleton }
+/**
+ * Skeleton component for loading states
+ * Optionally accepts 'animated' prop to enable gradient animation
+ */
+function Skeleton({ className, animated = true, ...props }: SkeletonProps) {
+  if (animated) {
+    return (
+      <motion.div
+        className={cn(
+          "rounded-md bg-gradient-to-r from-black/40 via-black/30 to-black/40 bg-[length:400%_100%]",
+          className
+        )}
+        variants={skeletonVariants}
+        initial="initial"
+        animate="animate"
+        {...props as any}
+      />
+    );
+  }
+  
+  return (
+    <div
+      className={cn(
+        "rounded-md bg-gradient-to-r from-black/40 via-black/30 to-black/40",
+        className
+      )}
+      {...props}
+    />
+  );
+}
+
+export { Skeleton };
