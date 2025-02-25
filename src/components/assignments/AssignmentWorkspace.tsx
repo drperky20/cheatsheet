@@ -1,65 +1,183 @@
-import React from 'react';
-import { motion } from 'framer-motion';
-import { AssignmentHeader } from './workspace/AssignmentHeader';
-import { AssignmentDescription } from './workspace/AssignmentDescription';
-import { AssignmentContent } from './workspace/AssignmentContent';
-import Button from '../ui/button';
 
-interface AssignmentWorkspaceProps {
-  assignment: {
-    title: string;
-    description: string;
-    content: string;
-  };
-  onSave?: () => void;
-  onClose?: () => void;
+import { useState, useEffect } from "react";
+import { Card } from "@/components/ui/card";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+import { AssignmentQualityConfig } from "@/types/assignment";
+import pdfMake from "pdfmake/build/pdfmake";
+import "pdfmake/build/vfs_fonts";
+import { AssignmentHeader } from "./workspace/AssignmentHeader";
+import { AssignmentDescription } from "./workspace/AssignmentDescription";
+import { AssignmentContent } from "./workspace/AssignmentContent";
+
+interface Assignment {
+  id: string;
+  name: string;
+  description: string;
+  due_at: string;
+  points_possible: number;
+  submission_types: string[];
+  workflow_state: string;
+  html_url: string;
+  course_id: number;
 }
 
-const AssignmentWorkspace: React.FC<AssignmentWorkspaceProps> = ({
-  assignment,
-  onSave,
-  onClose,
-}) => {
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -20 }}
-      className="h-full flex flex-col gap-4 p-6 bg-white/10 backdrop-blur-xl rounded-2xl border border-white/20"
-    >
-      <AssignmentHeader
-        title={assignment.title}
-        className="border-b border-white/10 pb-4"
-      />
-      
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 flex-grow overflow-hidden">
-        <AssignmentDescription
-          description={assignment.description}
-          className="h-full overflow-auto p-4 bg-white/5 rounded-xl"
-        />
-        <AssignmentContent
-          content={assignment.content}
-          className="h-full overflow-auto p-4 bg-white/5 rounded-xl"
-        />
-      </div>
+interface AssignmentWorkspaceProps {
+  assignment: Assignment;
+  onClose: () => void;
+}
 
-      <div className="flex justify-end gap-3 pt-4 border-t border-white/10">
-        <Button
-          variant="secondary"
-          onClick={onClose}
-          className="hover:bg-white/15"
-        >
-          Close
-        </Button>
-        <Button
-          onClick={onSave}
-          className="bg-gradient-to-r from-blue-500/80 to-purple-500/80 hover:from-blue-500/90 hover:to-purple-500/90"
-        >
-          Save Changes
-        </Button>
-      </div>
-    </motion.div>
+export const AssignmentWorkspace = ({ assignment, onClose }: AssignmentWorkspaceProps) => {
+  const [content, setContent] = useState("");
+  const [isSubmitting, setSubmitting] = useState(false);
+  const [externalLinks, setExternalLinks] = useState<Array<{ url: string; type: 'google_doc' | 'external_link' }>>([]);
+  const [processingLinks, setProcessingLinks] = useState(false);
+  const [qualityConfig, setQualityConfig] = useState<AssignmentQualityConfig>({
+    targetGrade: 'B',
+    selectedFlaws: [],
+    writingStyle: 'mixed',
+    confidenceLevel: 75
+  });
+
+  useEffect(() => {
+    // Extract links from description
+    const extractLinks = () => {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(assignment.description, 'text/html');
+      const links = Array.from(doc.querySelectorAll('a'));
+      
+      const extracted = links.map(link => ({
+        url: link.href,
+        type: link.href.includes('docs.google.com') ? 'google_doc' : 'external_link'
+      } as const));
+
+      setExternalLinks(extracted);
+    };
+
+    extractLinks();
+  }, [assignment.description]);
+
+  const generatePDF = async (content: string) => {
+    const docDefinition = {
+      content: [
+        {
+          text: assignment.name,
+          style: 'header'
+        },
+        {
+          text: new Date().toLocaleDateString(),
+          style: 'date'
+        },
+        {
+          text: content,
+          style: 'content'
+        }
+      ],
+      styles: {
+        header: {
+          fontSize: 18,
+          bold: true,
+          marginBottom: 10
+        },
+        date: {
+          fontSize: 12,
+          marginBottom: 20,
+          color: 'grey'
+        },
+        content: {
+          fontSize: 12,
+          lineHeight: 1.5
+        }
+      },
+      defaultStyle: {
+        font: 'Helvetica'
+      }
+    };
+
+    return new Promise((resolve) => {
+      const pdfDocGenerator = pdfMake.createPdf(docDefinition);
+      pdfDocGenerator.getBlob((blob) => {
+        resolve(blob);
+      });
+    });
+  };
+
+  const handleProcessLinks = async () => {
+    setProcessingLinks(true);
+    try {
+      // We'll implement link processing logic later
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      toast.success("Links processed successfully");
+    } catch (error) {
+      console.error('Error processing links:', error);
+      toast.error("Failed to process links");
+    } finally {
+      setProcessingLinks(false);
+    }
+  };
+
+  const handleSubmit = async () => {
+    if (!content.trim()) {
+      toast.error("Please add some content before submitting");
+      return;
+    }
+
+    try {
+      setSubmitting(true);
+      
+      const pdfBlob = await generatePDF(content);
+      
+      const formData = new FormData();
+      formData.append('file', new File([pdfBlob as Blob], 'submission.pdf', { type: 'application/pdf' }));
+      
+      const { error } = await supabase.functions.invoke('canvas-proxy', {
+        body: {
+          endpoint: `/courses/${assignment.course_id}/assignments/${assignment.id}/submissions`,
+          method: 'POST',
+          formData: formData
+        }
+      });
+
+      if (error) throw error;
+
+      toast.success("Assignment submitted to Canvas successfully!");
+      onClose();
+    } catch (error) {
+      console.error('Submission error:', error);
+      toast.error("Failed to submit assignment to Canvas");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/90 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <Card className="w-full max-w-4xl h-[90vh] neo-blur overflow-hidden flex flex-col">
+        <AssignmentHeader
+          name={assignment.name}
+          dueDate={assignment.due_at}
+          onClose={onClose}
+        />
+
+        <div className="flex-1 p-6 space-y-6 overflow-auto">
+          <AssignmentDescription
+            description={assignment.description}
+            externalLinks={externalLinks}
+            onProcessLinks={handleProcessLinks}
+            processingLinks={processingLinks}
+          />
+
+          <AssignmentContent
+            content={content}
+            onContentChange={setContent}
+            assignment={assignment}
+            onSave={handleSubmit}
+            isSubmitting={isSubmitting}
+            qualityConfig={qualityConfig}
+            onQualityConfigChange={setQualityConfig}
+          />
+        </div>
+      </Card>
+    </div>
   );
 };
-
-export default AssignmentWorkspace;

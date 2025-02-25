@@ -1,33 +1,43 @@
 import * as React from "react"
 import { cn } from "@/lib/utils"
 
-const Card = React.forwardRef<
-  HTMLDivElement,
-  React.HTMLAttributes<HTMLDivElement>
->(({ className, ...props }, ref) => (
-  <div
-    ref={ref}
-    className={cn(
-      "backdrop-blur-lg bg-white/20 border border-white/30 rounded-xl",
-      "shadow-glass transition-all duration-300",
-      "hover:shadow-glass-hover hover:scale-105",
-      className
-    )}
-    {...props}
-  />
-))
+interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
+  interactive?: boolean
+}
+
+const Card = React.forwardRef<HTMLDivElement, CardProps>(
+  ({ className, interactive = false, ...props }, ref) => (
+    <div
+      ref={ref}
+      className={cn(
+        "bg-black/40 backdrop-blur-[10px] border border-white/10 rounded-xl shadow-[0_10px_30px_rgba(0,0,0,0.25)]",
+        interactive && "hover:shadow-[0_15px_30px_rgba(0,0,0,0.3)] hover:translate-y-[-5px] hover:scale-[1.02] transition-all duration-300",
+        className
+      )}
+      {...props}
+    />
+  )
+)
 Card.displayName = "Card"
 
-const CardHeader = React.forwardRef<
-  HTMLDivElement,
-  React.HTMLAttributes<HTMLDivElement>
->(({ className, ...props }, ref) => (
-  <div
-    ref={ref}
-    className={cn("flex flex-col space-y-1.5 p-6", className)}
-    {...props}
-  />
-))
+interface CardHeaderProps extends React.HTMLAttributes<HTMLDivElement> {
+  highlight?: "teal" | "purple" | "none"
+}
+
+const CardHeader = React.forwardRef<HTMLDivElement, CardHeaderProps>(
+  ({ className, highlight = "none", ...props }, ref) => (
+    <div
+      ref={ref}
+      className={cn(
+        "flex flex-col space-y-1.5 p-6",
+        highlight === "teal" && "border-l-4 border-l-[#00B2A9]",
+        highlight === "purple" && "border-l-4 border-l-[#7B5EA7]",
+        className
+      )}
+      {...props}
+    />
+  )
+)
 CardHeader.displayName = "CardHeader"
 
 const CardTitle = React.forwardRef<
@@ -37,7 +47,7 @@ const CardTitle = React.forwardRef<
   <h3
     ref={ref}
     className={cn(
-      "text-2xl font-semibold leading-none tracking-tight text-gradient",
+      "text-2xl font-semibold leading-none tracking-tight text-white",
       className
     )}
     {...props}
@@ -51,7 +61,7 @@ const CardDescription = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <p
     ref={ref}
-    className={cn("text-sm text-white/60", className)}
+    className={cn("text-sm text-white/70 leading-relaxed", className)}
     {...props}
   />
 ))
@@ -71,10 +81,47 @@ const CardFooter = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <div
     ref={ref}
-    className={cn("flex items-center p-6 pt-0", className)}
+    className={cn("flex items-center p-6 pt-0 gap-2", className)}
     {...props}
   />
 ))
 CardFooter.displayName = "CardFooter"
 
-export { Card, CardHeader, CardFooter, CardTitle, CardDescription, CardContent }
+// Specialized Card types
+const GlassCard = React.forwardRef<HTMLDivElement, CardProps>(
+  ({ className, ...props }, ref) => (
+    <Card
+      ref={ref}
+      className={cn("backdrop-blur-md bg-black/30", className)}
+      {...props}
+    />
+  )
+)
+GlassCard.displayName = "GlassCard"
+
+const AccentCard = React.forwardRef<
+  HTMLDivElement, 
+  CardProps & { accent: "teal" | "purple" }
+>(({ className, accent = "teal", ...props }, ref) => (
+  <Card
+    ref={ref}
+    className={cn(
+      "border-t-2",
+      accent === "teal" ? "border-t-[#00B2A9]" : "border-t-[#7B5EA7]",
+      className
+    )}
+    {...props}
+  />
+))
+AccentCard.displayName = "AccentCard"
+
+export { 
+  Card, 
+  CardHeader, 
+  CardFooter, 
+  CardTitle, 
+  CardDescription, 
+  CardContent,
+  GlassCard,
+  AccentCard
+}

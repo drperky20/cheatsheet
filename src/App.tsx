@@ -1,43 +1,149 @@
-import React from 'react';
-import { Routes, Route } from 'react-router-dom';
-import { AnimatePresence } from 'framer-motion';
-import { Toaster } from './components/ui/sonner';
+import React, { lazy, Suspense } from "react";
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from "react-router-dom";
+import { Toaster } from "@/components/ui/sonner";
+import { AuthProvider } from "@/contexts/AuthContext";
+import { QueryProvider } from "@/contexts/QueryProvider";
+import { useAuth } from "@/contexts/AuthContext";
+import { Watermark } from "@/components/ui/watermark";
+import { AnimatePresence } from "framer-motion";
+import PageTransition from "@/components/ui/page-transition";
+import { CardSkeleton } from "@/components/ui/lazy-load";
+import { ErrorBoundary } from "@/components/ui/lazy-load";
 
-// Pages
-import Dashboard from './pages/Dashboard';
-import Profile from './pages/Profile';
-import Settings from './pages/Settings';
-import Index from './pages/Index';
-import NotFound from './pages/NotFound';
+// Lazy load pages for code splitting
+const Index = lazy(() => import("@/pages/Index"));
+const Dashboard = lazy(() => import("@/pages/Dashboard"));
+const Settings = lazy(() => import("@/pages/Settings"));
+const Profile = lazy(() => import("@/pages/Profile"));
+const NotFound = lazy(() => import("@/pages/NotFound"));
 
-const App: React.FC = () => {
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-900/30 to-purple-900/30">
-      <div className="container mx-auto px-4 py-8">
-        <AnimatePresence mode="wait">
-          <Routes>
-            <Route path="/" element={<Index />} />
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/profile" element={<Profile />} />
-            <Route path="/settings" element={<Settings />} />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </AnimatePresence>
-        
-        <Toaster
-          position="bottom-right"
-          toastOptions={{
-            style: {
-              background: 'rgba(255, 255, 255, 0.1)',
-              backdropFilter: 'blur(12px)',
-              border: '1px solid rgba(255, 255, 255, 0.2)',
-              color: 'white',
-            },
-            className: 'glassmorphic-toast',
-          }}
-        />
-      </div>
+// Loading component for auth state
+const AuthLoader = () => (
+  <div className="w-full min-h-screen flex items-center justify-center">
+    <div className="w-full max-w-md px-4">
+      <CardSkeleton />
     </div>
+  </div>
+);
+
+// Error fallback component
+const ErrorFallback = ({ error }: { error: Error }) => (
+  <div className="w-full min-h-screen flex items-center justify-center p-4">
+    <div className="neo-glass p-6 rounded-xl w-full max-w-md">
+      <h2 className="text-xl font-semibold mb-2 text-gradient-teal">Something went wrong</h2>
+      <p className="text-white/70 mb-4">{error.message}</p>
+      <button
+        onClick={() => window.location.reload()}
+        className="bg-[#00B2A9] hover:bg-[#00a099] text-white px-4 py-2 rounded-lg transition-all"
+      >
+        Refresh page
+      </button>
+    </div>
+  </div>
+);
+
+const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
+  const { profile, isLoading } = useAuth();
+  const location = useLocation();
+  
+  if (isLoading) {
+    return <AuthLoader />;
+  }
+  
+  if (!profile) {
+    return <Navigate to="/auth" state={{ from: location }} replace />;
+  }
+
+  return <>{children}</>;
+};
+
+const AuthRoute = ({ children }: { children: React.ReactNode }) => {
+  const { profile, isLoading } = useAuth();
+  
+  if (isLoading) {
+    return <AuthLoader />;
+  }
+  
+  if (profile) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  return <>{children}</>;
+};
+
+// AnimatedRoutes component to handle route transitions
+const AnimatedRoutes = () => {
+  const location = useLocation();
+  
+  return (
+    <AnimatePresence mode="wait">
+      <PageTransition routeKey={location.pathname} className="w-full min-h-screen">
+        <Routes location={location}>
+          <Route
+            path="/auth"
+            element={
+              <AuthRoute>
+                <Suspense fallback={<AuthLoader />}>
+                  <Index />
+                </Suspense>
+              </AuthRoute>
+            }
+          />
+          <Route
+            path="/dashboard"
+            element={
+              <ProtectedRoute>
+                <Suspense fallback={<AuthLoader />}>
+                  <Dashboard />
+                </Suspense>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/settings"
+            element={
+              <ProtectedRoute>
+                <Suspense fallback={<AuthLoader />}>
+                  <Settings />
+                </Suspense>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/profile"
+            element={
+              <ProtectedRoute>
+                <Suspense fallback={<AuthLoader />}>
+                  <Profile />
+                </Suspense>
+              </ProtectedRoute>
+            }
+          />
+          <Route path="/" element={<Navigate to="/auth" replace />} />
+          <Route path="*" element={
+            <Suspense fallback={<AuthLoader />}>
+              <NotFound />
+            </Suspense>
+          } />
+        </Routes>
+      </PageTransition>
+    </AnimatePresence>
+  );
+};
+
+const App = () => {
+  return (
+    <ErrorBoundary fallback={(error) => <ErrorFallback error={error} />}>
+      <QueryProvider>
+        <Router>
+          <AuthProvider>
+            <Watermark />
+            <AnimatedRoutes />
+            <Toaster />
+          </AuthProvider>
+        </Router>
+      </QueryProvider>
+    </ErrorBoundary>
   );
 };
 

@@ -1,74 +1,123 @@
-import React from 'react';
-import { motion } from 'framer-motion';
-import { Card, CardHeader, CardTitle, CardContent } from '../ui/card';
-import Button from '../ui/button';
+
+import { useState } from "react";
+import { Card } from "@/components/ui/card";
+import { BookOpen, Clock, ArrowRight } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { CourseRename } from "./CourseRename";
+import { AssignmentsList } from "../assignments/AssignmentsList";
+import { AssignmentWorkspace } from "../assignments/AssignmentWorkspace";
 
 interface CourseCardProps {
-  title: string;
-  description: string;
-  progress: number;
-  onEnter?: () => void;
-  onRename?: () => void;
+  course: {
+    id: string;
+    name: string;
+    nickname?: string;
+    course_code: string;
+    assignments_count: number;
+    pending_assignments: number;
+    final_grade?: string;
+    final_score?: number;
+    term?: {
+      name: string;
+      start_at: string;
+      end_at: string;
+    };
+  };
 }
 
-const CourseCard: React.FC<CourseCardProps> = ({
-  title,
-  description,
-  progress,
-  onEnter,
-  onRename,
-}) => {
+export const CourseCard = ({ course }: CourseCardProps) => {
+  const [isHovered, setIsHovered] = useState(false);
+  const [nickname, setNickname] = useState(course.nickname);
+  const [showAssignments, setShowAssignments] = useState(false);
+  const [selectedAssignment, setSelectedAssignment] = useState<any>(null);
+
+  const getRandomGradient = () => {
+    const gradients = [
+      'from-blue-500/10 to-indigo-500/10',
+      'from-green-500/10 to-emerald-500/10',
+      'from-purple-500/10 to-pink-500/10',
+      'from-orange-500/10 to-red-500/10',
+      'from-teal-500/10 to-cyan-500/10',
+    ];
+    return gradients[Math.floor(Math.random() * gradients.length)];
+  };
+
   return (
-    <motion.div
-      whileHover={{ scale: 1.02 }}
-      whileTap={{ scale: 0.98 }}
-      transition={{ type: 'spring', stiffness: 300 }}
-    >
-      <Card className="overflow-hidden group">
-        <CardHeader>
-          <div className="flex justify-between items-start">
-            <CardTitle className="text-xl font-bold bg-gradient-to-r from-blue-200 to-purple-200 bg-clip-text text-transparent">
-              {title}
-            </CardTitle>
-            <Button
-              variant="secondary"
-              onClick={onRename}
-              className="opacity-0 group-hover:opacity-100 transition-opacity"
-            >
-              Rename
-            </Button>
+    <>
+      <Card 
+        className={`group relative overflow-hidden transition-all duration-300 backdrop-blur-lg bg-black/40 
+          border-white/5 hover:border-white/10
+          ${isHovered ? 'transform scale-[1.02]' : ''}`}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+      >
+        <div className={`absolute inset-0 bg-gradient-to-br ${getRandomGradient()} opacity-100`} />
+        
+        <div className="relative p-6 space-y-4">
+          <div className="flex items-start justify-between">
+            <CourseRename 
+              courseId={course.id}
+              currentName={course.name}
+              nickname={nickname}
+              onUpdate={setNickname}
+            />
           </div>
-        </CardHeader>
-        <CardContent>
-          <p className="text-white/70 mb-4">{description}</p>
-          
-          <div className="space-y-2">
-            <div className="flex justify-between text-sm text-white/60">
-              <span>Progress</span>
-              <span>{progress}%</span>
+
+          <div className="flex items-center justify-between text-sm text-gray-400">
+            <div className="flex items-center space-x-1">
+              <BookOpen className="w-4 h-4" />
+              <span>{course.assignments_count} assignments</span>
             </div>
-            <div className="w-full h-2 bg-white/10 rounded-full overflow-hidden">
-              <motion.div
-                initial={{ width: 0 }}
-                animate={{ width: `${progress}%` }}
-                transition={{ duration: 0.5, ease: 'easeOut' }}
-                className="h-full bg-gradient-to-r from-blue-500 to-purple-500"
+            <div className="flex items-center space-x-1">
+              <Clock className="w-4 h-4" />
+              <span>{course.pending_assignments} missing</span>
+            </div>
+          </div>
+
+          {isHovered && (
+            <div className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-sm transition-opacity duration-200">
+              <Button 
+                onClick={() => setShowAssignments(true)}
+                className="bg-white/10 hover:bg-white/20 text-white flex items-center gap-2"
+              >
+                View Assignments
+                <ArrowRight className="w-4 h-4" />
+              </Button>
+            </div>
+          )}
+        </div>
+      </Card>
+
+      {showAssignments && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-40 flex items-center justify-center p-4">
+          <Card className="w-full max-w-2xl glass">
+            <div className="p-4 border-b border-white/10 flex items-center justify-between">
+              <h2 className="text-xl font-semibold">
+                {nickname || course.name} - Assignments
+              </h2>
+              <Button variant="ghost" onClick={() => setShowAssignments(false)}>
+                Close
+              </Button>
+            </div>
+            <div className="p-4">
+              <AssignmentsList 
+                courseId={course.id}
+                onStartAssignment={(assignment) => {
+                  setSelectedAssignment(assignment);
+                  setShowAssignments(false);
+                }}
               />
             </div>
-          </div>
+          </Card>
+        </div>
+      )}
 
-          <div className="mt-6">
-            <Button
-              onClick={onEnter}
-              className="w-full bg-gradient-to-r from-blue-500/80 to-purple-500/80 hover:from-blue-500/90 hover:to-purple-500/90"
-            >
-              Enter Course
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-    </motion.div>
+      {selectedAssignment && (
+        <AssignmentWorkspace
+          assignment={selectedAssignment}
+          onClose={() => setSelectedAssignment(null)}
+        />
+      )}
+    </>
   );
 };
-
-export default CourseCard;
