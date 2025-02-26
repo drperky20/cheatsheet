@@ -1,7 +1,7 @@
 
 import { createContext, useContext, useEffect, useState } from "react";
 import { AuthState, UserProfile, CanvasConfig } from "@/types/auth";
-import { supabase } from "@/integrations/supabase/client";
+import { db } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
@@ -53,20 +53,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const fetchUserData = async (userId: string) => {
     try {
       // Fetch profile
-      const { data: profile, error: profileError } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", userId)
-        .maybeSingle();
+      const profileResult = await db.query(
+        'SELECT * FROM profiles WHERE id = $1',
+        [userId]
+      );
+      const profile = profileResult.rows[0];
 
-      if (profileError) throw profileError;
-
-      // Fetch canvas config
-      const { data: canvasConfig, error: configError } = await supabase
-        .from("canvas_configs")
-        .select("*")
-        .eq("user_id", userId)
-        .maybeSingle();
+      const configResult = await db.query(
+        'SELECT * FROM canvas_configs WHERE user_id = $1',
+        [userId]
+      );
+      const canvasConfig = configResult.rows[0];
 
       if (configError && configError.code !== "PGRST116") throw configError;
 
