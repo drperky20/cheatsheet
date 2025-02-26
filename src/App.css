@@ -8,8 +8,13 @@
 .logo {
   height: 6em;
   padding: 1.5em;
-  will-change: filter;
-  transition: filter 300ms;
+  will-change: filter, transform;
+  transition: all 400ms cubic-bezier(0.4, 0, 0.2, 1);
+  transform: translateY(0);
+}
+
+.logo:hover {
+  transform: translateY(-5px);
 }
 .logo:hover {
   filter: drop-shadow(0 0 2em #646cffaa);
