@@ -4,7 +4,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { BookOpen, Clock, ArrowUpDown, Filter } from "lucide-react";
+import { BookOpen, Clock, ArrowUpDown } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -36,7 +36,8 @@ interface Course {
 
 type SortOption = "name" | "pending" | "progress";
 
-export const CoursesDashboard = ({ courses, onCourseClick }: { courses: Course[], onCourseClick: (course: Course) => void }) => {
+export const CoursesDashboard = () => {
+  const [courses, setCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
   const [sortBy, setSortBy] = useState<SortOption>("name");
   const [showDisclaimer, setShowDisclaimer] = useState(false);
@@ -106,7 +107,7 @@ export const CoursesDashboard = ({ courses, onCourseClick }: { courses: Course[]
       const coursesWithAssignments = await Promise.all(
         (Array.isArray(coursesData) ? coursesData : []).map(async (course) => {
           const assignments = await fetchAllAssignments(course.id);
-
+          
           const startDate = new Date('2024-01-01');
           const totalAssignments = assignments.length;
           const missingAssignments = assignments.filter(a => {
@@ -132,7 +133,6 @@ export const CoursesDashboard = ({ courses, onCourseClick }: { courses: Course[]
 
       const validCourses = coursesWithAssignments.filter((course): course is Course => course !== null);
       console.log('Courses with assignments:', validCourses);
-      setSortBy("name"); //added to ensure sorting happens on initial load
       setCourses(sortCourses(validCourses, sortBy));
     } catch (error: any) {
       console.error('Error fetching courses:', error);
@@ -173,7 +173,7 @@ export const CoursesDashboard = ({ courses, onCourseClick }: { courses: Course[]
     if (!hasSeenDisclaimer) {
       setShowDisclaimer(true);
     } else {
-      onCourseClick(course);
+      console.log("Proceeding with course:", course);
     }
   };
 
@@ -235,7 +235,7 @@ export const CoursesDashboard = ({ courses, onCourseClick }: { courses: Course[]
                 setShowDisclaimer(false);
                 setHasSeenDisclaimer(true);
                 if (selectedCourse) {
-                  onCourseClick(selectedCourse);
+                  console.log("Proceeding with course:", selectedCourse);
                 }
               }}
               className="bg-[#9b87f5] hover:bg-[#8b5cf6]"
@@ -246,29 +246,25 @@ export const CoursesDashboard = ({ courses, onCourseClick }: { courses: Course[]
         </DialogContent>
       </Dialog>
 
-      <div className="space-y-8">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-3">
-            <div className="rounded-full bg-primary/10 p-2">
-              <BookOpen className="w-5 h-5 text-primary" />
-            </div>
-            <h2 className="text-2xl font-semibold tracking-tight">Your Courses</h2>
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <BookOpen className="w-5 h-5" />
+            <h2 className="text-xl font-semibold">Your Courses</h2>
           </div>
-
-          <div className="flex flex-wrap items-center gap-4">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground bg-primary/5 px-3 py-1 rounded-full">
+          <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-2 text-sm text-gray-400">
               <Clock className="w-4 h-4" />
               <span>Real-time sync enabled</span>
             </div>
-
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm" className="flex items-center gap-2">
+                <Button variant="ghost" size="sm" className="flex items-center gap-2">
                   <ArrowUpDown className="h-4 w-4" />
                   Sort
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-40 backdrop-blur-xl bg-background/80 border-white/10">
+              <DropdownMenuContent align="end" className="bg-black/80 backdrop-blur-lg border-white/10">
                 <DropdownMenuItem onClick={() => handleSort("name")}>
                   Sort by Name
                 </DropdownMenuItem>
@@ -285,7 +281,7 @@ export const CoursesDashboard = ({ courses, onCourseClick }: { courses: Course[]
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {courses.map((course) => (
-            <div key={course.id} onClick={() => handleCourseClick(course)} className="cursor-pointer transform hover:scale-[1.02] transition-transform duration-200">
+            <div key={course.id} onClick={() => handleCourseClick(course)} className="cursor-pointer">
               <CourseCard course={course} />
             </div>
           ))}
