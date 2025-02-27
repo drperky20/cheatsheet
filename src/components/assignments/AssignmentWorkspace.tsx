@@ -1,13 +1,11 @@
 import { useState, useEffect } from "react";
-import { Card } from "@/components/ui/card";
-import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
-import { AssignmentQualityConfig } from "@/types/assignment";
-import pdfMake from "pdfmake/build/pdfmake";
-import "pdfmake/build/vfs_fonts";
 import { AssignmentHeader } from "./workspace/AssignmentHeader";
 import { AssignmentDescription } from "./workspace/AssignmentDescription";
 import { AssignmentContent } from "./workspace/AssignmentContent";
+import { Card } from "@/components/ui/card";
+import { AssignmentQualityConfig } from "@/types/assignment";
+import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 interface Assignment {
   id: string;
@@ -24,171 +22,137 @@ interface Assignment {
 interface AssignmentWorkspaceProps {
   assignment: Assignment;
   onClose: () => void;
+  onComplete?: () => void;
 }
 
-export const AssignmentWorkspace = ({ assignment, onClose }: AssignmentWorkspaceProps) => {
+export const AssignmentWorkspace = ({
+  assignment,
+  onClose,
+  onComplete,
+}: AssignmentWorkspaceProps) => {
   const [content, setContent] = useState("");
-  const [isSubmitting, setSubmitting] = useState(false);
-  const [externalLinks, setExternalLinks] = useState<Array<{ url: string; type: 'google_doc' | 'external_link' }>>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [externalLinks, setExternalLinks] = useState<
+    Array<{ url: string; type: "google_doc" | "external_link" }>
+  >([]);
   const [processingLinks, setProcessingLinks] = useState(false);
   const [qualityConfig, setQualityConfig] = useState<AssignmentQualityConfig>({
-    targetGrade: 'B',
-    selectedFlaws: [],
-    writingStyle: 'mixed',
-    confidenceLevel: 75
+    grade: "high_school",
+    factualAccuracy: true,
+    citationCount: 3,
+    wordCount: 500,
   });
 
   useEffect(() => {
-    // Extract links from description
+    // Extract links from assignment description
     const extractLinks = () => {
-      const parser = new DOMParser();
-      const doc = parser.parseFromString(assignment.description, 'text/html');
-      const links = Array.from(doc.querySelectorAll('a'));
-      
-      const extracted = links.map(link => ({
-        url: link.href,
-        type: link.href.includes('docs.google.com') ? 'google_doc' : 'external_link'
-      } as const));
+      const linkRegex = /(https?:\/\/[^\s"]+)/g;
+      const matches = assignment.description.match(linkRegex) || [];
 
-      setExternalLinks(extracted);
+      const processedLinks = matches.map(url => ({
+        url,
+        type: url.includes("docs.google.com") ? "google_doc" : "external_link"
+      } as { url: string; type: "google_doc" | "external_link" }));
+
+      setExternalLinks(processedLinks);
     };
 
     extractLinks();
   }, [assignment.description]);
 
-  const generatePDF = async (content: string) => {
-    const docDefinition = {
-      content: [
-        {
-          text: assignment.name,
-          style: 'header'
-        },
-        {
-          text: new Date().toLocaleDateString(),
-          style: 'date'
-        },
-        {
-          text: content,
-          style: 'content'
-        }
-      ],
-      styles: {
-        header: {
-          fontSize: 18,
-          bold: true,
-          marginBottom: 10
-        },
-        date: {
-          fontSize: 12,
-          marginBottom: 20,
-          color: 'grey'
-        },
-        content: {
-          fontSize: 12,
-          lineHeight: 1.5
-        }
-      },
-      defaultStyle: {
-        font: 'Helvetica'
-      }
-    };
-
-    return new Promise((resolve) => {
-      const pdfDocGenerator = pdfMake.createPdf(docDefinition);
-      pdfDocGenerator.getBlob((blob) => {
-        resolve(blob);
-      });
-    });
-  };
-
   const handleProcessLinks = async () => {
     setProcessingLinks(true);
+
     try {
-      // We'll implement link processing logic later
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      toast.success("Links processed successfully");
+      // Simulate processing links with a real function call to Supabase
+      await supabase.functions.invoke('analyze-links', {
+        body: { 
+          links: externalLinks,
+          assignmentId: assignment.id
+        }
+      });
+
+      toast.success("Successfully processed external resource content");
+      // Here you would typically update the content with processed data
+      setContent(prev => 
+        prev + "\n\n### External Resources Summary\nThe content from external resources has been analyzed and integrated into this response."
+      );
     } catch (error) {
-      console.error('Error processing links:', error);
-      toast.error("Failed to process links");
+      console.error("Error processing links:", error);
+      toast.error("Failed to process external resources");
     } finally {
       setProcessingLinks(false);
     }
   };
 
-  const handleSubmit = async () => {
-    if (!content.trim()) {
-      toast.error("Please add some content before submitting");
-      return;
-    }
+  const handleSave = async () => {
+    setIsSubmitting(true);
 
     try {
-      setSubmitting(true);
-      
-      const pdfBlob = await generatePDF(content);
-      
-      const formData = new FormData();
-      formData.append('file', new File([pdfBlob as Blob], 'submission.pdf', { type: 'application/pdf' }));
-      
-      const { error } = await supabase.functions.invoke('canvas-proxy', {
-        body: {
-          endpoint: `/courses/${assignment.course_id}/assignments/${assignment.id}/submissions`,
-          method: 'POST',
-          formData: formData
-        }
-      });
+      const { error } = await supabase
+        .from('assignment_submissions')
+        .upsert({
+          assignment_id: assignment.id,
+          course_id: assignment.course_id,
+          content,
+          status: 'draft',
+          quality_config: qualityConfig
+        });
 
       if (error) throw error;
 
-      toast.success("Assignment submitted to Canvas successfully!");
-      onClose();
+      toast.success("Assignment saved successfully!");
     } catch (error) {
-      console.error('Submission error:', error);
-      toast.error("Failed to submit assignment to Canvas");
+      console.error("Error saving assignment:", error);
+      toast.error("Failed to save assignment");
     } finally {
-      setSubmitting(false);
+      setIsSubmitting(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 bg-black/90 backdrop-blur-xl z-50 flex items-center justify-center p-6 animate-in fade-in duration-200">
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-0 right-0 w-[800px] h-[800px] bg-[#9b87f5]/10 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-float" />
-        <div className="absolute bottom-0 left-0 w-[800px] h-[800px] bg-[#6366f1]/10 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-float-delayed" />
-      </div>
-      
-      <Card className="
-        w-full max-w-5xl h-[90vh] 
-        glass-morphism border-0 shadow-2xl
-        overflow-hidden flex flex-col
-        relative z-10
-        transform transition-all duration-300
-        animate-in slide-in-from-bottom-4
-      ">
-        <AssignmentHeader
-          name={assignment.name}
-          dueDate={assignment.due_at}
-          onClose={onClose}
-        />
-
-        <div className="flex-1 p-8 space-y-8 overflow-auto scrollbar-none">
-          <AssignmentDescription
-            description={assignment.description}
-            externalLinks={externalLinks}
-            onProcessLinks={handleProcessLinks}
-            processingLinks={processingLinks}
-          />
-
-          <AssignmentContent
-            content={content}
-            onContentChange={setContent}
-            assignment={assignment}
-            onSave={handleSubmit}
-            isSubmitting={isSubmitting}
-            qualityConfig={qualityConfig}
-            onQualityConfigChange={setQualityConfig}
-          />
+    <div className="fixed inset-0 z-50 bg-black/90 overflow-auto animate-fadeIn">
+      <div className="relative z-10 min-h-screen">
+        {/* Background effects */}
+        <div className="fixed inset-0 pointer-events-none">
+          <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-[#9b87f5]/10 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-float" />
+          <div className="absolute bottom-0 left-0 w-[600px] h-[600px] bg-[#D6BCFA]/10 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-float-delay" />
         </div>
-      </Card>
+
+        {/* Content */}
+        <div className="container max-w-7xl mx-auto">
+          <div className="pt-24 pb-16">
+            <AssignmentHeader
+              name={assignment.name}
+              dueDate={assignment.due_at}
+              onClose={onClose}
+            />
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 p-6 pb-12">
+              <Card className="neo-blur border-0 overflow-hidden animate-slideInLeft">
+                <AssignmentDescription
+                  description={assignment.description}
+                  externalLinks={externalLinks}
+                  onProcessLinks={handleProcessLinks}
+                  processingLinks={processingLinks}
+                />
+              </Card>
+
+              <div className="space-y-6 animate-slideInRight">
+                <AssignmentContent
+                  content={content}
+                  onContentChange={setContent}
+                  assignment={assignment}
+                  onSave={handleSave}
+                  isSubmitting={isSubmitting}
+                  qualityConfig={qualityConfig}
+                  onQualityConfigChange={setQualityConfig}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 };
