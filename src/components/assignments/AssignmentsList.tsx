@@ -122,13 +122,10 @@ export const AssignmentsList = ({ courseId, onStartAssignment }: AssignmentsList
       }
 
       // If no cached analysis exists, perform a new analysis
-      const { data, error } = await supabase.functions.invoke('gemini-processor', {
-        body: JSON.stringify({
+      const { data: responseData, error } = await supabase.functions.invoke('gemini-processor', {
+        body: {
           content: assignment.description,
           type: 'analyze_requirements'
-        }),
-        headers: {
-          'Content-Type': 'application/json'
         }
       });
 
@@ -137,23 +134,33 @@ export const AssignmentsList = ({ courseId, onStartAssignment }: AssignmentsList
         throw error;
       }
 
+      if (!responseData?.result) {
+        throw new Error('Invalid response from analysis');
+      }
+
+      console.log('Analysis result:', responseData);
+
       // Cache the analysis result
-      await supabase
+      const { error: cacheError } = await supabase
         .from('cached_assignments')
         .upsert({
           canvas_assignment_id: assignment.id,
           course_id: courseId,
           name: assignment.name,
-          description: data.result,
+          description: responseData.result,
           due_at: assignment.due_at,
           points_possible: assignment.points_possible,
           published: assignment.published
         });
 
+      if (cacheError) {
+        console.error('Error caching analysis:', cacheError);
+      }
+
       toast.success("Assignment requirements analyzed");
       onStartAssignment({
         ...assignment,
-        description: data.result || assignment.description
+        description: responseData.result
       });
     } catch (error) {
       console.error('Error analyzing requirements:', error);
