@@ -1,4 +1,8 @@
 
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import "https://deno.land/x/xhr@0.1.0/mod.ts";
+import { GoogleGenerativeAI } from "@google/generative-ai";
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -11,114 +15,61 @@ serve(async (req) => {
   }
 
   try {
-    const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
-    if (!GEMINI_API_KEY) {
-      throw new Error('GEMINI_API_KEY is not set');
+    const genAI = new GoogleGenerativeAI(Deno.env.get('GEMINI_API_KEY') || '');
+    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+
+    const { promptType, assignment } = await req.json();
+    console.log(`Processing ${promptType} for assignment: ${assignment?.name}`);
+
+    if (promptType === 'generate_assignment_response') {
+      const { description, name, qualityConfig } = assignment;
+
+      // Construct a detailed prompt
+      const prompt = `
+        Assignment: ${name}
+        Description: ${description}
+        Requirements:
+        - Grade Level: ${qualityConfig.grade}
+        - Word Count: ${qualityConfig.wordCount} words
+        - Citations Required: ${qualityConfig.citationCount}
+        - Ensure Factual Accuracy: ${qualityConfig.factualAccuracy}
+
+        Please generate a detailed, well-structured response that meets all the above requirements.
+        Use appropriate academic language and provide clear organization with headers where relevant.
+      `;
+
+      console.log("Sending prompt to Gemini...");
+      
+      const result = await model.generateContent(prompt);
+      const response = await result.response;
+      const text = response.text();
+      
+      console.log("Received response from Gemini");
+
+      return new Response(
+        JSON.stringify({
+          content: text,
+          success: true,
+        }),
+        { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      );
     }
 
-    let reqBody;
-    const contentType = req.headers.get('content-type') || '';
+    throw new Error(`Unknown prompt type: ${promptType}`);
+  } catch (error) {
+    console.error("Error in gemini-processor:", error);
     
-    if (contentType.includes('multipart/form-data')) {
-      // Handle file upload case
-      const formData = await req.formData();
-      const file = formData.get('file') as File;
-      const question = formData.get('question') as string;
-      
-      // Convert file to base64
-      const fileBuffer = await file.arrayBuffer();
-      const fileBase64 = btoa(String.fromCharCode(...new Uint8Array(fileBuffer)));
-      
-      // Get file mime type
-      const mimeType = file.type;
-
-      // Prepare the request for Gemini with file
-      reqBody = {
-        contents: [
-          {
-            parts: [
-              {
-                text: question || "Please analyze this file and provide insights:",
-              },
-              {
-                inline_data: {
-                  mime_type: mimeType,
-                  data: fileBase64
-                }
-              }
-            ]
-          }
-        ]
-      };
-    } else {
-      // Handle plain text request
-      const jsonData = await req.json();
-      const { content, type } = jsonData;
-      
-      let prompt = content;
-
-      // Add different instructions based on type
-      if (type === 'format_text') {
-        prompt = `Please format the following text to be more clear, organized, and professional while maintaining the key points:\n\n${content}`;
-      } else if (type === 'adjust_grade_level') {
-        const level = jsonData.level || 8;
-        prompt = `Please rewrite the following text to be appropriate for grade level ${level}, adjusting vocabulary and complexity accordingly:\n\n${content}`;
-      }
-      
-      // Prepare the request for Gemini text-only
-      reqBody = {
-        contents: [
-          {
-            parts: [{ text: prompt }]
-          }
-        ]
-      };
-    }
-
-    // Make request to Gemini API
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${GEMINI_API_KEY}`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(reqBody),
+    return new Response(
+      JSON.stringify({
+        error: error.message,
+        success: false
+      }),
+      { 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 500
       }
     );
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Gemini API error (${response.status}): ${errorText}`);
-    }
-
-    const data = await response.json();
-
-    // Extract the generated text from Gemini's response
-    const result = data.candidates?.[0]?.content?.parts?.[0]?.text || "Could not generate a response";
-    
-    // Return based on the request type
-    if (contentType.includes('multipart/form-data')) {
-      return new Response(JSON.stringify({ result }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    } else {
-      const { type } = await req.json();
-      if (type === 'format_text' || type === 'adjust_grade_level') {
-        return new Response(JSON.stringify({ content: result }), {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
-      } else {
-        return new Response(JSON.stringify({ result }), {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
-      }
-    }
-  } catch (error) {
-    console.error('Error in gemini-processor:', error);
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
   }
 });

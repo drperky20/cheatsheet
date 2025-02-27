@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -8,7 +7,7 @@ import { WritingStyleControls } from "./editor/WritingStyleControls";
 import { LengthAdjuster } from "./editor/LengthAdjuster";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { Send, Loader2 } from "lucide-react";
+import { Send, Loader2, Wand2 } from "lucide-react";
 
 interface Assignment {
   id: string;
@@ -28,6 +27,12 @@ interface AssignmentEditorProps {
   assignment: Assignment;
   onSave: () => Promise<void>;
   isSubmitting: boolean;
+  qualityConfig?: {
+    grade: string;
+    factualAccuracy: boolean;
+    citationCount: number;
+    wordCount: number;
+  };
 }
 
 export const AssignmentEditor = ({
@@ -36,6 +41,12 @@ export const AssignmentEditor = ({
   assignment,
   onSave,
   isSubmitting,
+  qualityConfig = {
+    grade: "high_school",
+    factualAccuracy: true,
+    citationCount: 3,
+    wordCount: 500,
+  },
 }: AssignmentEditorProps) => {
   const [showStyleControl, setShowStyleControl] = useState(false);
   const [showLengthControl, setShowLengthControl] = useState(false);
@@ -43,6 +54,7 @@ export const AssignmentEditor = ({
   const [lengthFactor, setLengthFactor] = useState(1);
   const [gradeLevel, setGradeLevel] = useState(5);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
 
   const handleStyleChange = async (level: 'elementary' | 'middle_school' | 'high_school' | 'college') => {
     if (!content.trim()) {
@@ -223,9 +235,65 @@ export const AssignmentEditor = ({
     }
   };
 
+  const handleGenerate = async () => {
+    setIsGenerating(true);
+    toast.promise(
+      async () => {
+        try {
+          const { data, error } = await supabase.functions.invoke('gemini-processor', {
+            body: {
+              promptType: 'generate_assignment_response',
+              assignment: {
+                ...assignment,
+                qualityConfig
+              }
+            }
+          });
+
+          if (error) throw error;
+          if (!data?.content) throw new Error("No content generated");
+
+          onChange(data.content);
+          return data.content;
+        } catch (error) {
+          console.error("Generation error:", error);
+          throw error;
+        } finally {
+          setIsGenerating(false);
+        }
+      },
+      {
+        loading: 'Generating your assignment response...',
+        success: 'Assignment response generated successfully!',
+        error: 'Failed to generate assignment response. Please try again.',
+      }
+    );
+  };
+
   return (
     <div className="relative">
       <div className="mb-4">
+        <div className="flex items-center justify-end gap-2 mb-4">
+          <Button
+            onClick={handleGenerate}
+            disabled={isGenerating}
+            variant="outline"
+            className="gap-2"
+          >
+            {isGenerating ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Generating...
+              </>
+            ) : (
+              <>
+                <Wand2 className="h-4 w-4" />
+                Generate Response
+              </>
+            )}
+          </Button>
+        </div>
+
         <Textarea
           value={content}
           onChange={(e) => onChange(e.target.value)}
@@ -271,15 +339,15 @@ export const AssignmentEditor = ({
         </div>
       </div>
 
-      {/* Editing Tools */}
       <EditingToolbar
         onStyleClick={() => setShowStyleControl(true)}
         onLengthClick={() => setShowLengthControl(true)}
-        onImproveClick={handleImprove}
-        onFormatClick={handleFormat}
+        onImproveClick={() => handleImprove()}
+        onFormatClick={() => handleFormat()}
         onGradeClick={() => setShowGradeSlider(true)}
+        onGenerate={handleGenerate}
         isSliderVisible={showStyleControl || showLengthControl || showGradeSlider}
-        disabled={isProcessing || !content.trim()}
+        disabled={isProcessing || isGenerating}
       />
 
       {showStyleControl && (
