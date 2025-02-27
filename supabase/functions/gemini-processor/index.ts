@@ -1,7 +1,4 @@
 
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import "https://deno.land/x/xhr@0.1.0/mod.ts";
-
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -23,6 +20,7 @@ serve(async (req) => {
     const contentType = req.headers.get('content-type') || '';
     
     if (contentType.includes('multipart/form-data')) {
+      // Handle file upload case
       const formData = await req.formData();
       const file = formData.get('file') as File;
       const question = formData.get('question') as string;
@@ -53,13 +51,25 @@ serve(async (req) => {
         ]
       };
     } else {
-      const { content, type } = await req.json();
+      // Handle plain text request
+      const jsonData = await req.json();
+      const { content, type } = jsonData;
+      
+      let prompt = content;
+
+      // Add different instructions based on type
+      if (type === 'format_text') {
+        prompt = `Please format the following text to be more clear, organized, and professional while maintaining the key points:\n\n${content}`;
+      } else if (type === 'adjust_grade_level') {
+        const level = jsonData.level || 8;
+        prompt = `Please rewrite the following text to be appropriate for grade level ${level}, adjusting vocabulary and complexity accordingly:\n\n${content}`;
+      }
       
       // Prepare the request for Gemini text-only
       reqBody = {
         contents: [
           {
-            parts: [{ text: content }]
+            parts: [{ text: prompt }]
           }
         ]
       };
@@ -77,14 +87,33 @@ serve(async (req) => {
       }
     );
 
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Gemini API error (${response.status}): ${errorText}`);
+    }
+
     const data = await response.json();
 
     // Extract the generated text from Gemini's response
     const result = data.candidates?.[0]?.content?.parts?.[0]?.text || "Could not generate a response";
-
-    return new Response(JSON.stringify({ result }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    
+    // Return based on the request type
+    if (contentType.includes('multipart/form-data')) {
+      return new Response(JSON.stringify({ result }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    } else {
+      const { type } = await req.json();
+      if (type === 'format_text' || type === 'adjust_grade_level') {
+        return new Response(JSON.stringify({ content: result }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      } else {
+        return new Response(JSON.stringify({ result }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+    }
   } catch (error) {
     console.error('Error in gemini-processor:', error);
     return new Response(JSON.stringify({ error: error.message }), {

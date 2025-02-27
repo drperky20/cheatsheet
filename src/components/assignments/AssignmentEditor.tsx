@@ -131,7 +131,11 @@ export const AssignmentEditor = ({
 
   const handleFormat = async () => {
     if (!content.trim()) {
-      toast.error("Please enter some content first");
+      toast({
+        title: "Empty content",
+        description: "Please enter some content first",
+        variant: "destructive" 
+      });
       return;
     }
 
@@ -139,18 +143,33 @@ export const AssignmentEditor = ({
 
     try {
       const { data, error } = await supabase.functions.invoke('gemini-processor', {
-        body: {
+        body: JSON.stringify({
           content,
           type: 'format_text'
-        }
+        })
       });
 
-      if (error) throw error;
-      onChange(data.content || content);
-      toast.success("Content has been formatted");
+      if (error) {
+        console.error("Supabase function error:", error);
+        throw new Error(error.message || "Error formatting content with AI");
+      }
+      
+      if (data?.content) {
+        onChange(data.content);
+        toast({
+          title: "Formatting complete",
+          description: "Content has been formatted successfully"
+        });
+      } else {
+        throw new Error("No response from AI service");
+      }
     } catch (error) {
       console.error("Error formatting content:", error);
-      toast.error("Failed to format content");
+      toast({
+        title: "Formatting failed",
+        description: error.message || "Failed to format content",
+        variant: "destructive"
+      });
     } finally {
       setIsProcessing(false);
     }
@@ -158,7 +177,11 @@ export const AssignmentEditor = ({
 
   const handleGradeChange = async (newLevel: number) => {
     if (!content.trim()) {
-      toast.error("Please enter some content first");
+      toast({
+        title: "Empty content",
+        description: "Please enter some content first",
+        variant: "destructive"
+      });
       return;
     }
 
@@ -167,19 +190,34 @@ export const AssignmentEditor = ({
 
     try {
       const { data, error } = await supabase.functions.invoke('gemini-processor', {
-        body: {
+        body: JSON.stringify({
           content,
           type: 'adjust_grade_level',
           level: newLevel
-        }
+        })
       });
 
-      if (error) throw error;
-      onChange(data.content || content);
-      toast.success("Grade level adjusted successfully");
+      if (error) {
+        console.error("Supabase function error:", error);
+        throw new Error(error.message || "Error adjusting grade level with AI");
+      }
+      
+      if (data?.content) {
+        onChange(data.content);
+        toast({
+          title: "Grade level adjusted",
+          description: `Content adjusted to grade ${newLevel} successfully`
+        });
+      } else {
+        throw new Error("No response from AI service");
+      }
     } catch (error) {
       console.error("Error adjusting grade level:", error);
-      toast.error("Failed to adjust grade level");
+      toast({
+        title: "Grade adjustment failed",
+        description: error.message || "Failed to adjust grade level",
+        variant: "destructive"
+      });
     } finally {
       setIsProcessing(false);
     }
