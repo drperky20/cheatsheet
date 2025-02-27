@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { BookOpen, Clock, ArrowRight, X, Sparkles } from "lucide-react";
@@ -57,6 +58,7 @@ export const CourseCard = ({ course }: CourseCardProps) => {
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
       >
+        {/* Background Gradients */}
         <div className={`
           absolute inset-0 bg-gradient-to-br ${getRandomGradient()}
           opacity-40 transition-opacity duration-700
@@ -71,6 +73,7 @@ export const CourseCard = ({ course }: CourseCardProps) => {
           transition-opacity duration-1000
         "/>
         
+        {/* Card Content */}
         <div className="relative p-8 space-y-6 z-10">
           <div className="flex items-start justify-between">
             <div className="space-y-2 animate-fadeIn">
@@ -117,25 +120,37 @@ export const CourseCard = ({ course }: CourseCardProps) => {
               </div>
             </div>
           </div>
+        </div>
 
+        {/* Hover Overlay */}
+        <div className="
+          absolute inset-0 flex items-center justify-center
+          bg-gradient-to-b from-transparent via-black/60 to-black/80
+          opacity-0 group-hover:opacity-100
+          backdrop-blur-[2px]
+          transition-all duration-500 ease-in-out
+          z-20
+        ">
           <div className="
-            absolute bottom-0 left-0 right-0
-            flex items-center justify-center
-            py-6 px-4
-            bg-gradient-to-t from-black/80 to-transparent
-            opacity-0 group-hover:opacity-100
-            transition-all duration-500
-            backdrop-blur-sm
+            transform translate-y-8 group-hover:translate-y-0
+            transition-transform duration-500 ease-out
+            space-y-4
           ">
+            <div className="text-center mb-3">
+              <p className="text-white/80 text-sm">
+                View and manage all assignments
+              </p>
+            </div>
             <Button 
               onClick={() => setShowAssignments(true)}
               className="
                 relative overflow-hidden
                 bg-gradient-to-r from-[#9b87f5] to-[#6366f1]
-                text-white font-medium px-6 py-2 rounded-xl
+                text-white font-medium px-8 py-2.5 rounded-xl
                 flex items-center gap-3
                 transition-all duration-300
                 hover:scale-105 transform
+                shadow-lg shadow-purple-500/20
                 group/btn
               "
             >
@@ -143,7 +158,7 @@ export const CourseCard = ({ course }: CourseCardProps) => {
               <ArrowRight className="w-4 h-4 group-hover/btn:translate-x-0.5 transition-transform" />
               <div className="
                 absolute inset-0 bg-gradient-to-r 
-                from-white/10 to-transparent opacity-0 
+                from-white/20 to-transparent opacity-0 
                 group-hover/btn:opacity-100 
                 transition-opacity duration-300
               " />
