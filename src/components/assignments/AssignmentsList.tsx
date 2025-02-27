@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -46,7 +47,7 @@ export const AssignmentsList = ({ courseId, onStartAssignment }: AssignmentsList
       let allAssignments: Assignment[] = [];
       let page = 1;
       let hasMore = true;
-      const PER_PAGE = 100; // Maximum allowed by Canvas API
+      const PER_PAGE = 100;
 
       while (hasMore) {
         console.log(`Fetching assignments page ${page}...`);
@@ -77,7 +78,6 @@ export const AssignmentsList = ({ courseId, onStartAssignment }: AssignmentsList
         }
       }
 
-      // Filter and sort assignments
       const filteredAssignments = allAssignments
         .filter(assignment => 
           assignment && 
@@ -104,20 +104,60 @@ export const AssignmentsList = ({ courseId, onStartAssignment }: AssignmentsList
   const analyzeRequirements = async (assignment: Assignment) => {
     try {
       setAnalyzing(assignment.id);
+      
+      // First check if we have an existing cached analysis
+      const { data: existingAnalysis } = await supabase
+        .from('cached_assignments')
+        .select('*')
+        .eq('canvas_assignment_id', assignment.id)
+        .single();
+
+      if (existingAnalysis) {
+        console.log('Using cached analysis:', existingAnalysis);
+        onStartAssignment({
+          ...assignment,
+          description: existingAnalysis.description || assignment.description
+        });
+        return;
+      }
+
+      // If no cached analysis exists, perform a new analysis
       const { data, error } = await supabase.functions.invoke('gemini-processor', {
-        body: {
+        body: JSON.stringify({
           content: assignment.description,
           type: 'analyze_requirements'
+        }),
+        headers: {
+          'Content-Type': 'application/json'
         }
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Analysis error:', error);
+        throw error;
+      }
+
+      // Cache the analysis result
+      await supabase
+        .from('cached_assignments')
+        .upsert({
+          canvas_assignment_id: assignment.id,
+          course_id: courseId,
+          name: assignment.name,
+          description: data.result,
+          due_at: assignment.due_at,
+          points_possible: assignment.points_possible,
+          published: assignment.published
+        });
 
       toast.success("Assignment requirements analyzed");
-      onStartAssignment(assignment);
+      onStartAssignment({
+        ...assignment,
+        description: data.result || assignment.description
+      });
     } catch (error) {
       console.error('Error analyzing requirements:', error);
-      toast.error("Failed to analyze assignment requirements");
+      toast.error("Failed to analyze assignment requirements. Please try again.");
     } finally {
       setAnalyzing(null);
     }
@@ -207,7 +247,7 @@ export const AssignmentsList = ({ courseId, onStartAssignment }: AssignmentsList
               animate-float
               mb-4
             " />
-            <h3 className="text-xl font-semibold mb-2 text-gradient">
+            <h3 className="text-2xl font-semibold mb-2 text-gradient">
               No Assignments Found
             </h3>
             <p className="text-muted-foreground max-w-md mx-auto">
