@@ -53,23 +53,33 @@
 @layer components {
   /* Enhanced glass effects */
   .glass {
-    @apply bg-black/30 backdrop-blur-2xl border border-white/20 
-           shadow-lg shadow-black/10 hover:shadow-xl 
-           hover:border-white/30 transition-all duration-300;
+    @apply bg-black/30 backdrop-blur-2xl border border-primary/20 
+           shadow-lg shadow-black/20 hover:shadow-xl 
+           hover:border-primary/40 hover:bg-black/40
+           transition-all duration-500 ease-in-out;
   }
 
   .glass-morphism {
-    @apply backdrop-blur-3xl bg-[#111827]/40 border border-white/20 
-           shadow-[0_8px_32px_rgba(0,0,0,0.2)] 
-           hover:shadow-[0_8px_48px_rgba(0,0,0,0.3)]
-           hover:bg-[#111827]/50 hover:border-white/30
-           transition-all duration-500 animate-fadeIn;
+    @apply backdrop-blur-3xl bg-[#111827]/40 border border-white/10 
+           shadow-[0_8px_32px_rgba(0,0,0,0.3)] 
+           hover:shadow-[0_12px_48px_rgba(0,0,0,0.4)]
+           hover:bg-[#111827]/60 hover:border-primary/30
+           transition-all duration-700 ease-out animate-fadeIn;
   }
 
   .neo-blur {
-    @apply backdrop-blur-3xl bg-[#111827]/70 border border-white/10
-           shadow-[0_8px_32px_rgba(0,0,0,0.4)]
-           hover:bg-[#111827]/80 transition-all duration-300;
+    @apply backdrop-blur-[40px] bg-[#111827]/60 border border-white/5
+           shadow-[0_10px_40px_rgba(0,0,0,0.5)]
+           hover:bg-[#111827]/70 hover:border-primary/20
+           transition-all duration-500 ease-in-out;
+  }
+  
+  .frost-panel {
+    @apply backdrop-blur-[30px] bg-black/50 border border-white/10
+           shadow-[0_15px_35px_rgba(0,0,0,0.4)]
+           hover:shadow-[0_20px_45px_rgba(0,0,0,0.5)]
+           hover:bg-black/60 hover:border-white/20
+           transition-all duration-700 ease-out;
   }
 
   /* Enhanced gradients */
@@ -102,46 +112,69 @@
 @layer utilities {
   /* Enhanced text gradients */
   .text-gradient {
-    @apply bg-gradient-to-br from-[#E5DEFF] via-[#E5DEFF]/90 to-[#E5DEFF]/70 
+    @apply bg-gradient-to-br from-[#F5F5F5] via-[#E5DEFF] to-[#D4CAFF] 
            bg-clip-text text-transparent;
   }
   
   .text-gradient-primary {
-    @apply bg-gradient-to-br from-[#9b87f5] via-[#9b87f5]/90 to-[#9b87f5]/70 
+    @apply bg-gradient-to-br from-[#a78bfa] via-[#9b87f5] to-[#8b5cf6] 
            bg-clip-text text-transparent;
   }
 
   .text-gradient-blue {
-    @apply bg-gradient-to-br from-[#6366F1] via-[#6366F1]/90 to-[#6366F1]/70
+    @apply bg-gradient-to-br from-[#60a5fa] via-[#3b82f6] to-[#2563eb]
+           bg-clip-text text-transparent;
+  }
+  
+  .text-gradient-success {
+    @apply bg-gradient-to-br from-[#34d399] via-[#10b981] to-[#059669]
            bg-clip-text text-transparent;
   }
 
   /* Enhanced animations */
   .animate-float {
-    animation: float 6s ease-in-out infinite;
+    animation: float 8s ease-in-out infinite;
   }
 
   .animate-pulse-slow {
-    animation: pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    animation: pulse 5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
   }
 
   .animate-fadeIn {
-    animation: fadeIn 0.5s ease-out forwards;
+    animation: fadeIn 0.7s ease-out forwards;
+  }
+  
+  .animate-slideIn {
+    animation: slideIn 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+  
+  .animate-glow {
+    animation: glow 3s ease-in-out infinite alternate;
   }
 
   @keyframes float {
     0%, 100% { transform: translateY(0); }
-    50% { transform: translateY(-10px); }
+    50% { transform: translateY(-12px); }
   }
 
   @keyframes pulse {
     0%, 100% { opacity: 1; }
-    50% { opacity: 0.8; }
+    50% { opacity: 0.7; }
   }
 
   @keyframes fadeIn {
-    0% { opacity: 0; transform: translateY(10px); }
-    100% { opacity: 1; transform: translateY(0); }
+    0% { opacity: 0; transform: translateY(15px); filter: blur(5px); }
+    100% { opacity: 1; transform: translateY(0); filter: blur(0); }
+  }
+  
+  @keyframes slideIn {
+    0% { opacity: 0; transform: translateX(-20px); }
+    100% { opacity: 1; transform: translateX(0); }
+  }
+  
+  @keyframes glow {
+    0% { box-shadow: 0 0 5px rgba(155, 135, 245, 0.3); }
+    100% { box-shadow: 0 0 20px rgba(155, 135, 245, 0.6); }
   }
 
   /* Enhanced scrollbar styling */

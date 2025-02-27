@@ -1,3 +1,5 @@
+
+/* Base container styles */
 #root {
   max-width: 1280px;
   margin: 0 auto;
@@ -5,22 +7,22 @@
   text-align: center;
 }
 
+/* Enhanced logo animations */
 .logo {
   height: 6em;
   padding: 1.5em;
   will-change: filter, transform;
-  transition: all 400ms cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 600ms cubic-bezier(0.2, 0.8, 0.2, 1);
   transform: translateY(0);
 }
 
 .logo:hover {
-  transform: translateY(-5px);
+  transform: translateY(-8px);
+  filter: drop-shadow(0 0 2.5em rgba(155, 135, 245, 0.8));
 }
-.logo:hover {
-  filter: drop-shadow(0 0 2em #646cffaa);
-}
+
 .logo.react:hover {
-  filter: drop-shadow(0 0 2em #61dafbaa);
+  filter: drop-shadow(0 0 2.5em rgba(97, 218, 251, 0.8));
 }
 
 @keyframes logo-spin {
@@ -38,10 +40,54 @@
   }
 }
 
+/* Card components */
 .card {
   padding: 2em;
+  backdrop-filter: blur(16px);
+  background: rgba(10, 10, 11, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 0.75rem;
+  transition: all 500ms cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
+.card:hover {
+  background: rgba(10, 10, 11, 0.7);
+  border-color: rgba(155, 135, 245, 0.3);
+  transform: translateY(-4px);
+}
+
+/* Subtle text styles */
 .read-the-docs {
-  color: #888;
+  color: rgba(255, 255, 255, 0.6);
+  transition: color 300ms ease;
+}
+
+.read-the-docs:hover {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+/* Focus states */
+button:focus-visible,
+a:focus-visible {
+  outline: 2px solid rgba(155, 135, 245, 0.6);
+  outline-offset: 2px;
+}
+
+/* Custom scrollbar for the app */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.3);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(155, 135, 245, 0.4);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(155, 135, 245, 0.6);
 }
