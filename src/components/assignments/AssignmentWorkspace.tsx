@@ -36,6 +36,7 @@ export const AssignmentWorkspace = ({
   const [content, setContent] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
   const [externalLinks, setExternalLinks] = useState<
     Array<{ url: string; type: "google_doc" | "external_link" }>
   >([]);
@@ -43,13 +44,12 @@ export const AssignmentWorkspace = ({
   const [activeTab, setActiveTab] = useState("editor");
   const [qualityConfig, setQualityConfig] = useState<AssignmentQualityConfig>({
     targetGrade: 'A',
-    factualAccuracy: true,
-    citationCount: 3,
-    wordCount: 500,
+    selectedFlaws: [],
+    writingStyle: 'formal',
+    confidenceLevel: 75
   });
 
   useEffect(() => {
-    // Extract links from assignment description
     const extractLinks = () => {
       const linkRegex = /(https?:\/\/[^\s"]+)/g;
       const matches = assignment.description.match(linkRegex) || [];
@@ -69,7 +69,6 @@ export const AssignmentWorkspace = ({
     setProcessingLinks(true);
 
     try {
-      // Process external links
       await supabase.functions.invoke('analyze-links', {
         body: { 
           links: externalLinks,
@@ -141,7 +140,6 @@ export const AssignmentWorkspace = ({
   };
 
   const sanitizeHTML = (html: string) => {
-    // Basic sanitization - in a real app, use a proper sanitizer like DOMPurify
     return html
       .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
       .replace(/on\w+="[^"]*"/g, '');
@@ -149,13 +147,11 @@ export const AssignmentWorkspace = ({
 
   return (
     <div className="fixed inset-0 z-50 bg-gradient-to-br from-black via-[#121212] to-[#0a0a0a] overflow-auto animate-fadeIn">
-      {/* Background effects */}
       <div className="fixed inset-0 pointer-events-none">
         <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-[#9b87f5]/10 rounded-full mix-blend-plus-lighter filter blur-3xl opacity-30 animate-float" />
         <div className="absolute bottom-0 left-0 w-[600px] h-[600px] bg-[#D6BCFA]/10 rounded-full mix-blend-plus-lighter filter blur-3xl opacity-30 animate-float-delay" />
       </div>
 
-      {/* Content */}
       <div className="container relative z-10 max-w-screen-2xl mx-auto">
         <div className="pt-6 pb-16">
           <AssignmentHeader
@@ -165,7 +161,6 @@ export const AssignmentWorkspace = ({
           />
 
           <div className="p-6 space-y-6">
-            {/* Back button */}
             <Button
               variant="ghost"
               onClick={onClose}
@@ -175,9 +170,7 @@ export const AssignmentWorkspace = ({
               <span>Back to assignments</span>
             </Button>
 
-            {/* Main content area */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* Left sidebar */}
               <div className="lg:col-span-1 space-y-6 animate-slideInLeft">
                 <Card className="neo-blur border-0 overflow-hidden shadow-lg">
                   <div className="p-6 border-b border-white/10 bg-gradient-to-r from-black/60 to-black/40">
@@ -249,7 +242,6 @@ export const AssignmentWorkspace = ({
                   </div>
                 </Card>
                 
-                {/* Points card */}
                 <Card className="neo-blur border-0 overflow-hidden shadow-lg p-5">
                   <div className="flex items-center justify-between">
                     <span className="text-white/70">Points Possible:</span>
@@ -258,9 +250,7 @@ export const AssignmentWorkspace = ({
                 </Card>
               </div>
 
-              {/* Right content area */}
               <div className="lg:col-span-2 space-y-6 animate-slideInRight">
-                {/* Tabs */}
                 <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
                   <TabsList className="grid grid-cols-2 neo-blur border-0">
                     <TabsTrigger value="editor" className="data-[state=active]:bg-[#9b87f5]/20">
