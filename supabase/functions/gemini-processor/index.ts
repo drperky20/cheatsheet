@@ -19,14 +19,27 @@ serve(async (req) => {
       throw new Error('GEMINI_API_KEY is not set');
     }
 
-    const { content, type } = await req.json();
+    const requestData = await req.json();
+    console.log('Request data:', requestData);
+
+    const { content, type } = requestData;
+    if (!content || !type) {
+      throw new Error('Missing required fields: content or type');
+    }
+
     console.log(`Processing ${type} with content length: ${content?.length}`);
 
     if (type === 'analyze_requirements') {
+      // First, try to clean and validate the content
+      const cleanContent = content.replace(/<[^>]*>/g, ''); // Remove HTML tags
+      if (!cleanContent.trim()) {
+        throw new Error('Assignment content is empty after cleaning');
+      }
+
       // Construct the prompt for assignment analysis
       const prompt = `
         Please analyze the following assignment requirements and provide a clear, structured summary:
-        ${content}
+        ${cleanContent}
         
         Focus on extracting:
         1. Main objectives and deliverables
@@ -38,6 +51,7 @@ serve(async (req) => {
         Format the response in a clear, organized manner with sections.
       `;
 
+      console.log('Making request to Gemini API...');
       // Make request to Gemini API
       const response = await fetch('https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent', {
         method: 'POST',
@@ -60,20 +74,22 @@ serve(async (req) => {
         })
       });
 
+      console.log('Gemini API response status:', response.status);
+      const responseText = await response.text();
+      console.log('Gemini API raw response:', responseText);
+
       if (!response.ok) {
-        const errorData = await response.json();
-        console.error('Gemini API error:', errorData);
-        throw new Error(`Gemini API error: ${response.status}`);
+        throw new Error(`Gemini API error: ${response.status} - ${responseText}`);
       }
 
-      const data = await response.json();
-      console.log('Gemini response:', data);
-
+      const data = JSON.parse(responseText);
       if (!data.candidates?.[0]?.content?.parts?.[0]?.text) {
+        console.error('Invalid Gemini response structure:', data);
         throw new Error('Invalid response format from Gemini API');
       }
 
       const generatedText = data.candidates[0].content.parts[0].text;
+      console.log('Successfully generated analysis:', generatedText.substring(0, 100) + '...');
 
       return new Response(
         JSON.stringify({
