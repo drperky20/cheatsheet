@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import {
   Bell,
@@ -20,7 +19,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useTheme } from "@/contexts/ThemeContext";
+import { useTheme } from "@/contexts/ThemeContext"; // Assuming this context is now correctly implemented
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { NavigateFunction } from "react-router-dom";
 
@@ -42,7 +41,7 @@ export const UserMenu = ({
   onSignOut,
   onNavigate,
 }: UserMenuProps) => {
-  const { setTheme, theme } = useTheme();
+  const { theme, toggleTheme } = useTheme(); // Using toggleTheme for simplicity
   const [notificationsCount] = useState(3);
 
   if (!profile) {
@@ -154,7 +153,7 @@ export const UserMenu = ({
             <User className="h-4 w-4 mr-3 text-[#9b87f5] opacity-70" />
             <span>Profile</span>
           </DropdownMenuItem>
-          
+
           <DropdownMenuItem 
             className="px-4 py-2.5 rounded-lg my-1 cursor-pointer group"
             onClick={() => onNavigate("/chat")}
@@ -163,7 +162,7 @@ export const UserMenu = ({
             <MessageCircle className="h-4 w-4 mr-3 text-[#9b87f5] opacity-70" />
             <span>Chat</span>
           </DropdownMenuItem>
-          
+
           <DropdownMenuItem 
             className="px-4 py-2.5 rounded-lg my-1 cursor-pointer group"
             onClick={() => onNavigate("/settings")}
@@ -172,7 +171,7 @@ export const UserMenu = ({
             <Settings className="h-4 w-4 mr-3 text-[#9b87f5] opacity-70" />
             <span>Settings</span>
           </DropdownMenuItem>
-          
+
           <DropdownMenuItem 
             className="px-4 py-2.5 rounded-lg my-1 cursor-pointer group"
             onClick={() => onNavigate("/premium")}
@@ -181,22 +180,28 @@ export const UserMenu = ({
             <Sparkles className="h-4 w-4 mr-3 text-[#9b87f5] opacity-70" />
             <span>Premium</span>
           </DropdownMenuItem>
-          
+
+          <DropdownMenuSeparator className="bg-white/5" />
+
           <DropdownMenuItem 
             className="px-4 py-2.5 rounded-lg my-1 cursor-pointer group"
-            onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+            onClick={toggleTheme}
           >
             <div className="absolute inset-0 bg-gradient-to-r from-[#9b87f5]/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-lg" />
             {theme === "dark" ? (
-              <Sun className="h-4 w-4 mr-3 text-[#9b87f5] opacity-70" />
+              <>
+                <Sun className="h-4 w-4 mr-3 text-[#9b87f5] opacity-70" />
+                <span>Light Mode</span>
+              </>
             ) : (
-              <Moon className="h-4 w-4 mr-3 text-[#9b87f5] opacity-70" />
+              <>
+                <Moon className="h-4 w-4 mr-3 text-[#9b87f5] opacity-70" />
+                <span>Dark Mode</span>
+              </>
             )}
-            <span>{theme === "dark" ? "Light Mode" : "Dark Mode"}</span>
           </DropdownMenuItem>
-          
           <DropdownMenuSeparator className="bg-white/5" />
-          
+
           <DropdownMenuItem 
             className="px-4 py-2.5 rounded-lg my-1 cursor-pointer group text-red-400 hover:text-red-300"
             onClick={onSignOut}

@@ -2,6 +2,7 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import { Toaster } from "@/components/ui/sonner";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { ThemeProvider } from "@/contexts/ThemeContext";
 import Index from "@/pages/Index";
 import Dashboard from "@/pages/Dashboard";
 import Settings from "@/pages/Settings";
@@ -41,8 +42,9 @@ const App = () => {
   return (
     <Router>
       <AuthProvider>
-        <Watermark />
-        <Routes>
+        <ThemeProvider>
+          <Watermark />
+          <Routes>
           <Route
             path="/auth"
             element={
@@ -77,7 +79,8 @@ const App = () => {
           />
           <Route path="/" element={<Navigate to="/auth" replace />} />
         </Routes>
-        <Toaster />
+          <Toaster />
+        </ThemeProvider>
       </AuthProvider>
     </Router>
   );
