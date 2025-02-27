@@ -1,13 +1,14 @@
-import React, { useState } from 'react';
-import { Card } from "@/components/ui/card";
+
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { EditingToolbar } from "./editor/EditingToolbar";
+import { AdjustmentSlider } from "./editor/AdjustmentSlider";
+import { WritingStyleControls } from "./editor/WritingStyleControls";
+import { LengthAdjuster } from "./editor/LengthAdjuster";
 import { toast } from "sonner";
-import { Send, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { EditingToolbar } from './editor/EditingToolbar';
-import { VersionControl } from './editor/VersionControl';
-import { AdjustmentSlider } from './editor/AdjustmentSlider';
+import { Send, Loader2 } from "lucide-react";
 
 interface Assignment {
   id: string;
@@ -15,77 +16,57 @@ interface Assignment {
   description: string;
   due_at: string;
   points_possible: number;
+  submission_types: string[];
+  workflow_state: string;
+  html_url: string;
+  course_id: number;
 }
 
-interface EditorProps {
+interface AssignmentEditorProps {
   content: string;
-  assignment?: Assignment;
   onChange: (content: string) => void;
-  onSave?: () => Promise<void>;
-  isSubmitting?: boolean;
-}
-
-interface Version {
-  content: string;
-  timestamp: Date;
+  assignment: Assignment;
+  onSave: () => Promise<void>;
+  isSubmitting: boolean;
 }
 
 export const AssignmentEditor = ({
   content,
-  assignment,
   onChange,
+  assignment,
   onSave,
-  isSubmitting = false
-}: EditorProps) => {
-  const [versions, setVersions] = useState<Version[]>([]);
+  isSubmitting,
+}: AssignmentEditorProps) => {
+  const [showStyleControl, setShowStyleControl] = useState(false);
+  const [showLengthControl, setShowLengthControl] = useState(false);
+  const [showGradeSlider, setShowGradeSlider] = useState(false);
+  const [lengthFactor, setLengthFactor] = useState(1);
+  const [gradeLevel, setGradeLevel] = useState(5);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [activeSlider, setActiveSlider] = useState<'length' | 'grade' | null>(null);
-  const [sliderValue, setSliderValue] = useState(5);
 
-  const handleGenerate = async () => {
-    try {
-      setIsProcessing(true);
-      const { data, error } = await supabase.functions.invoke('gemini-processor', {
-        body: {
-          content: assignment?.description || "",
-          type: 'generate',
-          config: { assignment }
-        }
-      });
-
-      if (error) throw error;
-      onChange(data.result);
-      toast.success("Response generated successfully!");
-    } catch (error) {
-      console.error('Generation error:', error);
-      toast.error("Failed to generate response");
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
-  const handleStyleChange = async () => {
+  const handleStyleChange = async (level: 'elementary' | 'middle_school' | 'high_school' | 'college') => {
     if (!content.trim()) {
-      toast.error("Please add some content first");
+      toast.error("Please enter some content first");
       return;
     }
 
+    setIsProcessing(true);
+    setShowStyleControl(false);
+
     try {
-      setIsProcessing(true);
       const { data, error } = await supabase.functions.invoke('gemini-processor', {
         body: {
           content,
-          type: 'adjust_reading_level',
-          level: 'college',
-          config: { assignment }
+          type: 'adjust_style',
+          level
         }
       });
 
       if (error) throw error;
-      onChange(data.result);
-      toast.success("Style adjusted successfully");
+      onChange(data.content || content);
+      toast.success(`Writing style adjusted to ${level.replace('_', ' ')} level`);
     } catch (error) {
-      console.error('Style adjustment error:', error);
+      console.error("Error adjusting style:", error);
       toast.error("Failed to adjust writing style");
     } finally {
       setIsProcessing(false);
@@ -94,176 +75,199 @@ export const AssignmentEditor = ({
 
   const handleLengthAdjust = async () => {
     if (!content.trim()) {
-      toast.error("Please add some content first");
+      toast.error("Please enter some content first");
       return;
     }
-    setActiveSlider('length');
-    setSliderValue(5);
-  };
 
-  const handleGradeClick = () => {
-    if (!content.trim()) {
-      toast.error("Please add some content first");
-      return;
-    }
-    setActiveSlider('grade');
-    setSliderValue(5);
-  };
+    setIsProcessing(true);
+    setShowLengthControl(false);
 
-  const handleSliderChange = async (value: number) => {
-    setSliderValue(value);
-    
     try {
-      setIsProcessing(true);
       const { data, error } = await supabase.functions.invoke('gemini-processor', {
         body: {
           content,
-          type: activeSlider === 'length' ? 'adjust_text' : 'adjust_reading_level',
-          level: activeSlider === 'grade' ? 
-            (value <= 2.5 ? 'kindergarten' : 
-             value <= 5 ? 'middle_school' : 
-             value <= 7.5 ? 'high_school' : 
-             'college') : undefined,
-          config: {
-            lengthFactor: activeSlider === 'length' ? value / 5 : undefined,
-            assignment
-          }
+          type: 'adjust_length',
+          factor: lengthFactor
         }
       });
 
       if (error) throw error;
-      onChange(data.result);
+      onChange(data.content || content);
+      toast.success(`Content length adjusted to ${Math.round(lengthFactor * 100)}%`);
     } catch (error) {
-      console.error('Adjustment error:', error);
-      toast.error(`Failed to adjust ${activeSlider}`);
+      console.error("Error adjusting length:", error);
+      toast.error("Failed to adjust content length");
     } finally {
       setIsProcessing(false);
     }
   };
 
-  const handleImproveClick = async () => {
+  const handleImprove = async () => {
     if (!content.trim()) {
-      toast.error("Please add some content first");
+      toast.error("Please enter some content first");
       return;
     }
 
+    setIsProcessing(true);
+
     try {
-      setIsProcessing(true);
       const { data, error } = await supabase.functions.invoke('gemini-processor', {
         body: {
           content,
-          type: 'improve_writing',
-          config: { assignment }
+          type: 'improve_writing'
         }
       });
 
       if (error) throw error;
-      onChange(data.result);
-      toast.success("Writing improved!");
+      onChange(data.content || content);
+      toast.success("Content has been improved");
     } catch (error) {
-      console.error('Improvement error:', error);
-      toast.error("Failed to improve writing");
+      console.error("Error improving content:", error);
+      toast.error("Failed to improve content");
     } finally {
       setIsProcessing(false);
     }
   };
 
-  const formatText = () => {
-    toast.success("Text formatting applied");
+  const handleFormat = async () => {
+    if (!content.trim()) {
+      toast.error("Please enter some content first");
+      return;
+    }
+
+    setIsProcessing(true);
+
+    try {
+      const { data, error } = await supabase.functions.invoke('gemini-processor', {
+        body: {
+          content,
+          type: 'format_text'
+        }
+      });
+
+      if (error) throw error;
+      onChange(data.content || content);
+      toast.success("Content has been formatted");
+    } catch (error) {
+      console.error("Error formatting content:", error);
+      toast.error("Failed to format content");
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleGradeChange = async (newLevel: number) => {
+    if (!content.trim()) {
+      toast.error("Please enter some content first");
+      return;
+    }
+
+    setIsProcessing(true);
+    setShowGradeSlider(false);
+
+    try {
+      const { data, error } = await supabase.functions.invoke('gemini-processor', {
+        body: {
+          content,
+          type: 'adjust_grade_level',
+          level: newLevel
+        }
+      });
+
+      if (error) throw error;
+      onChange(data.content || content);
+      toast.success("Grade level adjusted successfully");
+    } catch (error) {
+      console.error("Error adjusting grade level:", error);
+      toast.error("Failed to adjust grade level");
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   return (
-    <Card className="neo-blur border-0 overflow-hidden transition-all duration-300">
-      <div className="p-6 border-b border-white/10 bg-gradient-to-r from-black/60 to-black/40">
-        <div className="flex items-center justify-between">
-          <div className="space-y-2">
-            {assignment && (
-              <>
-                <h3 className="text-xl font-semibold text-gradient">{assignment.name}</h3>
-                <div className="flex items-center gap-4 text-sm">
-                  <div className="px-3 py-1.5 rounded-lg bg-white/5 backdrop-blur-sm text-[#E5DEFF]">
-                    Due {new Date(assignment.due_at).toLocaleDateString()}
-                  </div>
-                  <div className="px-3 py-1.5 rounded-lg bg-white/5 backdrop-blur-sm text-[#E5DEFF]">
-                    {assignment.points_possible} points
-                  </div>
-                </div>
-              </>
-            )}
-          </div>
-
-          <VersionControl
-            content={content}
-            versions={versions}
-            onVersionChange={onChange}
-            onVersionSave={setVersions}
-          />
-        </div>
+    <div className="relative">
+      <div className="mb-4">
+        <Textarea
+          value={content}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder="Start writing your assignment response here..."
+          className="min-h-[400px] bg-surface-100/30 border-white/10 focus:border-[#9b87f5]/50 text-white scrollbar-styled resize-none"
+        />
       </div>
 
-      <div className="relative p-6 space-y-6">
-        <div className="relative group">
-          <Textarea
-            value={content}
-            onChange={(e) => onChange(e.target.value)}
-            className="min-h-[400px] glass-morphism text-white/90 placeholder:text-white/40 font-mono resize-none p-4 focus:ring-1 focus:ring-[#9b87f5]/50 transition-all duration-300"
-            placeholder="Start writing or generate a response..."
-          />
-          {isProcessing && (
-            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center">
-              <Loader2 className="w-8 h-8 text-[#9b87f5] animate-spin" />
-            </div>
-          )}
-        </div>
-
-        <EditingToolbar
-          onStyleClick={handleStyleChange}
-          onLengthClick={handleLengthAdjust}
-          onImproveClick={handleImproveClick}
-          onFormatClick={formatText}
-          onGradeClick={handleGradeClick}
-          onGenerate={handleGenerate}
-          disabled={isProcessing}
-        />
-
-        {activeSlider && (
-          <AdjustmentSlider
-            type={activeSlider}
-            value={sliderValue}
-            onChange={handleSliderChange}
-            onClose={() => setActiveSlider(null)}
-          />
-        )}
-
-        <div className="flex justify-between items-center">
-          <span className="text-sm text-white/60 bg-white/5 px-3 py-1.5 rounded-lg backdrop-blur-sm">
-            {content.length.toLocaleString()} characters
-          </span>
+      <div className="space-y-4">
+        <div className="flex items-center justify-end gap-2">
           <Button
             onClick={onSave}
-            disabled={isSubmitting || !content.trim() || isProcessing}
-            className={`
+            disabled={isSubmitting || !content.trim()}
+            className="
               bg-gradient-to-r from-[#9b87f5] to-[#6366f1] 
-              hover:opacity-90 transition-all duration-300
-              px-6 py-2 rounded-xl font-medium
-              disabled:opacity-50 disabled:cursor-not-allowed
-              group relative overflow-hidden
-            `}
+              hover:from-[#8b77e5] hover:to-[#5356e1]
+              text-white border-0 px-6
+            "
           >
             {isSubmitting ? (
               <>
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                Submitting...
+                <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                Saving...
               </>
             ) : (
               <>
-                <Send className="w-4 h-4 mr-2 group-hover:translate-x-1 transition-transform" />
-                Submit to Canvas
+                <Send className="w-4 h-4 mr-2" />
+                Submit Assignment
               </>
             )}
           </Button>
         </div>
+
+        <div className="text-sm text-white/50 text-right">
+          {content.trim().length > 0 ? (
+            <>
+              <span className="text-[#9b87f5]">{content.trim().split(/\s+/).length}</span> words |{" "}
+              <span className="text-[#9b87f5]">{content.length}</span> characters
+            </>
+          ) : (
+            "No content yet"
+          )}
+        </div>
       </div>
-    </Card>
+
+      {/* Editing Tools */}
+      <EditingToolbar
+        onStyleClick={() => setShowStyleControl(true)}
+        onLengthClick={() => setShowLengthControl(true)}
+        onImproveClick={handleImprove}
+        onFormatClick={handleFormat}
+        onGradeClick={() => setShowGradeSlider(true)}
+        isSliderVisible={showStyleControl || showLengthControl || showGradeSlider}
+        disabled={isProcessing || !content.trim()}
+      />
+
+      {showStyleControl && (
+        <WritingStyleControls
+          onStyleChange={handleStyleChange}
+        />
+      )}
+
+      {showLengthControl && (
+        <LengthAdjuster
+          lengthFactor={lengthFactor}
+          onLengthFactorChange={setLengthFactor}
+          onAdjust={handleLengthAdjust}
+          isProcessing={isProcessing}
+          hasContent={content.trim().length > 0}
+        />
+      )}
+
+      {showGradeSlider && (
+        <AdjustmentSlider
+          type="grade"
+          value={gradeLevel}
+          onChange={handleGradeChange}
+          onClose={() => setShowGradeSlider(false)}
+        />
+      )}
+    </div>
   );
 };
