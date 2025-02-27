@@ -53,8 +53,8 @@ serve(async (req) => {
 
       console.log('Making request to Gemini API...');
       
-      // Make request to Gemini API with the correct authorization format
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent?key=${apiKey}`, {
+      // Make request to Gemini API with the correct model name
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash-lite:generateContent?key=${apiKey}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
