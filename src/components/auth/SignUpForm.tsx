@@ -1,40 +1,44 @@
 
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Mail, KeyRound, Loader2 } from "lucide-react";
+import { Mail, KeyRound, UserRound, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { useNavigate } from "react-router-dom";
 
-export const AuthForm = () => {
+export const SignUpForm = () => {
   const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [fullName, setFullName] = useState("");
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
       setLoading(true);
-      const { error } = await supabase.auth.signInWithPassword({
+      const { error } = await supabase.auth.signUp({
         email,
         password,
+        options: {
+          data: {
+            full_name: fullName,
+          },
+        },
       });
 
-      if (error) {
-        throw error;
-      }
+      if (error) throw error;
 
-      toast.success("Welcome back!", {
-        description: "Successfully signed in to your account."
+      toast.success("Account created successfully!", {
+        description: "Please check your email to verify your account.",
       });
       
-      navigate("/dashboard");
+      navigate("/auth");
     } catch (error: any) {
-      toast.error("Authentication failed", {
-        description: error?.message || "Please check your credentials and try again.",
+      toast.error("Sign up failed", {
+        description: error?.message || "Please check your information and try again.",
       });
     } finally {
       setLoading(false);
@@ -44,14 +48,28 @@ export const AuthForm = () => {
   return (
     <Card className="w-full neo-blur border-0">
       <CardHeader className="space-y-3">
-        <CardTitle className="text-2xl text-gradient">Sign In</CardTitle>
+        <CardTitle className="text-2xl text-gradient">Create Account</CardTitle>
         <CardDescription className="text-[#E5DEFF]">
-          Enter your credentials to access your account
+          Enter your details to create a new account
         </CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="space-y-4">
+            <div className="space-y-2">
+              <div className="relative">
+                <Input
+                  type="text"
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  placeholder="Full name"
+                  className="glass-input pl-11"
+                  required
+                />
+                <UserRound className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-white/40" />
+              </div>
+            </div>
+
             <div className="space-y-2">
               <div className="relative">
                 <Input
@@ -89,21 +107,21 @@ export const AuthForm = () => {
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Signing in...
+                Creating account...
               </>
             ) : (
-              "Sign In"
+              "Sign Up"
             )}
           </Button>
 
           <p className="text-center text-sm text-[#E5DEFF]/60">
-            Don't have an account?{" "}
+            Already have an account?{" "}
             <Button
               variant="link"
               className="text-primary hover:text-primary/80 p-0"
-              onClick={() => navigate("/auth/signup")}
+              onClick={() => navigate("/auth")}
             >
-              Sign up
+              Sign in
             </Button>
           </p>
         </form>
