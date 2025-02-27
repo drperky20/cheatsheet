@@ -54,6 +54,7 @@ export const AssignmentWorkspace = ({
   const handleAnalyzeAssignment = async () => {
     setIsAnalyzing(true);
     try {
+      console.log("Analyzing assignment:", assignment.description);
       const { data, error } = await supabase.functions.invoke('gemini-processor', {
         body: {
           type: 'analyze_requirements',
@@ -63,12 +64,15 @@ export const AssignmentWorkspace = ({
 
       if (error) throw error;
 
+      console.log("Analysis response:", data);
+
       // Update the editor content with the analysis
-      setContent((prevContent) => {
-        const newAnalysis = data.result || "";
-        return prevContent ? `${prevContent}\n\n${newAnalysis}` : newAnalysis;
-      });
-      
+      const analysisResult = data?.result || data?.content || "";
+      if (!analysisResult) {
+        throw new Error("No analysis result received");
+      }
+
+      setContent(analysisResult);
       toast.success("Assignment requirements analyzed successfully");
     } catch (error) {
       console.error("Error analyzing assignment:", error);
@@ -145,24 +149,29 @@ export const AssignmentWorkspace = ({
   const handleGenerateResponse = async () => {
     setIsGenerating(true);
     try {
+      console.log("Generating response for:", assignment.name, qualityConfig);
       const { data, error } = await supabase.functions.invoke('gemini-processor', {
         body: {
-          type: 'generate_assignment_response',
+          type: 'generate_response',
           assignment: {
             description: assignment.description,
             name: assignment.name,
-            qualityConfig
-          }
+          },
+          qualityConfig
         }
       });
 
       if (error) throw error;
+
+      console.log("Generation response:", data);
       
-      const generatedContent = data.content || "";
-      setContent((prevContent) => {
-        return prevContent ? `${prevContent}\n\n${generatedContent}` : generatedContent;
-      });
-      
+      // Try different possible response formats
+      const generatedContent = data?.content || data?.result || "";
+      if (!generatedContent) {
+        throw new Error("No content generated");
+      }
+
+      setContent(generatedContent);
       toast.success("Response generated successfully");
     } catch (error) {
       console.error("Error generating response:", error);
