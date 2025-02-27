@@ -23,7 +23,14 @@ export const DashboardHeader = () => {
           </div>
 
           <SearchBar />
-          <UserMenu profile={profile} onSignOut={signOut} onNavigate={navigate} />
+          <UserMenu 
+            profile={{
+              ...profile,
+              name: profile?.full_name || 'User'
+            }} 
+            onSignOut={signOut} 
+            onNavigate={navigate} 
+          />
         </div>
       </div>
     </header>

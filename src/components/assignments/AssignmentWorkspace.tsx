@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -43,7 +42,7 @@ export const AssignmentWorkspace = ({
   const [processingLinks, setProcessingLinks] = useState(false);
   const [activeTab, setActiveTab] = useState("editor");
   const [qualityConfig, setQualityConfig] = useState<AssignmentQualityConfig>({
-    grade: "high_school",
+    targetGrade: 'A',
     factualAccuracy: true,
     citationCount: 3,
     wordCount: 500,
@@ -95,10 +94,9 @@ export const AssignmentWorkspace = ({
 
     try {
       const { error } = await supabase
-        .from('assignment_submissions')
+        .from('submissions')
         .upsert({
           assignment_id: assignment.id,
-          course_id: assignment.course_id,
           content,
           status: 'draft',
           quality_config: qualityConfig
