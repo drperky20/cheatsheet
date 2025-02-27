@@ -119,7 +119,7 @@ export const UserMenu = ({
                 </AvatarFallback>
               </Avatar>
               <span className="text-sm font-medium text-white">
-                {profile.name.split(" ")[0]}
+                {profile?.name ? profile.name.split(" ")[0] : ""}
               </span>
               <ChevronDown className="h-4 w-4 text-[#E5DEFF]/70 group-hover:text-[#9b87f5] transition-colors" />
             </div>
