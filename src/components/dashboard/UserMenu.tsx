@@ -75,11 +75,13 @@ export const UserMenu = ({
     );
   }
 
-  const initials = profile.name
-    .split(" ")
-    .map((n) => n[0])
-    .join("")
-    .toUpperCase();
+  const initials = profile?.name
+    ? profile.name
+        .split(" ")
+        .map((n) => n[0])
+        .join("")
+        .toUpperCase()
+    : "";
 
   return (
     <div className="flex items-center gap-6">
