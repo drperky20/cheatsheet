@@ -52,12 +52,12 @@ serve(async (req) => {
       `;
 
       console.log('Making request to Gemini API...');
-      // Make request to Gemini API
-      const response = await fetch('https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent', {
+      
+      // Make request to Gemini API with the correct authorization format
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent?key=${apiKey}`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           contents: [{
