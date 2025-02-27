@@ -5,7 +5,7 @@ import { AssignmentQualityConfig } from "@/types/assignment";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ChevronLeft, Save, Sparkles, Send, FileText, PenTool, BookOpen, Loader2 } from "lucide-react";
+import { ChevronLeft, Save, Sparkles, Send, FileText, PenTool, BookOpen, Loader2, RefreshCw } from "lucide-react";
 import { AssignmentHeader } from "./workspace/AssignmentHeader";
 import { AssignmentEditor } from "./AssignmentEditor";
 import { AssignmentQualityControls } from "./AssignmentQualityControls";
@@ -37,6 +37,7 @@ export const AssignmentWorkspace = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [externalLinks, setExternalLinks] = useState<
     Array<{ url: string; type: "google_doc" | "external_link" }>
   >([]);
@@ -48,6 +49,28 @@ export const AssignmentWorkspace = ({
     writingStyle: 'formal',
     confidenceLevel: 75
   });
+
+  const handleAnalyzeAssignment = async () => {
+    setIsAnalyzing(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('gemini-processor', {
+        body: {
+          type: 'analyze_requirements',
+          content: assignment.description
+        }
+      });
+
+      if (error) throw error;
+
+      setContent(data.result || "");
+      toast.success("Assignment requirements analyzed successfully");
+    } catch (error) {
+      console.error("Error analyzing assignment:", error);
+      toast.error("Failed to analyze assignment requirements");
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
 
   useEffect(() => {
     const extractLinks = () => {
@@ -174,9 +197,30 @@ export const AssignmentWorkspace = ({
               <div className="lg:col-span-1 space-y-6 animate-slideInLeft">
                 <Card className="neo-blur border-0 overflow-hidden shadow-lg">
                   <div className="p-6 border-b border-white/10 bg-gradient-to-r from-black/60 to-black/40">
-                    <div className="flex items-center gap-2">
-                      <BookOpen className="w-5 h-5 text-[#9b87f5]" />
-                      <h3 className="text-lg font-semibold text-gradient">Assignment Details</h3>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <BookOpen className="w-5 h-5 text-[#9b87f5]" />
+                        <h3 className="text-lg font-semibold text-gradient">Assignment Details</h3>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleAnalyzeAssignment}
+                        disabled={isAnalyzing}
+                        className="bg-white/5 border-white/10 hover:bg-white/10 text-white"
+                      >
+                        {isAnalyzing ? (
+                          <>
+                            <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                            Analyzing...
+                          </>
+                        ) : (
+                          <>
+                            <RefreshCw className="w-4 h-4 mr-2" />
+                            Re-Analyze
+                          </>
+                        )}
+                      </Button>
                     </div>
                   </div>
                   
