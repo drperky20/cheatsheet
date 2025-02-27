@@ -7,20 +7,6 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-interface GenerateRequest {
-  promptType: string;
-  assignment: {
-    name: string;
-    description: string;
-    qualityConfig: {
-      grade: string;
-      wordCount: number;
-      citationCount: number;
-      factualAccuracy: boolean;
-    };
-  };
-}
-
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -33,27 +19,26 @@ serve(async (req) => {
       throw new Error('GEMINI_API_KEY is not set');
     }
 
-    const { promptType, assignment } = await req.json() as GenerateRequest;
-    console.log(`Processing ${promptType} for assignment: ${assignment?.name}`);
+    const { content, type } = await req.json();
+    console.log(`Processing ${type} with content length: ${content?.length}`);
 
-    if (promptType === 'generate_assignment_response') {
-      const { description, name, qualityConfig } = assignment;
-
-      // Construct the prompt
+    if (type === 'analyze_requirements') {
+      // Construct the prompt for assignment analysis
       const prompt = `
-        Assignment: ${name}
-        Description: ${description}
-        Requirements:
-        - Grade Level: ${qualityConfig.grade}
-        - Word Count: ${qualityConfig.wordCount} words
-        - Citations Required: ${qualityConfig.citationCount}
-        - Ensure Factual Accuracy: ${qualityConfig.factualAccuracy}
-
-        Please generate a detailed, well-structured response that meets all the above requirements.
-        Use appropriate academic language and provide clear organization with headers where relevant.
+        Please analyze the following assignment requirements and provide a clear, structured summary:
+        ${content}
+        
+        Focus on extracting:
+        1. Main objectives and deliverables
+        2. Due dates and deadlines
+        3. Formatting requirements
+        4. Grading criteria
+        5. Any special instructions or notes
+        
+        Format the response in a clear, organized manner with sections.
       `;
 
-      // Make request to Gemini API directly
+      // Make request to Gemini API
       const response = await fetch('https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent', {
         method: 'POST',
         headers: {
@@ -65,7 +50,13 @@ serve(async (req) => {
             parts: [{
               text: prompt
             }]
-          }]
+          }],
+          generationConfig: {
+            temperature: 0.7,
+            topK: 40,
+            topP: 0.95,
+            maxOutputTokens: 2048,
+          },
         })
       });
 
@@ -76,13 +67,17 @@ serve(async (req) => {
       }
 
       const data = await response.json();
-      const generatedText = data.candidates[0].content.parts[0].text;
+      console.log('Gemini response:', data);
 
-      console.log("Successfully generated response");
+      if (!data.candidates?.[0]?.content?.parts?.[0]?.text) {
+        throw new Error('Invalid response format from Gemini API');
+      }
+
+      const generatedText = data.candidates[0].content.parts[0].text;
 
       return new Response(
         JSON.stringify({
-          content: generatedText,
+          result: generatedText,
           success: true,
         }),
         { 
@@ -91,7 +86,7 @@ serve(async (req) => {
       );
     }
 
-    throw new Error(`Unknown prompt type: ${promptType}`);
+    throw new Error(`Unknown request type: ${type}`);
   } catch (error) {
     console.error("Error in gemini-processor:", error);
     
