@@ -1,12 +1,25 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
-import { GoogleGenerativeAI } from "@google/generative-ai";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
+
+interface GenerateRequest {
+  promptType: string;
+  assignment: {
+    name: string;
+    description: string;
+    qualityConfig: {
+      grade: string;
+      wordCount: number;
+      citationCount: number;
+      factualAccuracy: boolean;
+    };
+  };
+}
 
 serve(async (req) => {
   // Handle CORS preflight requests
@@ -15,16 +28,18 @@ serve(async (req) => {
   }
 
   try {
-    const genAI = new GoogleGenerativeAI(Deno.env.get('GEMINI_API_KEY') || '');
-    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+    const apiKey = Deno.env.get('GEMINI_API_KEY');
+    if (!apiKey) {
+      throw new Error('GEMINI_API_KEY is not set');
+    }
 
-    const { promptType, assignment } = await req.json();
+    const { promptType, assignment } = await req.json() as GenerateRequest;
     console.log(`Processing ${promptType} for assignment: ${assignment?.name}`);
 
     if (promptType === 'generate_assignment_response') {
       const { description, name, qualityConfig } = assignment;
 
-      // Construct a detailed prompt
+      // Construct the prompt
       const prompt = `
         Assignment: ${name}
         Description: ${description}
@@ -38,17 +53,36 @@ serve(async (req) => {
         Use appropriate academic language and provide clear organization with headers where relevant.
       `;
 
-      console.log("Sending prompt to Gemini...");
-      
-      const result = await model.generateContent(prompt);
-      const response = await result.response;
-      const text = response.text();
-      
-      console.log("Received response from Gemini");
+      // Make request to Gemini API directly
+      const response = await fetch('https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          contents: [{
+            parts: [{
+              text: prompt
+            }]
+          }]
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('Gemini API error:', errorData);
+        throw new Error(`Gemini API error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      const generatedText = data.candidates[0].content.parts[0].text;
+
+      console.log("Successfully generated response");
 
       return new Response(
         JSON.stringify({
-          content: text,
+          content: generatedText,
           success: true,
         }),
         { 
