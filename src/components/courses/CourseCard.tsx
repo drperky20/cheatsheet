@@ -32,19 +32,12 @@ export const CourseCard = ({ course }: CourseCardProps) => {
 
   const getRandomGradient = () => {
     const gradients = [
-      // Purple theme
       'from-[#6366f1]/30 via-[#9b87f5]/20 to-[#a78bfa]/10',
-      // Green theme
       'from-[#10b981]/30 via-[#34d399]/20 to-[#6ee7b7]/10',
-      // Purple-pink theme
       'from-[#8b5cf6]/30 via-[#d946ef]/20 to-[#ec4899]/10',
-      // Orange-red theme
       'from-[#f59e0b]/30 via-[#ef4444]/20 to-[#dc2626]/10',
-      // Blue theme
       'from-[#06b6d4]/30 via-[#22d3ee]/20 to-[#67e8f9]/10',
-      // New indigo-blue theme
       'from-[#4f46e5]/30 via-[#3b82f6]/20 to-[#0ea5e9]/10',
-      // New purple-indigo theme
       'from-[#8b5cf6]/30 via-[#6366f1]/20 to-[#4f46e5]/10',
     ];
     return gradients[Math.floor(Math.random() * gradients.length)];
@@ -126,10 +119,13 @@ export const CourseCard = ({ course }: CourseCardProps) => {
           </div>
 
           <div className="
-            absolute inset-0 flex items-center justify-center
-            bg-black/60 backdrop-blur-md
+            absolute bottom-0 left-0 right-0
+            flex items-center justify-center
+            py-6 px-4
+            bg-gradient-to-t from-black/80 to-transparent
             opacity-0 group-hover:opacity-100
             transition-all duration-500
+            backdrop-blur-sm
           ">
             <Button 
               onClick={() => setShowAssignments(true)}
