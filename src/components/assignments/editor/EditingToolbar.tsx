@@ -1,3 +1,4 @@
+
 import { Button } from "@/components/ui/button";
 import {
   Tooltip,
@@ -52,120 +53,117 @@ export const EditingToolbar = ({
 
   return (
     <div className="fixed right-6 top-1/2 -translate-y-1/2 z-50">
-      <div className="relative group">
-        <div className="absolute inset-0 bg-gradient-to-b from-[#9b87f5]/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-full" />
-        <div className="flex flex-col gap-4 p-3 rounded-full glass-morphism border-0">
-          <TooltipProvider>
-            {onGenerate && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button 
-                    variant="ghost" 
-                    size="icon"
-                    onClick={onGenerate}
-                    disabled={disabled}
-                    className={`text-[#9b87f5] hover:text-[#8b77e5] ${buttonClasses}`}
-                  >
-                    {disabled ? (
-                      <Loader2 className="h-5 w-5 animate-spin" />
-                    ) : (
-                      <Wand2 className="h-5 w-5" />
-                    )}
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent side="left" className={tooltipClasses}>
-                  <p>Generate Response</p>
-                </TooltipContent>
-              </Tooltip>
-            )}
-
+      <TooltipProvider>
+        <div className="flex flex-col gap-2 p-2 rounded-full glass-morphism border-0">
+          {onGenerate && (
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button 
                   variant="ghost" 
                   size="icon"
-                  onClick={onGradeClick}
+                  onClick={onGenerate}
                   disabled={disabled}
-                  className={buttonClasses}
+                  className={`text-[#9b87f5] hover:text-[#8b77e5] ${buttonClasses}`}
                 >
-                  <GraduationCap className="h-5 w-5" />
+                  {disabled ? (
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                  ) : (
+                    <Wand2 className="h-5 w-5" />
+                  )}
                 </Button>
               </TooltipTrigger>
               <TooltipContent side="left" className={tooltipClasses}>
-                <p>Adjust Grade Level</p>
+                <p>Generate Response</p>
               </TooltipContent>
             </Tooltip>
+          )}
 
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button 
-                  variant="ghost" 
-                  size="icon"
-                  onClick={onStyleClick}
-                  disabled={disabled}
-                  className={buttonClasses}
-                >
-                  <BookOpen className="h-5 w-5" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="left" className={tooltipClasses}>
-                <p>Change Writing Style</p>
-              </TooltipContent>
-            </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button 
+                variant="ghost" 
+                size="icon"
+                onClick={onGradeClick}
+                disabled={disabled}
+                className={buttonClasses}
+              >
+                <GraduationCap className="h-5 w-5" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="left" className={tooltipClasses}>
+              <p>Adjust Grade Level</p>
+            </TooltipContent>
+          </Tooltip>
 
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button 
-                  variant="ghost" 
-                  size="icon"
-                  onClick={onLengthClick}
-                  disabled={disabled}
-                  className={buttonClasses}
-                >
-                  <ArrowUpDown className="h-5 w-5" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="left" className={tooltipClasses}>
-                <p>Adjust Length</p>
-              </TooltipContent>
-            </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button 
+                variant="ghost" 
+                size="icon"
+                onClick={onStyleClick}
+                disabled={disabled}
+                className={buttonClasses}
+              >
+                <BookOpen className="h-5 w-5" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="left" className={tooltipClasses}>
+              <p>Change Writing Style</p>
+            </TooltipContent>
+          </Tooltip>
 
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button 
-                  variant="ghost" 
-                  size="icon"
-                  onClick={onImproveClick}
-                  disabled={disabled}
-                  className={buttonClasses}
-                >
-                  <Sparkles className="h-5 w-5" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="left" className={tooltipClasses}>
-                <p>Improve Writing</p>
-              </TooltipContent>
-            </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button 
+                variant="ghost" 
+                size="icon"
+                onClick={onLengthClick}
+                disabled={disabled}
+                className={buttonClasses}
+              >
+                <ArrowUpDown className="h-5 w-5" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="left" className={tooltipClasses}>
+              <p>Adjust Length</p>
+            </TooltipContent>
+          </Tooltip>
 
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button 
-                  variant="ghost" 
-                  size="icon"
-                  onClick={onFormatClick}
-                  disabled={disabled}
-                  className={buttonClasses}
-                >
-                  <PencilRuler className="h-5 w-5" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="left" className={tooltipClasses}>
-                <p>Format Text</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button 
+                variant="ghost" 
+                size="icon"
+                onClick={onImproveClick}
+                disabled={disabled}
+                className={buttonClasses}
+              >
+                <Sparkles className="h-5 w-5" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="left" className={tooltipClasses}>
+              <p>Improve Writing</p>
+            </TooltipContent>
+          </Tooltip>
+
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button 
+                variant="ghost" 
+                size="icon"
+                onClick={onFormatClick}
+                disabled={disabled}
+                className={buttonClasses}
+              >
+                <PencilRuler className="h-5 w-5" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="left" className={tooltipClasses}>
+              <p>Format Text</p>
+            </TooltipContent>
+          </Tooltip>
         </div>
-      </div>
+      </TooltipProvider>
     </div>
   );
 };
