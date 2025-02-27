@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -62,7 +63,12 @@ export const AssignmentWorkspace = ({
 
       if (error) throw error;
 
-      setContent(data.result || "");
+      // Update the editor content with the analysis
+      setContent((prevContent) => {
+        const newAnalysis = data.result || "";
+        return prevContent ? `${prevContent}\n\n${newAnalysis}` : newAnalysis;
+      });
+      
       toast.success("Assignment requirements analyzed successfully");
     } catch (error) {
       console.error("Error analyzing assignment:", error);
@@ -141,7 +147,7 @@ export const AssignmentWorkspace = ({
     try {
       const { data, error } = await supabase.functions.invoke('gemini-processor', {
         body: {
-          promptType: 'generate_assignment_response',
+          type: 'generate_assignment_response',
           assignment: {
             description: assignment.description,
             name: assignment.name,
@@ -152,7 +158,11 @@ export const AssignmentWorkspace = ({
 
       if (error) throw error;
       
-      setContent(data.content || "");
+      const generatedContent = data.content || "";
+      setContent((prevContent) => {
+        return prevContent ? `${prevContent}\n\n${generatedContent}` : generatedContent;
+      });
+      
       toast.success("Response generated successfully");
     } catch (error) {
       console.error("Error generating response:", error);
