@@ -84,28 +84,21 @@ export const ChatInterface = ({ onBack, initialQuestion = '', initialFile = null
           body: formData,
           headers: {
             'Content-Type': 'multipart/form-data',
-          }
+          },
         });
 
-        if (error) {
-          console.error("Supabase function error:", error);
-          throw new Error(error.message || "Error processing file with AI");
-        }
-        
-        response = data?.result;
-        if (!response) throw new Error("No response from AI service");
+        if (error) throw error;
+        response = data.result;
       } else {
         const { data, error } = await supabase.functions.invoke('gemini-processor', {
-          body: { content: input, type: 'generate_content' }
+          body: JSON.stringify({ content: input, type: 'generate_content' }),
+          headers: {
+            'Content-Type': 'application/json',
+          },
         });
 
-        if (error) {
-          console.error("Supabase function error:", error);
-          throw new Error(error.message || "Error generating content with AI");
-        }
-        
-        response = data?.result;
-        if (!response) throw new Error("No response from AI service");
+        if (error) throw error;
+        response = data.result;
       }
 
       setMessages(prev => [...prev, { role: 'assistant', content: response }]);

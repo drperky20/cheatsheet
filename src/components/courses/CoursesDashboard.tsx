@@ -179,34 +179,20 @@ export const CoursesDashboard = () => {
 
   if (loading) {
     return (
-      <div className="space-y-8 animate-pulse-slow">
-        <div className="flex items-center justify-between p-4 glass-morphism rounded-xl mb-8 opacity-50">
-          <div className="flex items-center space-x-3">
-            <div className="p-2 rounded-lg bg-primary/20 backdrop-blur-xl">
-              <BookOpen className="w-5 h-5 text-primary-light" />
-            </div>
-            <div className="h-6 w-32 bg-white/20 rounded-md"></div>
-          </div>
-          <div className="h-10 w-24 bg-white/20 rounded-md"></div>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="h-[220px] rounded-xl frost-panel opacity-40"></div>
-          ))}
-        </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {[1, 2, 3].map((i) => (
+          <Skeleton key={i} className="h-[200px] rounded-xl" />
+        ))}
       </div>
     );
   }
 
   if (courses.length === 0) {
     return (
-      <div className="text-center p-12 glass-morphism rounded-xl animate-fadeIn">
-        <div className="inline-flex p-3 rounded-full bg-primary/10 mb-4">
-          <BookOpen className="w-6 h-6 text-primary-light" />
-        </div>
-        <h3 className="text-2xl font-semibold mb-3 text-gradient">No Active Courses Found</h3>
-        <p className="text-white/70 max-w-md mx-auto">
-          We couldn't find any active courses in your Canvas account. If you believe this is an error, please check your Canvas configuration.
+      <div className="text-center p-8 glass">
+        <h3 className="text-xl font-semibold mb-2">No Active Courses Found</h3>
+        <p className="text-gray-400">
+          We couldn't find any active courses. If you believe this is an error, please check your Canvas configuration.
         </p>
       </div>
     );
@@ -260,34 +246,32 @@ export const CoursesDashboard = () => {
         </DialogContent>
       </Dialog>
 
-      <div className="space-y-8">
-        <div className="flex items-center justify-between p-4 glass-morphism rounded-xl mb-8 animate-fadeIn">
-          <div className="flex items-center space-x-3">
-            <div className="p-2 rounded-lg bg-primary/20 backdrop-blur-xl">
-              <BookOpen className="w-5 h-5 text-primary-light" />
-            </div>
-            <h2 className="text-xl font-bold text-gradient">Your Courses</h2>
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <BookOpen className="w-5 h-5" />
+            <h2 className="text-xl font-semibold">Your Courses</h2>
           </div>
-          <div className="flex items-center space-x-6">
-            <div className="flex items-center space-x-2 text-sm text-white/70 px-3 py-2 rounded-lg bg-black/30 backdrop-blur-xl border border-white/5">
-              <Clock className="w-4 h-4 text-accent-blue animate-pulse-slow" />
+          <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-2 text-sm text-gray-400">
+              <Clock className="w-4 h-4" />
               <span>Real-time sync enabled</span>
             </div>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="flex items-center gap-2 bg-black/40 backdrop-blur-xl hover:bg-primary/20 border border-white/10 transition-all duration-300">
+                <Button variant="ghost" size="sm" className="flex items-center gap-2">
                   <ArrowUpDown className="h-4 w-4" />
-                  <span>Sort</span>
+                  Sort
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="bg-black/90 backdrop-blur-3xl border-white/10 animate-fadeIn">
-                <DropdownMenuItem onClick={() => handleSort("name")} className="hover:bg-primary/20 transition-colors duration-200">
+              <DropdownMenuContent align="end" className="bg-black/80 backdrop-blur-lg border-white/10">
+                <DropdownMenuItem onClick={() => handleSort("name")}>
                   Sort by Name
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleSort("pending")} className="hover:bg-primary/20 transition-colors duration-200">
+                <DropdownMenuItem onClick={() => handleSort("pending")}>
                   Sort by Missing
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleSort("progress")} className="hover:bg-primary/20 transition-colors duration-200">
+                <DropdownMenuItem onClick={() => handleSort("progress")}>
                   Sort by Progress
                 </DropdownMenuItem>
               </DropdownMenuContent>

@@ -19,30 +19,29 @@ export const WritingStyleControls = ({
   onStyleChange,
 }: WritingStyleControlsProps) => {
   return (
-    <Card className="absolute bottom-4 right-4 p-2 neo-blur border-white/10">
+    <Card className="absolute bottom-4 right-4 p-2 neo-blur">
       <div className="flex items-center gap-2">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button 
               size="sm" 
               variant="ghost"
-              className="h-8 px-3 text-white/80 hover:text-[#9b87f5]"
+              className="h-8 px-3"
             >
-              <BookOpen className="w-4 h-4 mr-2" />
-              <span>Style</span>
+              <BookOpen className="w-4 h-4" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent className="neo-blur w-40 border-white/10">
-            <DropdownMenuItem onClick={() => onStyleChange('elementary')} className="text-white/80 hover:text-[#9b87f5] focus:text-[#9b87f5] focus:bg-[#9b87f5]/10">
+          <DropdownMenuContent className="neo-blur w-40">
+            <DropdownMenuItem onClick={() => onStyleChange('elementary')}>
               Elementary
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => onStyleChange('middle_school')} className="text-white/80 hover:text-[#9b87f5] focus:text-[#9b87f5] focus:bg-[#9b87f5]/10">
+            <DropdownMenuItem onClick={() => onStyleChange('middle_school')}>
               Middle School
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => onStyleChange('high_school')} className="text-white/80 hover:text-[#9b87f5] focus:text-[#9b87f5] focus:bg-[#9b87f5]/10">
+            <DropdownMenuItem onClick={() => onStyleChange('high_school')}>
               High School
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => onStyleChange('college')} className="text-white/80 hover:text-[#9b87f5] focus:text-[#9b87f5] focus:bg-[#9b87f5]/10">
+            <DropdownMenuItem onClick={() => onStyleChange('college')}>
               College Level
             </DropdownMenuItem>
           </DropdownMenuContent>

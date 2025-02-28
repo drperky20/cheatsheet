@@ -1,7 +1,0 @@
-
-{
-  "imports": {
-    "@aws-sdk/client-lambda": "https://esm.sh/@aws-sdk/client-lambda@3.535.0",
-    "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@2.39.3"
-  }
-}
