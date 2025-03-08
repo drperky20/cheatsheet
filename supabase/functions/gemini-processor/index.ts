@@ -39,7 +39,13 @@ serve(async (req) => {
 
     // For 'generate_response' type, content is optional
     if (!content && type !== 'generate_response') {
-      throw new Error('Content is required');
+      return new Response(
+        JSON.stringify({ error: 'Content is required' }),
+        { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 400
+        }
+      );
     }
 
     const assignment = config?.assignment as Assignment | undefined;
@@ -140,15 +146,28 @@ serve(async (req) => {
       
       default:
         console.error('Invalid operation type:', type);
-        throw new Error(`Invalid operation type: ${type}`);
+        return new Response(
+          JSON.stringify({ error: `Invalid operation type: ${type}` }),
+          { 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 400
+          }
+        );
     }
 
     console.log('Sending prompt to Gemini:', prompt.substring(0, 100) + '...');
 
     // Initialize the Gemini API
-    const geminiApiKey = Deno.env.get('GEMINI_API_KEY') || '';
+    const geminiApiKey = Deno.env.get('GEMINI_API_KEY');
     if (!geminiApiKey) {
-      throw new Error('GEMINI_API_KEY is not set');
+      console.error('GEMINI_API_KEY is not set');
+      return new Response(
+        JSON.stringify({ error: 'API key configuration error' }),
+        { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 500
+        }
+      );
     }
     
     const genAI = new GoogleGenerativeAI(geminiApiKey);
@@ -163,21 +182,32 @@ serve(async (req) => {
 
     const fullPrompt = systemPrompt ? `${systemPrompt}\n\n${prompt}` : prompt;
     
-    const result = await model.generateContent({
-      contents: [{ role: "user", parts: [{ text: fullPrompt }] }],
-      generationConfig,
-    });
+    try {
+      const result = await model.generateContent({
+        contents: [{ role: "user", parts: [{ text: fullPrompt }] }],
+        generationConfig,
+      });
 
-    const response = result.response;
-    const text = response.text();
-    
-    console.log('Gemini response:', text.substring(0, 100) + '...');
+      const response = result.response;
+      const text = response.text();
+      
+      console.log('Gemini response:', text.substring(0, 100) + '...');
 
-    // Return a consistent format with the content field
-    return new Response(
-      JSON.stringify({ content: text }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+      // Return a consistent format with the content field
+      return new Response(
+        JSON.stringify({ content: text }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    } catch (aiError) {
+      console.error('Error calling Gemini API:', aiError);
+      return new Response(
+        JSON.stringify({ error: 'Failed to generate content using AI', details: aiError.message }),
+        { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 500
+        }
+      );
+    }
 
   } catch (error) {
     console.error('Error in edge function:', error);

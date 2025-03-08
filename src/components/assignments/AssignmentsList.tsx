@@ -90,7 +90,7 @@ export const AssignmentsList = ({ courseId, onStartAssignment }: AssignmentsList
           if (!a.due_at && !b.due_at) return 0;
           if (!a.due_at) return 1;
           if (!b.due_at) return -1;
-          return new Date(b.due_at).getTime() - new Date(a.due_at).getTime();
+          return new Date(a.due_at).getTime() - new Date(b.due_at).getTime();
         });
 
       console.log(`Total assignments after filtering: ${filteredAssignments.length}`);
@@ -106,6 +106,14 @@ export const AssignmentsList = ({ courseId, onStartAssignment }: AssignmentsList
   const analyzeRequirements = async (assignment: Assignment) => {
     try {
       setAnalyzing(assignment.id);
+      
+      // Ensure description is not empty
+      if (!assignment.description || assignment.description.trim() === '') {
+        toast.error("Assignment has no description to analyze");
+        onStartAssignment(assignment); // Still start the assignment
+        return;
+      }
+      
       const { data, error } = await supabase.functions.invoke('gemini-processor', {
         body: {
           content: assignment.description,
@@ -113,13 +121,24 @@ export const AssignmentsList = ({ courseId, onStartAssignment }: AssignmentsList
         }
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Function invocation error:', error);
+        throw error;
+      }
 
+      if (!data || !data.content) {
+        console.error('Invalid response format:', data);
+        throw new Error('Invalid response from analysis');
+      }
+
+      console.log('Analysis complete:', data);
       toast.success("Assignment requirements analyzed");
       onStartAssignment(assignment);
     } catch (error) {
       console.error('Error analyzing requirements:', error);
-      toast.error("Failed to analyze assignment requirements");
+      toast.error("Failed to analyze assignment requirements. Starting workspace anyway.");
+      // Still proceed with opening the workspace even if analysis fails
+      onStartAssignment(assignment);
     } finally {
       setAnalyzing(null);
     }
