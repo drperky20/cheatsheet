@@ -21,10 +21,11 @@ serve(async (req) => {
       );
     }
 
-    console.log(`Processing ${type} at URL: ${url}`);
+    console.log(`Processing ${type} at URL: ${url} (processedLinkId: ${processedLinkId})`);
 
     // Forward to AWS processor
     try {
+      console.log(`Forwarding to AWS processor at: ${Deno.env.get('SUPABASE_URL')}/functions/v1/aws-processor`);
       const awsResponse = await fetch(
         `${Deno.env.get('SUPABASE_URL')}/functions/v1/aws-processor`,
         {
@@ -39,10 +40,12 @@ serve(async (req) => {
 
       if (!awsResponse.ok) {
         const errorText = await awsResponse.text();
+        console.error(`AWS processor error (${awsResponse.status}): ${errorText}`);
         throw new Error(`AWS processor responded with ${awsResponse.status}: ${errorText}`);
       }
 
       const result = await awsResponse.json();
+      console.log('AWS processor result:', result);
 
       return new Response(
         JSON.stringify(result), 
@@ -62,7 +65,7 @@ serve(async (req) => {
       );
     }
   } catch (error) {
-    console.error('Error:', error);
+    console.error('General error in browser-processor:', error);
     return new Response(
       JSON.stringify({ error: error.message }),
       {

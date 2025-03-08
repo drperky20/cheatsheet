@@ -1,7 +1,10 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { corsHeaders } from "../_shared/cors.ts";
-import { createClient } from '@supabase/supabase-js';
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.48.1";
+
+// Import AWS SDK for Deno
+import { Lambda, Credentials } from "https://esm.sh/aws-sdk@2.1413.0";
 
 const AWS_ACCESS_KEY_ID = Deno.env.get('AWS_ACCESS_KEY_ID');
 const AWS_SECRET_ACCESS_KEY = Deno.env.get('AWS_SECRET_ACCESS_KEY');
@@ -14,11 +17,13 @@ serve(async (req) => {
 
   try {
     const { url, type, processedLinkId } = await req.json();
+    
+    console.log(`AWS Processor received request for: ${url} (${type})`);
 
     // Create AWS Lambda client
-    const lambda = new AWS.Lambda({
+    const lambda = new Lambda({
       region: AWS_REGION,
-      credentials: new AWS.Credentials({
+      credentials: new Credentials({
         accessKeyId: AWS_ACCESS_KEY_ID!,
         secretAccessKey: AWS_SECRET_ACCESS_KEY!
       })
@@ -40,7 +45,12 @@ serve(async (req) => {
       .select()
       .single();
 
-    if (insertError) throw insertError;
+    if (insertError) {
+      console.error('Error inserting automation result:', insertError);
+      throw insertError;
+    }
+
+    console.log(`Created automation result with ID: ${automationResult.id}`);
 
     // Invoke Lambda function
     const params = {
@@ -53,27 +63,49 @@ serve(async (req) => {
       })
     };
 
-    const response = await lambda.invoke(params).promise();
-    const result = JSON.parse(response.Payload as string);
+    console.log(`Invoking AWS Lambda function with params:`, params);
+    
+    try {
+      const response = await lambda.invoke(params).promise();
+      const result = JSON.parse(response.Payload as string);
+      
+      console.log(`AWS Lambda response:`, result);
 
-    // Update automation result
-    const { error: updateError } = await supabase
-      .from('automation_results')
-      .update({
-        status: result.success ? 'completed' : 'failed',
-        result: result.success ? result.data : null,
-        error: result.error || null
-      })
-      .eq('id', automationResult.id);
+      // Update automation result
+      const { error: updateError } = await supabase
+        .from('automation_results')
+        .update({
+          status: result.success ? 'completed' : 'failed',
+          result: result.success ? result.data : null,
+          error: result.error || null
+        })
+        .eq('id', automationResult.id);
 
-    if (updateError) throw updateError;
+      if (updateError) {
+        console.error('Error updating automation result:', updateError);
+        throw updateError;
+      }
 
-    return new Response(JSON.stringify(result), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: 200,
-    });
+      return new Response(JSON.stringify(result), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200,
+      });
+    } catch (lambdaError) {
+      console.error('Error invoking AWS Lambda:', lambdaError);
+      
+      // Update automation result to failed status
+      await supabase
+        .from('automation_results')
+        .update({
+          status: 'failed',
+          error: lambdaError.message || 'AWS Lambda invocation failed'
+        })
+        .eq('id', automationResult.id);
+        
+      throw lambdaError;
+    }
   } catch (error) {
-    console.error('Error:', error);
+    console.error('Error in AWS processor:', error);
     return new Response(JSON.stringify({ error: error.message }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 500,
