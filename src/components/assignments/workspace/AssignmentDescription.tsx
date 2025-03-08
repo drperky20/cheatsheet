@@ -1,7 +1,7 @@
 
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ReloadIcon } from "@radix-ui/react-icons";
+import { ReloadIcon } from "lucide-react";
 
 interface AssignmentDescriptionProps {
   description: string;

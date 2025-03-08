@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
@@ -95,37 +94,23 @@ export const AssignmentWorkspace = ({ assignment, onClose }: AssignmentWorkspace
     }
   };
 
-  const pollAutomationResult = async (processedLinkId: string): Promise<AutomationResult> => {
+  const pollProcessedLink = async (processedLinkId: string): Promise<ProcessedLink> => {
     const maxAttempts = 30;
     let attempts = 0;
 
-    const poll = async (): Promise<AutomationResult> => {
+    const poll = async (): Promise<ProcessedLink> => {
       const { data, error } = await supabase
         .from('processed_links')
-        .select(`
-          *,
-          automation_results (*)
-        `)
+        .select('*')
         .eq('id', processedLinkId)
         .single();
 
       if (error) throw error;
 
-      const automationResult = data.automation_results[0];
-      
-      if (!automationResult) {
-        if (attempts >= maxAttempts) {
-          throw new Error('Processing timed out');
-        }
-        attempts++;
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        return poll();
-      }
-
-      if (automationResult.status === 'completed') {
-        return automationResult;
-      } else if (automationResult.status === 'failed') {
-        throw new Error(automationResult.error || 'Processing failed');
+      if (data.status === 'completed') {
+        return data;
+      } else if (data.status === 'failed') {
+        throw new Error(data.error || 'Processing failed');
       }
 
       if (attempts >= maxAttempts) {
@@ -162,36 +147,17 @@ export const AssignmentWorkspace = ({ assignment, onClose }: AssignmentWorkspace
       if (error) throw error;
 
       try {
-        const automationResult = await pollAutomationResult(processedLink.id);
+        const processedLinkResult = await pollProcessedLink(processedLink.id);
         
-        const { error: updateError } = await supabase
-          .from('processed_links')
-          .update({
-            status: 'completed',
-            content: automationResult.result?.content || null,
-            error: null
-          })
-          .eq('id', processedLink.id);
-
-        if (updateError) throw updateError;
-
-        if (automationResult.result?.content) {
+        if (processedLinkResult.content) {
           setContent(prev => {
-            const newContent = `${prev}\n\n### Content from ${url}:\n${automationResult.result.content}`;
+            const newContent = `${prev}\n\n### Content from ${url}:\n${processedLinkResult.content}`;
             return newContent.trim();
           });
           toast.success(`Processed ${type === 'google_doc' ? 'Google Doc' : 'external link'} successfully`);
         }
       } catch (pollError) {
-        const { error: updateError } = await supabase
-          .from('processed_links')
-          .update({
-            status: 'failed',
-            error: pollError.message
-          })
-          .eq('id', processedLink.id);
-
-        if (updateError) console.error('Error updating processed link:', updateError);
+        console.error('Error polling processed link:', pollError);
         throw pollError;
       }
 

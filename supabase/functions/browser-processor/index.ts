@@ -23,10 +23,10 @@ serve(async (req) => {
 
     console.log(`Processing ${type} at URL: ${url} (processedLinkId: ${processedLinkId})`);
 
-    // Forward to AWS processor
+    // Forward to direct processor
     try {
-      console.log(`Forwarding to AWS processor at: ${Deno.env.get('SUPABASE_URL')}/functions/v1/aws-processor`);
-      const awsResponse = await fetch(
+      console.log(`Forwarding to direct processor at: ${Deno.env.get('SUPABASE_URL')}/functions/v1/aws-processor`);
+      const processorResponse = await fetch(
         `${Deno.env.get('SUPABASE_URL')}/functions/v1/aws-processor`,
         {
           method: 'POST',
@@ -38,14 +38,14 @@ serve(async (req) => {
         }
       );
 
-      if (!awsResponse.ok) {
-        const errorText = await awsResponse.text();
-        console.error(`AWS processor error (${awsResponse.status}): ${errorText}`);
-        throw new Error(`AWS processor responded with ${awsResponse.status}: ${errorText}`);
+      if (!processorResponse.ok) {
+        const errorText = await processorResponse.text();
+        console.error(`Direct processor error (${processorResponse.status}): ${errorText}`);
+        throw new Error(`Direct processor responded with ${processorResponse.status}: ${errorText}`);
       }
 
-      const result = await awsResponse.json();
-      console.log('AWS processor result:', result);
+      const result = await processorResponse.json();
+      console.log('Direct processor result:', result);
 
       return new Response(
         JSON.stringify(result), 
@@ -54,10 +54,10 @@ serve(async (req) => {
           status: 200,
         }
       );
-    } catch (awsError) {
-      console.error('Error calling AWS processor:', awsError);
+    } catch (processorError) {
+      console.error('Error calling direct processor:', processorError);
       return new Response(
-        JSON.stringify({ error: 'Failed to process with AWS', details: awsError.message }),
+        JSON.stringify({ error: 'Failed to process URL', details: processorError.message }),
         { 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           status: 500
