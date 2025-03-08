@@ -1,6 +1,7 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -21,19 +22,23 @@ type OperationType =
   | 'adjust_reading_level'
   | 'improve_writing'
   | 'analyze_requirements'
-  | 'generate';
+  | 'generate_response';
 
 serve(async (req) => {
+  console.log("Gemini processor function called");
+  
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { content, type, level, config } = await req.json();
-    console.log('Received request:', { type, content, config });
+    const requestData = await req.json();
+    const { content, type, level, config } = requestData;
+    console.log('Received request:', { type, contentLength: content?.length || 0, config });
 
-    // For 'generate' type, content is optional
-    if (!content && type !== 'generate') {
+    // For 'generate_response' type, content is optional
+    if (!content && type !== 'generate_response') {
       throw new Error('Content is required');
     }
 
@@ -76,7 +81,7 @@ serve(async (req) => {
                  Keep it simple and use casual language, like you're explaining it to a friend.`;
         break;
 
-      case 'generate':
+      case 'generate_response':
         prompt = `Write a response to this assignment as if you're a real middle school student trying to get a B grade. Be natural and informal, make occasional mistakes, and don't be too sophisticated. Use the assignment details as your guide:
 
         Assignment: ${assignment?.description || "Write a response"}
@@ -138,38 +143,39 @@ serve(async (req) => {
         throw new Error(`Invalid operation type: ${type}`);
     }
 
-    console.log('Sending prompt to Gemini:', prompt);
+    console.log('Sending prompt to Gemini:', prompt.substring(0, 100) + '...');
 
-    const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-goog-api-key': Deno.env.get('GEMINI_API_KEY') || '',
-      },
-      body: JSON.stringify({
-        contents: [{
-          parts: [{
-            text: systemPrompt ? `${systemPrompt}\n\n${prompt}` : prompt
-          }]
-        }],
-        generationConfig: {
-          temperature: 0.7,
-          topK: 40,
-          topP: 0.95,
-          maxOutputTokens: 1024,
-        }
-      })
+    // Initialize the Gemini API
+    const geminiApiKey = Deno.env.get('GEMINI_API_KEY') || '';
+    if (!geminiApiKey) {
+      throw new Error('GEMINI_API_KEY is not set');
+    }
+    
+    const genAI = new GoogleGenerativeAI(geminiApiKey);
+    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+
+    const generationConfig = {
+      temperature: 0.7,
+      topK: 40,
+      topP: 0.95,
+      maxOutputTokens: 1024,
+    };
+
+    const fullPrompt = systemPrompt ? `${systemPrompt}\n\n${prompt}` : prompt;
+    
+    const result = await model.generateContent({
+      contents: [{ role: "user", parts: [{ text: fullPrompt }] }],
+      generationConfig,
     });
 
-    const data = await response.json();
-    console.log('Gemini response:', data);
+    const response = result.response;
+    const text = response.text();
+    
+    console.log('Gemini response:', text.substring(0, 100) + '...');
 
-    if (!data.candidates?.[0]?.content?.parts?.[0]?.text) {
-      throw new Error('Invalid response from Gemini API');
-    }
-
+    // Return a consistent format with the content field
     return new Response(
-      JSON.stringify({ result: data.candidates[0].content.parts[0].text }),
+      JSON.stringify({ content: text }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 

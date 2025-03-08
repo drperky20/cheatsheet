@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
@@ -57,6 +58,8 @@ export const AssignmentWorkspace = ({ assignment, onClose }: AssignmentWorkspace
   const [processingLinks, setProcessingLinks] = useState(false);
   const [externalLinks, setExternalLinks] = useState<Array<{ url: string; type: 'google_doc' | 'external_link' }>>([]);
   const [processedLinks, setProcessedLinks] = useState<ProcessedLink[]>([]);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
   const [qualityConfig, setQualityConfig] = useState<AssignmentQualityConfig>({
     targetGrade: 'B',
     selectedFlaws: [],
@@ -229,6 +232,77 @@ export const AssignmentWorkspace = ({ assignment, onClose }: AssignmentWorkspace
     }
   };
 
+  const analyzeAssignment = async () => {
+    try {
+      setIsAnalyzing(true);
+      console.log("Starting assignment analysis for:", assignment.description);
+      
+      const { data, error } = await supabase.functions.invoke('gemini-processor', {
+        body: { 
+          type: 'analyze_requirements', 
+          content: assignment.description,
+          config: { assignment }
+        }
+      });
+
+      if (error) {
+        console.error("Error during analysis:", error);
+        throw error;
+      }
+
+      console.log("Analysis response:", data);
+      
+      if (data && data.content) {
+        setContent(`## Assignment Analysis\n\n${data.content}\n\n${content}`);
+        toast.success("Assignment analyzed successfully");
+      } else {
+        console.error("Missing content in analysis response:", data);
+        throw new Error("Analysis returned empty content");
+      }
+    } catch (error) {
+      console.error('Error analyzing requirements:', error);
+      toast.error("Failed to analyze assignment requirements");
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
+
+  const generateResponse = async () => {
+    try {
+      setIsGenerating(true);
+      console.log("Generating response for assignment:", assignment.name);
+      
+      const { data, error } = await supabase.functions.invoke('gemini-processor', {
+        body: { 
+          type: 'generate_response',
+          config: { assignment, qualityConfig }
+        }
+      });
+
+      if (error) {
+        console.error("Error during response generation:", error);
+        throw error;
+      }
+
+      console.log("Response generation result:", data);
+      
+      if (data && data.content) {
+        setContent(prev => {
+          return `${prev}\n\n## Generated Response\n\n${data.content}`.trim();
+        });
+        toast.success("Response generated successfully");
+      } else {
+        console.error("Missing content in response generation:", data);
+        throw new Error("Response generation returned empty content");
+      }
+    } catch (error) {
+      console.error('Error generating response:', error);
+      toast.error("Failed to generate assignment response");
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
   const generatePDF = async (content: string) => {
     const docDefinition = {
       content: [
@@ -323,6 +397,10 @@ export const AssignmentWorkspace = ({ assignment, onClose }: AssignmentWorkspace
             externalLinks={externalLinks}
             onProcessLinks={processExternalLinks}
             processingLinks={processingLinks}
+            onAnalyzeAssignment={analyzeAssignment}
+            isAnalyzing={isAnalyzing}
+            onGenerateResponse={generateResponse}
+            isGenerating={isGenerating}
           />
 
           <AssignmentContent
