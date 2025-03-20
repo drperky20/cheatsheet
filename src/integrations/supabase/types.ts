@@ -56,6 +56,50 @@ export type Database = {
           },
         ]
       }
+      automation_results: {
+        Row: {
+          created_at: string
+          error: string | null
+          id: string
+          processed_link_id: string | null
+          result: Json | null
+          status: string
+          task_id: string
+          updated_at: string
+          url: string
+        }
+        Insert: {
+          created_at?: string
+          error?: string | null
+          id?: string
+          processed_link_id?: string | null
+          result?: Json | null
+          status?: string
+          task_id: string
+          updated_at?: string
+          url: string
+        }
+        Update: {
+          created_at?: string
+          error?: string | null
+          id?: string
+          processed_link_id?: string | null
+          result?: Json | null
+          status?: string
+          task_id?: string
+          updated_at?: string
+          url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "automation_results_processed_link_id_fkey"
+            columns: ["processed_link_id"]
+            isOneToOne: false
+            referencedRelation: "processed_links"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cached_assignments: {
         Row: {
           canvas_assignment_id: string
@@ -173,6 +217,50 @@ export type Database = {
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      processed_links: {
+        Row: {
+          assignment_id: string | null
+          content: string | null
+          created_at: string
+          error: string | null
+          id: string
+          status: string
+          type: string
+          updated_at: string
+          url: string
+        }
+        Insert: {
+          assignment_id?: string | null
+          content?: string | null
+          created_at?: string
+          error?: string | null
+          id?: string
+          status?: string
+          type: string
+          updated_at?: string
+          url: string
+        }
+        Update: {
+          assignment_id?: string | null
+          content?: string | null
+          created_at?: string
+          error?: string | null
+          id?: string
+          status?: string
+          type?: string
+          updated_at?: string
+          url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "processed_links_assignment_id_fkey"
+            columns: ["assignment_id"]
+            isOneToOne: false
+            referencedRelation: "assignments"
             referencedColumns: ["id"]
           },
         ]

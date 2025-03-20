@@ -8,6 +8,7 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -26,12 +27,16 @@ serve(async (req) => {
       throw new Error('Canvas configuration is incomplete');
     }
 
+    // Construct the full Canvas API URL
     const url = `https://${CANVAS_DOMAIN}/api/v1${endpoint}`;
     
     const headers = {
       'Authorization': `Bearer ${CANVAS_API_KEY}`,
+      'Content-Type': 'application/json',
     };
 
+    console.log(`[canvas-proxy] Making ${method || 'GET'} request to: ${url}`);
+    
     let body;
     if (formData) {
       const form = new FormData();
@@ -43,21 +48,43 @@ serve(async (req) => {
         }
       }
       body = form;
+      // Remove Content-Type header when using FormData
+      delete headers['Content-Type'];
     }
 
-    console.log(`Making ${method} request to: ${url}`);
-    
     const response = await fetch(url, {
       method: method || 'GET',
       headers,
       body,
     });
 
+    const responseText = await response.text();
+    
     if (!response.ok) {
-      throw new Error(`Canvas API error: ${response.status} ${response.statusText}`);
+      console.error(`[canvas-proxy] Canvas API error: ${response.status} ${response.statusText}`);
+      console.error(`[canvas-proxy] Response body: ${responseText.substring(0, 500)}${responseText.length > 500 ? '...' : ''}`);
+      
+      return new Response(
+        JSON.stringify({ 
+          error: `Canvas API error: ${response.status} ${response.statusText}`,
+          details: responseText.substring(0, 1000)
+        }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: response.status,
+        }
+      );
     }
 
-    const data = await response.json();
+    // Try to parse as JSON, but handle if it's not valid JSON
+    let data;
+    try {
+      data = JSON.parse(responseText);
+      console.log(`[canvas-proxy] Successfully retrieved data from Canvas API`);
+    } catch (e) {
+      console.error(`[canvas-proxy] Failed to parse response as JSON: ${e.message}`);
+      data = { raw: responseText };
+    }
 
     return new Response(
       JSON.stringify(data),
@@ -68,7 +95,8 @@ serve(async (req) => {
     );
 
   } catch (error) {
-    console.error('Error:', error);
+    console.error('[canvas-proxy] Error:', error.message);
+    
     return new Response(
       JSON.stringify({ error: error.message }),
       {

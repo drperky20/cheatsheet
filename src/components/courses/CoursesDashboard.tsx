@@ -4,7 +4,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { BookOpen, Clock, ArrowUpDown } from "lucide-react";
+import { BookOpen, Clock, ArrowUpDown, AlertCircle, RefreshCw } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -39,6 +39,7 @@ type SortOption = "name" | "pending" | "progress";
 export const CoursesDashboard = () => {
   const [courses, setCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<SortOption>("name");
   const [showDisclaimer, setShowDisclaimer] = useState(false);
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
@@ -47,7 +48,9 @@ export const CoursesDashboard = () => {
   const { canvasConfig } = useAuth();
 
   useEffect(() => {
-    fetchCourses();
+    if (canvasConfig) {
+      fetchCourses();
+    }
   }, [canvasConfig]);
 
   const fetchAllAssignments = async (courseId: string) => {
@@ -56,43 +59,60 @@ export const CoursesDashboard = () => {
     let hasMore = true;
     const PER_PAGE = 100;
 
-    while (hasMore) {
-      console.log(`Fetching assignments page ${page} for course ${courseId}...`);
-      const { data: assignments, error } = await supabase.functions.invoke('canvas-proxy', {
-        body: {
-          endpoint: `/courses/${courseId}/assignments?include[]=submission&page=${page}&per_page=${PER_PAGE}`,
-          method: 'GET',
-          domain: canvasConfig?.domain,
-          apiKey: canvasConfig?.api_key
+    try {
+      while (hasMore) {
+        console.log(`Fetching assignments page ${page} for course ${courseId}...`);
+        const { data: assignments, error } = await supabase.functions.invoke('canvas-proxy', {
+          body: {
+            endpoint: `/courses/${courseId}/assignments?include[]=submission&page=${page}&per_page=${PER_PAGE}`,
+            method: 'GET',
+            domain: canvasConfig?.domain,
+            apiKey: canvasConfig?.api_key
+          }
+        });
+
+        if (error) {
+          console.error('Error fetching assignments:', error);
+          throw new Error(`Failed to fetch assignments: ${error.message}`);
         }
-      });
 
-      if (error) {
-        console.error('Error fetching assignments:', error);
-        break;
+        if (!Array.isArray(assignments)) {
+          console.error('Unexpected assignments response:', assignments);
+          throw new Error('Received invalid assignments data from Canvas API');
+        }
+
+        const pageAssignments = assignments;
+        allAssignments = [...allAssignments, ...pageAssignments];
+
+        if (pageAssignments.length < PER_PAGE) {
+          hasMore = false;
+        } else {
+          page++;
+        }
       }
 
-      const pageAssignments = Array.isArray(assignments) ? assignments : [];
-      allAssignments = [...allAssignments, ...pageAssignments];
-
-      if (pageAssignments.length < PER_PAGE) {
-        hasMore = false;
-      } else {
-        page++;
-      }
+      return allAssignments;
+    } catch (error) {
+      console.error(`Error fetching assignments for course ${courseId}:`, error);
+      throw error;
     }
-
-    return allAssignments;
   };
 
   const fetchCourses = async () => {
+    setError(null);
+    setLoading(true);
+    
     try {
       if (!canvasConfig) {
         console.log('No Canvas configuration found');
+        setError('Canvas configuration is missing. Please connect your Canvas account.');
+        setLoading(false);
         return;
       }
 
       console.log('Fetching courses from Canvas...');
+      console.log('Using Canvas domain:', canvasConfig.domain);
+      
       const { data: coursesData, error: coursesError } = await supabase.functions.invoke('canvas-proxy', {
         body: {
           endpoint: '/courses?enrollment_state=active&state[]=available',
@@ -102,40 +122,70 @@ export const CoursesDashboard = () => {
         }
       });
 
-      if (coursesError) throw coursesError;
+      if (coursesError) {
+        console.error('Error fetching courses:', coursesError);
+        setError(`Failed to fetch courses: ${coursesError.message}`);
+        setLoading(false);
+        toast({
+          title: "Error fetching courses",
+          description: coursesError.message,
+          variant: "destructive"
+        });
+        return;
+      }
 
+      if (!Array.isArray(coursesData)) {
+        console.error('Unexpected courses response:', coursesData);
+        setError('Received invalid data from Canvas API');
+        setLoading(false);
+        toast({
+          title: "Error fetching courses",
+          description: "Received invalid data from Canvas API",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      console.log('Courses data received:', coursesData.length, 'courses');
+      
       const coursesWithAssignments = await Promise.all(
-        (Array.isArray(coursesData) ? coursesData : []).map(async (course) => {
-          const assignments = await fetchAllAssignments(course.id);
-          
-          const startDate = new Date('2024-01-01');
-          const totalAssignments = assignments.length;
-          const missingAssignments = assignments.filter(a => {
-            const dueDate = a.due_at ? new Date(a.due_at) : null;
-            if (!dueDate || dueDate < startDate) return false;
-            const hasSubmission = a.submission && typeof a.submission.score === 'number';
-            const isZeroScore = hasSubmission && a.submission.score === 0;
-            const hasPointsPossible = a.points_possible > 0;
-            return hasPointsPossible && isZeroScore;
-          }).length;
+        coursesData.map(async (course) => {
+          try {
+            const assignments = await fetchAllAssignments(course.id);
+            
+            const startDate = new Date('2024-01-01');
+            const totalAssignments = assignments.length;
+            const missingAssignments = assignments.filter(a => {
+              const dueDate = a.due_at ? new Date(a.due_at) : null;
+              if (!dueDate || dueDate < startDate) return false;
+              const hasSubmission = a.submission && typeof a.submission.score === 'number';
+              const isZeroScore = hasSubmission && a.submission.score === 0;
+              const hasPointsPossible = a.points_possible > 0;
+              return hasPointsPossible && isZeroScore;
+            }).length;
 
-          return {
-            id: course.id,
-            name: course.name,
-            course_code: course.course_code || course.name,
-            assignments_count: totalAssignments,
-            pending_assignments: missingAssignments,
-            term: course.term,
-            nickname: undefined
-          } as Course;
+            return {
+              id: course.id,
+              name: course.name,
+              course_code: course.course_code || course.name,
+              assignments_count: totalAssignments,
+              pending_assignments: missingAssignments,
+              term: course.term,
+              nickname: undefined
+            } as Course;
+          } catch (error) {
+            console.error(`Error processing course ${course.id}:`, error);
+            return null;
+          }
         })
       );
 
       const validCourses = coursesWithAssignments.filter((course): course is Course => course !== null);
-      console.log('Courses with assignments:', validCourses);
+      console.log('Processed courses with assignments:', validCourses.length);
       setCourses(sortCourses(validCourses, sortBy));
     } catch (error: any) {
-      console.error('Error fetching courses:', error);
+      console.error('Error in fetchCourses:', error);
+      setError(error.message || "An unexpected error occurred");
       toast({
         title: "Error fetching courses",
         description: error.message || "Please check your Canvas configuration",
@@ -187,13 +237,39 @@ export const CoursesDashboard = () => {
     );
   }
 
+  if (error) {
+    return (
+      <div className="text-center p-8 glass">
+        <AlertCircle className="h-16 w-16 text-red-500 mx-auto mb-4" />
+        <h3 className="text-xl font-semibold mb-2">Failed to Load Courses</h3>
+        <p className="text-gray-400 mb-6">
+          {error}
+        </p>
+        <Button 
+          onClick={fetchCourses} 
+          className="mx-auto flex items-center space-x-2"
+        >
+          <RefreshCw className="h-4 w-4 mr-2" />
+          Try Again
+        </Button>
+      </div>
+    );
+  }
+
   if (courses.length === 0) {
     return (
       <div className="text-center p-8 glass">
         <h3 className="text-xl font-semibold mb-2">No Active Courses Found</h3>
-        <p className="text-gray-400">
+        <p className="text-gray-400 mb-6">
           We couldn't find any active courses. If you believe this is an error, please check your Canvas configuration.
         </p>
+        <Button 
+          onClick={fetchCourses} 
+          className="mx-auto flex items-center space-x-2"
+        >
+          <RefreshCw className="h-4 w-4 mr-2" />
+          Refresh Courses
+        </Button>
       </div>
     );
   }
