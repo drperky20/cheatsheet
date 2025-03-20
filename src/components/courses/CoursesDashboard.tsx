@@ -19,6 +19,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 
 interface Course {
   id: string;
@@ -40,6 +41,7 @@ export const CoursesDashboard = () => {
   const [courses, setCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [errorDetails, setErrorDetails] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<SortOption>("name");
   const [showDisclaimer, setShowDisclaimer] = useState(false);
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
@@ -100,6 +102,7 @@ export const CoursesDashboard = () => {
 
   const fetchCourses = async () => {
     setError(null);
+    setErrorDetails(null);
     setLoading(true);
     
     try {
@@ -113,7 +116,7 @@ export const CoursesDashboard = () => {
       console.log('Fetching courses from Canvas...');
       console.log('Using Canvas domain:', canvasConfig.domain);
       
-      const { data: coursesData, error: coursesError } = await supabase.functions.invoke('canvas-proxy', {
+      const response = await supabase.functions.invoke('canvas-proxy', {
         body: {
           endpoint: '/courses?enrollment_state=active&state[]=available',
           method: 'GET',
@@ -122,18 +125,23 @@ export const CoursesDashboard = () => {
         }
       });
 
-      if (coursesError) {
-        console.error('Error fetching courses:', coursesError);
-        setError(`Failed to fetch courses: ${coursesError.message}`);
+      if (response.error) {
+        console.error('Error fetching courses:', response.error);
+        setError(`Failed to fetch courses: ${response.error}`);
+        if (response.data && response.data.details) {
+          setErrorDetails(response.data.details);
+        }
         setLoading(false);
         toast({
           title: "Error fetching courses",
-          description: coursesError.message,
+          description: response.error,
           variant: "destructive"
         });
         return;
       }
 
+      const coursesData = response.data;
+      
       if (!Array.isArray(coursesData)) {
         console.error('Unexpected courses response:', coursesData);
         setError('Received invalid data from Canvas API');
@@ -227,6 +235,10 @@ export const CoursesDashboard = () => {
     }
   };
 
+  const handleCanvasReconnect = () => {
+    window.location.href = "/settings";
+  };
+
   if (loading) {
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -242,16 +254,38 @@ export const CoursesDashboard = () => {
       <div className="text-center p-8 glass">
         <AlertCircle className="h-16 w-16 text-red-500 mx-auto mb-4" />
         <h3 className="text-xl font-semibold mb-2">Failed to Load Courses</h3>
-        <p className="text-gray-400 mb-6">
+        <p className="text-gray-400 mb-4">
           {error}
         </p>
-        <Button 
-          onClick={fetchCourses} 
-          className="mx-auto flex items-center space-x-2"
-        >
-          <RefreshCw className="h-4 w-4 mr-2" />
-          Try Again
-        </Button>
+        
+        {errorDetails && (
+          <Alert variant="destructive" className="mb-4 bg-red-900/40 border-red-800">
+            <AlertTitle>Canvas API Error</AlertTitle>
+            <AlertDescription className="mt-2">
+              {errorDetails}
+            </AlertDescription>
+          </Alert>
+        )}
+        
+        <div className="flex flex-col gap-3 mt-4">
+          <Button 
+            onClick={fetchCourses} 
+            className="mx-auto flex items-center space-x-2"
+          >
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Try Again
+          </Button>
+          
+          {errorDetails && errorDetails.includes("token") && (
+            <Button 
+              onClick={handleCanvasReconnect}
+              variant="outline" 
+              className="mx-auto mt-2"
+            >
+              Update Canvas Connection
+            </Button>
+          )}
+        </div>
       </div>
     );
   }

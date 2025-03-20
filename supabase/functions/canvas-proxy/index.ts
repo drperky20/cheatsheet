@@ -52,53 +52,82 @@ serve(async (req) => {
       delete headers['Content-Type'];
     }
 
-    const response = await fetch(url, {
-      method: method || 'GET',
-      headers,
-      body,
-    });
+    try {
+      const response = await fetch(url, {
+        method: method || 'GET',
+        headers,
+        body,
+      });
 
-    const responseText = await response.text();
-    
-    if (!response.ok) {
-      console.error(`[canvas-proxy] Canvas API error: ${response.status} ${response.statusText}`);
-      console.error(`[canvas-proxy] Response body: ${responseText.substring(0, 500)}${responseText.length > 500 ? '...' : ''}`);
+      const responseText = await response.text();
       
+      if (!response.ok) {
+        console.error(`[canvas-proxy] Canvas API error: ${response.status} ${response.statusText}`);
+        console.error(`[canvas-proxy] Response body: ${responseText.substring(0, 500)}${responseText.length > 500 ? '...' : ''}`);
+        
+        // Parse Canvas error message when possible
+        let errorDetails = responseText;
+        try {
+          const errorJson = JSON.parse(responseText);
+          if (errorJson.errors && Array.isArray(errorJson.errors)) {
+            errorDetails = errorJson.errors.map(e => e.message || JSON.stringify(e)).join(", ");
+          } else if (errorJson.message) {
+            errorDetails = errorJson.message;
+          }
+        } catch (e) {
+          // If we can't parse the error as JSON, use the raw text
+        }
+        
+        return new Response(
+          JSON.stringify({ 
+            error: `Canvas API error: ${response.status} ${response.statusText}`,
+            details: errorDetails
+          }),
+          {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: response.status,
+          }
+        );
+      }
+
+      // Try to parse as JSON, but handle if it's not valid JSON
+      let data;
+      try {
+        data = JSON.parse(responseText);
+        console.log(`[canvas-proxy] Successfully retrieved data from Canvas API`);
+      } catch (e) {
+        console.error(`[canvas-proxy] Failed to parse response as JSON: ${e.message}`);
+        data = { raw: responseText };
+      }
+
+      return new Response(
+        JSON.stringify(data),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 200,
+        }
+      );
+    } catch (fetchError) {
+      console.error(`[canvas-proxy] Fetch error:`, fetchError);
       return new Response(
         JSON.stringify({ 
-          error: `Canvas API error: ${response.status} ${response.statusText}`,
-          details: responseText.substring(0, 1000)
+          error: `Canvas API fetch error: ${fetchError.message}`,
+          details: "There was a problem connecting to the Canvas API. Please check your domain and API key."
         }),
         {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: response.status,
+          status: 500,
         }
       );
     }
-
-    // Try to parse as JSON, but handle if it's not valid JSON
-    let data;
-    try {
-      data = JSON.parse(responseText);
-      console.log(`[canvas-proxy] Successfully retrieved data from Canvas API`);
-    } catch (e) {
-      console.error(`[canvas-proxy] Failed to parse response as JSON: ${e.message}`);
-      data = { raw: responseText };
-    }
-
-    return new Response(
-      JSON.stringify(data),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200,
-      }
-    );
-
   } catch (error) {
     console.error('[canvas-proxy] Error:', error.message);
     
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ 
+        error: error.message,
+        details: "There was a problem processing your request. Please check your Canvas configuration."
+      }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 500,
