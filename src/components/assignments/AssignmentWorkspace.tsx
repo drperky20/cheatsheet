@@ -1,14 +1,16 @@
+
 import { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { extractAllExternalLinks } from "@/utils/docProcessor";
+import { Wand2, Save, Send, RotateCcw, FileText } from "lucide-react";
+import { extractGoogleDocLinks, sanitizeHTML } from "@/utils/docProcessor";
+import { AssignmentQualityControls } from "./AssignmentQualityControls";
+import { AssignmentEditor } from "./AssignmentEditor";
 import { AssignmentQualityConfig } from "@/types/assignment";
 import pdfMake from "pdfmake/build/pdfmake";
 import "pdfmake/build/vfs_fonts";
-import { AssignmentHeader } from "./workspace/AssignmentHeader";
-import { AssignmentDescription } from "./workspace/AssignmentDescription";
-import { AssignmentContent } from "./workspace/AssignmentContent";
 
 interface Assignment {
   id: string;
@@ -27,38 +29,11 @@ interface AssignmentWorkspaceProps {
   onClose: () => void;
 }
 
-interface ProcessedLink {
-  id: string;
-  url: string;
-  type: 'google_doc' | 'external_link';
-  status: string;
-  content: string | null;
-  error: string | null;
-  assignment_id: string;
-  created_at: string;
-  updated_at: string;
-}
-
-interface AutomationResult {
-  id: string;
-  task_id: string;
-  url: string;
-  status: string;
-  result: any;
-  error: string | null;
-  created_at: string;
-  updated_at: string;
-  processed_link_id: string;
-}
-
 export const AssignmentWorkspace = ({ assignment, onClose }: AssignmentWorkspaceProps) => {
   const [content, setContent] = useState("");
   const [isSubmitting, setSubmitting] = useState(false);
-  const [processingLinks, setProcessingLinks] = useState(false);
-  const [externalLinks, setExternalLinks] = useState<Array<{ url: string; type: 'google_doc' | 'external_link' }>>([]);
-  const [processedLinks, setProcessedLinks] = useState<ProcessedLink[]>([]);
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [isGenerating, setIsGenerating] = useState(false);
+  const [googleDocs, setGoogleDocs] = useState<string[]>([]);
+  const [processingDocs, setProcessingDocs] = useState(false);
   const [qualityConfig, setQualityConfig] = useState<AssignmentQualityConfig>({
     targetGrade: 'B',
     selectedFlaws: [],
@@ -67,207 +42,9 @@ export const AssignmentWorkspace = ({ assignment, onClose }: AssignmentWorkspace
   });
 
   useEffect(() => {
-    if (assignment.description) {
-      const links = extractAllExternalLinks(assignment.description);
-      setExternalLinks(links);
-      fetchProcessedLinks();
-    }
+    const links = extractGoogleDocLinks(assignment.description);
+    setGoogleDocs(links);
   }, [assignment.description]);
-
-  const fetchProcessedLinks = async () => {
-    try {
-      const { data: links, error } = await supabase
-        .from('processed_links')
-        .select('*')
-        .eq('assignment_id', assignment.id);
-
-      if (error) throw error;
-      
-      const validLinks = links?.filter((link): link is ProcessedLink => {
-        return link.type === 'google_doc' || link.type === 'external_link';
-      }) || [];
-
-      setProcessedLinks(validLinks);
-    } catch (error) {
-      console.error('Error fetching processed links:', error);
-      toast.error("Failed to fetch processed links");
-    }
-  };
-
-  const pollProcessedLink = async (processedLinkId: string): Promise<ProcessedLink> => {
-    const maxAttempts = 30;
-    let attempts = 0;
-
-    const poll = async (): Promise<ProcessedLink> => {
-      const { data, error } = await supabase
-        .from('processed_links')
-        .select('*')
-        .eq('id', processedLinkId)
-        .single();
-
-      if (error) throw error;
-
-      if (data.status === 'completed') {
-        return data;
-      } else if (data.status === 'failed') {
-        throw new Error(data.error || 'Processing failed');
-      }
-
-      if (attempts >= maxAttempts) {
-        throw new Error('Processing timed out');
-      }
-
-      attempts++;
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      return poll();
-    };
-
-    return poll();
-  };
-
-  const processLink = async (url: string, type: 'google_doc' | 'external_link') => {
-    try {
-      const { data: processedLink, error: insertError } = await supabase
-        .from('processed_links')
-        .insert({
-          url,
-          type,
-          status: 'processing',
-          assignment_id: assignment.id
-        })
-        .select()
-        .single();
-
-      if (insertError) throw insertError;
-
-      const { data, error } = await supabase.functions.invoke('browser-processor', {
-        body: { url, type, processedLinkId: processedLink.id }
-      });
-
-      if (error) throw error;
-
-      try {
-        const processedLinkResult = await pollProcessedLink(processedLink.id);
-        
-        if (processedLinkResult.content) {
-          setContent(prev => {
-            const newContent = `${prev}\n\n### Content from ${url}:\n${processedLinkResult.content}`;
-            return newContent.trim();
-          });
-          toast.success(`Processed ${type === 'google_doc' ? 'Google Doc' : 'external link'} successfully`);
-        }
-      } catch (pollError) {
-        console.error('Error polling processed link:', pollError);
-        throw pollError;
-      }
-
-      fetchProcessedLinks();
-    } catch (error) {
-      console.error('Error processing link:', error);
-      toast.error("Failed to process link");
-    }
-  };
-
-  const processExternalLinks = async () => {
-    if (externalLinks.length === 0) {
-      toast.error("No external links found in the assignment description");
-      return;
-    }
-
-    try {
-      setProcessingLinks(true);
-      
-      for (const link of externalLinks) {
-        const existingProcessed = processedLinks.find(pl => pl.url === link.url && pl.status === 'completed');
-        
-        if (existingProcessed) {
-          setContent(prev => {
-            const newContent = `${prev}\n\n### Content from ${link.url}:\n${existingProcessed.content}`;
-            return newContent.trim();
-          });
-          toast.success(`Using cached content for ${link.type === 'google_doc' ? 'Google Doc' : 'external link'}`);
-        } else {
-          await processLink(link.url, link.type);
-        }
-      }
-    } catch (error) {
-      console.error('Error processing external links:', error);
-      toast.error("Failed to process external links");
-    } finally {
-      setProcessingLinks(false);
-    }
-  };
-
-  const analyzeAssignment = async () => {
-    try {
-      setIsAnalyzing(true);
-      console.log("Starting assignment analysis for:", assignment.description);
-      
-      const { data, error } = await supabase.functions.invoke('gemini-processor', {
-        body: { 
-          type: 'analyze_requirements', 
-          content: assignment.description,
-          config: { assignment }
-        }
-      });
-
-      if (error) {
-        console.error("Error during analysis:", error);
-        throw error;
-      }
-
-      console.log("Analysis response:", data);
-      
-      if (data && data.content) {
-        setContent(`## Assignment Analysis\n\n${data.content}\n\n${content}`);
-        toast.success("Assignment analyzed successfully");
-      } else {
-        console.error("Missing content in analysis response:", data);
-        throw new Error("Analysis returned empty content");
-      }
-    } catch (error) {
-      console.error('Error analyzing requirements:', error);
-      toast.error("Failed to analyze assignment requirements");
-    } finally {
-      setIsAnalyzing(false);
-    }
-  };
-
-  const generateResponse = async () => {
-    try {
-      setIsGenerating(true);
-      console.log("Generating response for assignment:", assignment.name);
-      
-      const { data, error } = await supabase.functions.invoke('gemini-processor', {
-        body: { 
-          type: 'generate_response',
-          config: { assignment, qualityConfig }
-        }
-      });
-
-      if (error) {
-        console.error("Error during response generation:", error);
-        throw error;
-      }
-
-      console.log("Response generation result:", data);
-      
-      if (data && data.content) {
-        setContent(prev => {
-          return `${prev}\n\n## Generated Response\n\n${data.content}`.trim();
-        });
-        toast.success("Response generated successfully");
-      } else {
-        console.error("Missing content in response generation:", data);
-        throw new Error("Response generation returned empty content");
-      }
-    } catch (error) {
-      console.error('Error generating response:', error);
-      toast.error("Failed to generate assignment response");
-    } finally {
-      setIsGenerating(false);
-    }
-  };
 
   const generatePDF = async (content: string) => {
     const docDefinition = {
@@ -348,35 +125,86 @@ export const AssignmentWorkspace = ({ assignment, onClose }: AssignmentWorkspace
     }
   };
 
+  const processGoogleDocs = async () => {
+    if (googleDocs.length === 0) {
+      toast.error("No Google Docs found in this assignment");
+      return;
+    }
+
+    try {
+      setProcessingDocs(true);
+      
+      for (const docUrl of googleDocs) {
+        const { data, error } = await supabase.functions.invoke('gemini-processor', {
+          body: {
+            content: `Process this Google Doc and provide a detailed analysis: ${docUrl}\n\nAssignment Context: ${assignment.name}\n\nAssignment Description: ${assignment.description}`,
+            type: 'analyze_requirements'
+          }
+        });
+
+        if (error) throw error;
+
+        setContent(prev => {
+          const newContent = `${prev}\n\n### Analysis of Google Doc (${docUrl}):\n${data.result}`;
+          return newContent.trim();
+        });
+        
+        toast.success("Google Doc processed successfully");
+      }
+    } catch (error) {
+      console.error('Error processing Google Docs:', error);
+      toast.error("Failed to process Google Docs");
+    } finally {
+      setProcessingDocs(false);
+    }
+  };
+
   return (
     <div className="fixed inset-0 bg-black/90 backdrop-blur-sm z-50 flex items-center justify-center p-4">
       <Card className="w-full max-w-4xl h-[90vh] glass overflow-hidden flex flex-col">
-        <AssignmentHeader
-          name={assignment.name}
-          dueDate={assignment.due_at}
-          onClose={onClose}
-        />
+        <div className="p-4 border-b border-white/10 flex items-center justify-between bg-black/40">
+          <div>
+            <h2 className="text-xl font-semibold text-white">{assignment.name}</h2>
+            <p className="text-sm text-gray-400">Due {new Date(assignment.due_at).toLocaleDateString()}</p>
+          </div>
+          <Button variant="ghost" onClick={onClose}>Close</Button>
+        </div>
 
         <div className="flex-1 p-4 space-y-4 overflow-auto">
-          <AssignmentDescription
-            description={assignment.description}
-            externalLinks={externalLinks}
-            onProcessLinks={processExternalLinks}
-            processingLinks={processingLinks}
-            onAnalyzeAssignment={analyzeAssignment}
-            isAnalyzing={isAnalyzing}
-            onGenerateResponse={generateResponse}
-            isGenerating={isGenerating}
-          />
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-white">Assignment Description</label>
+            <Card className="p-4 bg-black/40 border-white/10">
+              <div 
+                className="prose prose-invert max-w-none"
+                dangerouslySetInnerHTML={{ __html: sanitizeHTML(assignment.description) }} 
+              />
+              
+              {googleDocs.length > 0 && (
+                <div className="mt-4 p-3 bg-blue-500/10 rounded-lg border border-blue-500/20">
+                  <h3 className="text-sm font-medium text-blue-400 mb-2">
+                    Found {googleDocs.length} Google Doc{googleDocs.length > 1 ? 's' : ''}
+                  </h3>
+                  <Button
+                    onClick={processGoogleDocs}
+                    disabled={processingDocs}
+                    className="w-full bg-blue-500/20 hover:bg-blue-500/30"
+                  >
+                    <FileText className="w-4 h-4 mr-2" />
+                    {processingDocs ? "Processing Documents..." : "Process Google Docs"}
+                  </Button>
+                </div>
+              )}
+            </Card>
+          </div>
 
-          <AssignmentContent
+          <AssignmentQualityControls onConfigChange={setQualityConfig} />
+
+          <AssignmentEditor
             content={content}
-            onContentChange={setContent}
+            onChange={setContent}
             assignment={assignment}
             onSave={handleSubmit}
             isSubmitting={isSubmitting}
-            qualityConfig={qualityConfig}
-            onQualityConfigChange={setQualityConfig}
           />
         </div>
       </Card>
