@@ -4,9 +4,10 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Search, AlertCircle } from "lucide-react";
+import { Search, AlertCircle, FileWarning } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { AssignmentCard } from "./AssignmentCard";
+import { Button } from "@/components/ui/button";
 
 interface Assignment {
   id: string;
@@ -18,6 +19,7 @@ interface Assignment {
   workflow_state: string;
   html_url: string;
   published: boolean;
+  course_id: number;
 }
 
 interface AssignmentsListProps {
@@ -30,6 +32,7 @@ export const AssignmentsList = ({ courseId, onStartAssignment }: AssignmentsList
   const [loading, setLoading] = useState(true);
   const [analyzing, setAnalyzing] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [error, setError] = useState<string | null>(null);
   const { canvasConfig } = useAuth();
 
   useEffect(() => {
@@ -40,6 +43,7 @@ export const AssignmentsList = ({ courseId, onStartAssignment }: AssignmentsList
 
   const fetchAllAssignments = async () => {
     try {
+      setError(null);
       if (!canvasConfig) {
         throw new Error('Canvas configuration not found');
       }
@@ -68,7 +72,13 @@ export const AssignmentsList = ({ courseId, onStartAssignment }: AssignmentsList
         if (pageAssignments.length === 0) {
           hasMore = false;
         } else {
-          allAssignments = [...allAssignments, ...pageAssignments];
+          // Add course_id to each assignment
+          const assignmentsWithCourseId = pageAssignments.map(assignment => ({
+            ...assignment,
+            course_id: parseInt(courseId)
+          }));
+          
+          allAssignments = [...allAssignments, ...assignmentsWithCourseId];
           
           // If we received fewer assignments than the page size, we've reached the end
           if (pageAssignments.length < PER_PAGE) {
@@ -90,13 +100,14 @@ export const AssignmentsList = ({ courseId, onStartAssignment }: AssignmentsList
           if (!a.due_at && !b.due_at) return 0;
           if (!a.due_at) return 1;
           if (!b.due_at) return -1;
-          return new Date(b.due_at).getTime() - new Date(a.due_at).getTime();
+          return new Date(a.due_at).getTime() - new Date(b.due_at).getTime();
         });
 
       console.log(`Total assignments after filtering: ${filteredAssignments.length}`);
       setAssignments(filteredAssignments);
     } catch (error) {
       console.error('Error fetching assignments:', error);
+      setError('Failed to load assignments. Please try again.');
       toast.error("Failed to load assignments");
     } finally {
       setLoading(false);
@@ -106,16 +117,29 @@ export const AssignmentsList = ({ courseId, onStartAssignment }: AssignmentsList
   const analyzeRequirements = async (assignment: Assignment) => {
     try {
       setAnalyzing(assignment.id);
-      const { data, error } = await supabase.functions.invoke('gemini-processor', {
-        body: {
-          content: assignment.description,
-          type: 'analyze_requirements'
-        }
-      });
+      
+      // Skip the actual analysis step and just proceed directly
+      // This is a temporary workaround if the Gemini API is not set up
+      try {
+        // Attempt to analyze with Gemini
+        const { data, error } = await supabase.functions.invoke('gemini-processor', {
+          body: {
+            content: assignment.description,
+            type: 'analyze_requirements'
+          }
+        });
 
-      if (error) throw error;
-
-      toast.success("Assignment requirements analyzed");
+        if (error) throw error;
+        
+        console.log("Successfully analyzed assignment requirements:", data);
+        toast.success("Assignment requirements analyzed");
+      } catch (analyzeError) {
+        // If the analysis fails, log it but continue
+        console.error("Error during analysis, proceeding anyway:", analyzeError);
+        toast.error("Could not analyze requirements, but you can still work on the assignment");
+      }
+      
+      // Always proceed with the assignment, even if analysis fails
       onStartAssignment(assignment);
     } catch (error) {
       console.error('Error analyzing requirements:', error);
@@ -135,6 +159,21 @@ export const AssignmentsList = ({ courseId, onStartAssignment }: AssignmentsList
         {[1, 2, 3, 4, 5].map((i) => (
           <Skeleton key={i} className="h-[100px] rounded-lg" />
         ))}
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="h-[calc(100vh-12rem)] overflow-y-auto p-4 border border-white/10 rounded-lg">
+        <div className="flex flex-col items-center justify-center h-full">
+          <FileWarning className="h-16 w-16 text-red-400 mb-4" />
+          <h3 className="text-xl font-semibold mb-2">Error Loading Assignments</h3>
+          <p className="text-gray-400 mb-4 text-center">{error}</p>
+          <Button onClick={fetchAllAssignments} className="bg-[#9b87f5]">
+            Try Again
+          </Button>
+        </div>
       </div>
     );
   }
@@ -163,7 +202,7 @@ export const AssignmentsList = ({ courseId, onStartAssignment }: AssignmentsList
             <AssignmentCard
               key={assignment.id}
               assignment={assignment}
-              onStart={analyzeRequirements}
+              onStart={() => analyzeRequirements(assignment)}
               isAnalyzing={analyzing === assignment.id}
             />
           ))

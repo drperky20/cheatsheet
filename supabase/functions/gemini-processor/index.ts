@@ -140,11 +140,18 @@ serve(async (req) => {
 
     console.log('Sending prompt to Gemini:', prompt);
 
+    // Check if GEMINI_API_KEY is available
+    const apiKey = Deno.env.get('GEMINI_API_KEY');
+    if (!apiKey) {
+      console.error('GEMINI_API_KEY is not set in environment variables');
+      throw new Error('API key for Gemini is not configured');
+    }
+
     const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-goog-api-key': Deno.env.get('GEMINI_API_KEY') || '',
+        'x-goog-api-key': apiKey,
       },
       body: JSON.stringify({
         contents: [{
@@ -161,10 +168,17 @@ serve(async (req) => {
       })
     });
 
+    if (!response.ok) {
+      const errorData = await response.text();
+      console.error('Gemini API error:', response.status, errorData);
+      throw new Error(`Gemini API error: ${response.status} - ${errorData}`);
+    }
+
     const data = await response.json();
-    console.log('Gemini response:', data);
+    console.log('Gemini response structure:', Object.keys(data));
 
     if (!data.candidates?.[0]?.content?.parts?.[0]?.text) {
+      console.error('Invalid Gemini response structure:', JSON.stringify(data));
       throw new Error('Invalid response from Gemini API');
     }
 
@@ -174,9 +188,12 @@ serve(async (req) => {
     );
 
   } catch (error) {
-    console.error('Error in edge function:', error);
+    console.error('Error in gemini-processor function:', error);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ 
+        error: error.message,
+        details: "There was a problem processing your request with the AI service."
+      }),
       { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 500
