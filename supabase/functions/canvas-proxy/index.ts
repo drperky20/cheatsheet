@@ -67,12 +67,26 @@ serve(async (req) => {
         
         // Parse Canvas error message when possible
         let errorDetails = responseText;
+        let errorType = "api_error";
+        
         try {
           const errorJson = JSON.parse(responseText);
           if (errorJson.errors && Array.isArray(errorJson.errors)) {
             errorDetails = errorJson.errors.map(e => e.message || JSON.stringify(e)).join(", ");
           } else if (errorJson.message) {
             errorDetails = errorJson.message;
+          }
+          
+          // Detect specific error types
+          if (response.status === 401) {
+            errorType = "auth_error";
+            
+            // Check for revoked token
+            if (errorDetails.includes("token") || 
+                errorDetails.toLowerCase().includes("unauthorized") || 
+                errorDetails.toLowerCase().includes("revoked")) {
+              errorType = "token_revoked";
+            }
           }
         } catch (e) {
           // If we can't parse the error as JSON, use the raw text
@@ -81,7 +95,8 @@ serve(async (req) => {
         return new Response(
           JSON.stringify({ 
             error: `Canvas API error: ${response.status} ${response.statusText}`,
-            details: errorDetails
+            details: errorDetails,
+            type: errorType
           }),
           {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -112,7 +127,8 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({ 
           error: `Canvas API fetch error: ${fetchError.message}`,
-          details: "There was a problem connecting to the Canvas API. Please check your domain and API key."
+          details: "There was a problem connecting to the Canvas API. Please check your domain and API key.",
+          type: "connection_error"
         }),
         {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -126,7 +142,8 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({ 
         error: error.message,
-        details: "There was a problem processing your request. Please check your Canvas configuration."
+        details: "There was a problem processing your request. Please check your Canvas configuration.",
+        type: "request_error"
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

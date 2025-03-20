@@ -5,8 +5,9 @@ import { Input } from "@/components/ui/input";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
-import { LoaderCircle, AlertCircle } from "lucide-react";
+import { LoaderCircle, AlertCircle, CheckCircle2 } from "lucide-react";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import { supabase } from "@/integrations/supabase/client";
 
 export const CanvasSetup = () => {
   const { updateCanvasConfig, canvasConfig } = useAuth();
@@ -15,6 +16,7 @@ export const CanvasSetup = () => {
   const [domain, setDomain] = useState(canvasConfig?.domain || "");
   const [apiKey, setApiKey] = useState(canvasConfig?.api_key || "");
   const [connectionError, setConnectionError] = useState<string | null>(null);
+  const [connectionSuccess, setConnectionSuccess] = useState(false);
 
   const validateDomain = (input: string) => {
     // Basic validation to ensure it's a valid domain
@@ -26,21 +28,30 @@ export const CanvasSetup = () => {
     return input.length > 20;
   };
 
-  const testConnection = async (domain: string, apiKey: string) => {
+  const testConnection = async (domainToTest: string, apiKeyToTest: string) => {
     setTestingConnection(true);
     setConnectionError(null);
+    setConnectionSuccess(false);
     
     try {
-      const { data, error } = await fetch('/api/canvas-test', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ domain, apiKey }),
-      }).then(res => res.json());
+      const { data: response, error } = await supabase.functions.invoke('canvas-proxy', {
+        body: {
+          endpoint: '/users/self',
+          method: 'GET',
+          domain: domainToTest,
+          apiKey: apiKeyToTest
+        }
+      });
       
-      if (error) throw new Error(error);
+      if (error) {
+        throw new Error(error);
+      }
       
+      if (response && response.error) {
+        throw new Error(response.details || response.error);
+      }
+      
+      setConnectionSuccess(true);
       return true;
     } catch (error: any) {
       console.error("Canvas connection test error:", error);
@@ -82,8 +93,15 @@ export const CanvasSetup = () => {
     setConnectionError(null);
     
     try {
-      await updateCanvasConfig(trimmedDomain, trimmedApiKey);
-      toast.success("Canvas connection successful!");
+      // Test the connection first
+      const isConnected = await testConnection(trimmedDomain, trimmedApiKey);
+      
+      if (isConnected) {
+        await updateCanvasConfig(trimmedDomain, trimmedApiKey);
+        toast.success("Canvas connection successful!");
+      } else {
+        toast.error("Failed to connect to Canvas. Please check your API key and domain.");
+      }
     } catch (error) {
       console.error("Canvas connection error:", error);
       toast.error("Failed to connect to Canvas. Please check your API key and domain.");
@@ -100,6 +118,16 @@ export const CanvasSetup = () => {
           <AlertTitle>Connection Error</AlertTitle>
           <AlertDescription>
             {connectionError}
+          </AlertDescription>
+        </Alert>
+      )}
+      
+      {connectionSuccess && (
+        <Alert className="mb-4 bg-green-900/40 border-green-800">
+          <CheckCircle2 className="h-4 w-4 text-green-500" />
+          <AlertTitle>Connection Successful</AlertTitle>
+          <AlertDescription>
+            Successfully connected to Canvas! You can now access your courses and assignments.
           </AlertDescription>
         </Alert>
       )}
@@ -154,6 +182,11 @@ export const CanvasSetup = () => {
             <>
               <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
               Connecting...
+            </>
+          ) : connectionSuccess ? (
+            <>
+              <CheckCircle2 className="mr-2 h-4 w-4" />
+              Update Connection
             </>
           ) : (
             "Connect to Canvas"

@@ -1,10 +1,11 @@
+
 import { useEffect, useState } from "react";
 import { CourseCard } from "./CourseCard";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { BookOpen, Clock, ArrowUpDown, AlertCircle, RefreshCw } from "lucide-react";
+import { BookOpen, Clock, ArrowUpDown, AlertCircle, RefreshCw, KeyRound } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -20,6 +21,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import { useNavigate } from "react-router-dom";
 
 interface Course {
   id: string;
@@ -42,12 +44,14 @@ export const CoursesDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [errorDetails, setErrorDetails] = useState<string | null>(null);
+  const [errorType, setErrorType] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<SortOption>("name");
   const [showDisclaimer, setShowDisclaimer] = useState(false);
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
   const [hasSeenDisclaimer, setHasSeenDisclaimer] = useState(false);
   const { toast } = useToast();
   const { canvasConfig } = useAuth();
+  const navigate = useNavigate();
 
   useEffect(() => {
     if (canvasConfig) {
@@ -64,7 +68,7 @@ export const CoursesDashboard = () => {
     try {
       while (hasMore) {
         console.log(`Fetching assignments page ${page} for course ${courseId}...`);
-        const { data: assignments, error } = await supabase.functions.invoke('canvas-proxy', {
+        const { data: pageData, error } = await supabase.functions.invoke('canvas-proxy', {
           body: {
             endpoint: `/courses/${courseId}/assignments?include[]=submission&page=${page}&per_page=${PER_PAGE}`,
             method: 'GET',
@@ -73,23 +77,26 @@ export const CoursesDashboard = () => {
           }
         });
 
-        if (error) {
-          console.error('Error fetching assignments:', error);
-          throw new Error(`Failed to fetch assignments: ${error.message}`);
+        if (error) throw error;
+
+        if (pageData.error) {
+          throw new Error(pageData.details || pageData.error);
         }
 
-        if (!Array.isArray(assignments)) {
-          console.error('Unexpected assignments response:', assignments);
-          throw new Error('Received invalid assignments data from Canvas API');
-        }
+        const pageAssignments = Array.isArray(pageData) ? pageData : [];
+        console.log(`Received ${pageAssignments.length} assignments on page ${page}`);
 
-        const pageAssignments = assignments;
-        allAssignments = [...allAssignments, ...pageAssignments];
-
-        if (pageAssignments.length < PER_PAGE) {
+        if (pageAssignments.length === 0) {
           hasMore = false;
         } else {
-          page++;
+          allAssignments = [...allAssignments, ...pageAssignments];
+          
+          // If we received fewer assignments than the page size, we've reached the end
+          if (pageAssignments.length < PER_PAGE) {
+            hasMore = false;
+          } else {
+            page++;
+          }
         }
       }
 
@@ -103,6 +110,7 @@ export const CoursesDashboard = () => {
   const fetchCourses = async () => {
     setError(null);
     setErrorDetails(null);
+    setErrorType(null);
     setLoading(true);
     
     try {
@@ -128,9 +136,6 @@ export const CoursesDashboard = () => {
       if (response.error) {
         console.error('Error fetching courses:', response.error);
         setError(`Failed to fetch courses: ${response.error}`);
-        if (response.data && response.data.details) {
-          setErrorDetails(response.data.details);
-        }
         setLoading(false);
         toast({
           title: "Error fetching courses",
@@ -140,10 +145,25 @@ export const CoursesDashboard = () => {
         return;
       }
 
-      const coursesData = response.data;
+      const responseData = response.data;
+
+      if (responseData && responseData.error) {
+        console.error('Canvas API error:', responseData.error);
+        setError(responseData.error);
+        setErrorDetails(responseData.details || 'No additional details provided');
+        setErrorType(responseData.type || 'api_error');
+        setLoading(false);
+        
+        toast({
+          title: "Canvas API Error",
+          description: responseData.details || responseData.error,
+          variant: "destructive"
+        });
+        return;
+      }
       
-      if (!Array.isArray(coursesData)) {
-        console.error('Unexpected courses response:', coursesData);
+      if (!Array.isArray(responseData)) {
+        console.error('Unexpected courses response:', responseData);
         setError('Received invalid data from Canvas API');
         setLoading(false);
         toast({
@@ -154,10 +174,10 @@ export const CoursesDashboard = () => {
         return;
       }
 
-      console.log('Courses data received:', coursesData.length, 'courses');
+      console.log('Courses data received:', responseData.length, 'courses');
       
       const coursesWithAssignments = await Promise.all(
-        coursesData.map(async (course) => {
+        responseData.map(async (course) => {
           try {
             const assignments = await fetchAllAssignments(course.id);
             
@@ -236,7 +256,7 @@ export const CoursesDashboard = () => {
   };
 
   const handleCanvasReconnect = () => {
-    window.location.href = "/settings";
+    navigate("/settings");
   };
 
   if (loading) {
@@ -260,9 +280,16 @@ export const CoursesDashboard = () => {
         
         {errorDetails && (
           <Alert variant="destructive" className="mb-4 bg-red-900/40 border-red-800">
-            <AlertTitle>Canvas API Error</AlertTitle>
+            <AlertTitle>{errorType === 'token_revoked' ? 'Canvas API Token Expired' : 'Canvas API Error'}</AlertTitle>
             <AlertDescription className="mt-2">
-              {errorDetails}
+              {errorType === 'token_revoked' ? (
+                <div className="space-y-2">
+                  <p>{errorDetails}</p>
+                  <p className="font-medium">Your Canvas API token has been revoked or expired. Please generate a new token in your Canvas settings and update it here.</p>
+                </div>
+              ) : (
+                errorDetails
+              )}
             </AlertDescription>
           </Alert>
         )}
@@ -276,12 +303,13 @@ export const CoursesDashboard = () => {
             Try Again
           </Button>
           
-          {errorDetails && errorDetails.includes("token") && (
+          {(errorType === 'token_revoked' || errorType === 'auth_error' || (errorDetails && (errorDetails.includes("token") || errorDetails.includes("authentication")))) && (
             <Button 
               onClick={handleCanvasReconnect}
-              variant="outline" 
-              className="mx-auto mt-2"
+              variant="secondary" 
+              className="mx-auto mt-2 bg-blue-900/30 hover:bg-blue-800/40"
             >
+              <KeyRound className="h-4 w-4 mr-2" />
               Update Canvas Connection
             </Button>
           )}
