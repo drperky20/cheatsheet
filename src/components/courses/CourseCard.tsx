@@ -56,7 +56,7 @@ export const CourseCard = ({ course }: CourseCardProps) => {
         <Card 
           className={`group relative overflow-hidden transition-all duration-300 backdrop-blur-lg 
             bg-black/50 border-white/5 hover:border-[#9b87f5]/30 shadow-lg hover:shadow-[#9b87f5]/10 
-            hover:shadow-xl rounded-xl`}
+            hover:shadow-xl rounded-xl h-full`}
           onMouseEnter={() => setIsHovered(true)}
           onMouseLeave={() => setIsHovered(false)}
         >
@@ -65,7 +65,7 @@ export const CourseCard = ({ course }: CourseCardProps) => {
           <div className="absolute top-0 right-0 w-32 h-32 bg-[#9b87f5]/10 rounded-full mix-blend-overlay filter blur-xl -mr-10 -mt-10" />
           <div className="absolute bottom-0 left-0 w-32 h-32 bg-[#D6BCFA]/10 rounded-full mix-blend-overlay filter blur-xl -ml-10 -mb-10" />
           
-          <div className="relative p-6 space-y-4">
+          <div className="relative p-6 space-y-4 h-full">
             <div className="flex items-start justify-between">
               <CourseRename 
                 courseId={course.id}
@@ -95,7 +95,7 @@ export const CourseCard = ({ course }: CourseCardProps) => {
 
             {isHovered && (
               <motion.div 
-                className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-black/70 to-black/90 backdrop-blur-sm"
+                className="absolute inset-0 left-0 top-0 right-0 bottom-0 flex items-center justify-center bg-gradient-to-br from-black/70 to-black/90 backdrop-blur-sm z-10"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ duration: 0.2 }}
