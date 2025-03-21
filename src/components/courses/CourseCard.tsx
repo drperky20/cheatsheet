@@ -118,10 +118,10 @@ export const CourseCard = ({ course }: CourseCardProps) => {
         </Card>
       </motion.div>
 
-      {/* Assignments modal - Updated to make it prettier with rounded corners and removed blur */}
+      {/* Assignments modal */}
       {showAssignments && (
         <motion.div 
-          className="fixed inset-0 bg-black/85 z-40 flex items-center justify-center p-4"
+          className="fixed inset-0 bg-black/90 backdrop-blur-md z-40 flex items-center justify-center p-4"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -133,25 +133,21 @@ export const CourseCard = ({ course }: CourseCardProps) => {
             transition={{ duration: 0.3, type: "spring", stiffness: 300, damping: 30 }}
             className="w-full max-w-3xl"
           >
-            <Card className="w-full rounded-2xl border-[#9b87f5]/20 bg-gradient-to-br from-[#1A1F2C] to-black overflow-hidden">
-              <div className="p-4 border-b border-[#9b87f5]/30 flex items-center justify-between bg-gradient-to-r from-black/70 to-[#9b87f5]/20 rounded-t-2xl">
+            <Card className="w-full neo-blur rounded-2xl border-[#9b87f5]/20">
+              <div className="p-4 border-b border-[#9b87f5]/20 flex items-center justify-between bg-gradient-to-r from-black/60 to-[#9b87f5]/10 rounded-t-2xl">
                 <div className="flex items-center space-x-3">
-                  <div className="bg-[#9b87f5]/30 p-2 rounded-lg">
+                  <div className="bg-[#9b87f5]/20 p-2 rounded-lg">
                     <BarChart className="h-5 w-5 text-[#9b87f5]" />
                   </div>
                   <h2 className="text-xl font-semibold bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent">
                     {nickname || course.name}
                   </h2>
                 </div>
-                <Button 
-                  variant="ghost" 
-                  onClick={() => setShowAssignments(false)} 
-                  className="rounded-lg hover:bg-white/10 text-white"
-                >
+                <Button variant="ghost" onClick={() => setShowAssignments(false)} className="rounded-lg hover:bg-white/5">
                   Close
                 </Button>
               </div>
-              <div className="p-5 bg-black/50">
+              <div className="p-4">
                 <AssignmentsList 
                   courseId={course.id}
                   onStartAssignment={(assignment) => {
