@@ -1,4 +1,3 @@
-
 import { useEffect, useState, useCallback } from "react";
 import { CourseCard } from "./CourseCard";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -39,11 +38,10 @@ interface Course {
 
 type SortOption = "name" | "pending" | "progress";
 
-// Cache mechanism for courses data
 const coursesCache = {
   data: null as Course[] | null,
   expiry: 0,
-  ttl: 5 * 60 * 1000, // 5 minutes
+  ttl: 5 * 60 * 1000,
   isValid: function() {
     return this.data && Date.now() < this.expiry;
   },
@@ -73,7 +71,6 @@ export const CoursesDashboard = () => {
   const { canvasConfig } = useAuth();
   const navigate = useNavigate();
 
-  // Process assignments to get counts and pending counts
   const processAssignments = (assignments: any[], startDate = new Date('2024-01-01')) => {
     const totalAssignments = assignments.length;
     const missingAssignments = assignments.filter(a => {
@@ -88,7 +85,6 @@ export const CoursesDashboard = () => {
     return { totalAssignments, missingAssignments };
   };
 
-  // Fetch assignments for a single course with retries
   const fetchCourseAssignments = useCallback(async (courseId: string, retryCount = 0): Promise<any[]> => {
     const maxRetries = 2;
     const PER_PAGE = 100;
@@ -97,15 +93,12 @@ export const CoursesDashboard = () => {
       console.log(`Fetching assignments for course ${courseId}...`);
       const cacheKey = `course_assignments_${courseId}`;
       
-      // Check sessionStorage cache first
-      const cachedData = sessionStorage.getItem(cacheKey);
-      if (cachedData) {
-        const { data, expiry } = JSON.parse(cachedData);
+      if (sessionStorage.getItem(cacheKey)) {
+        const { data, expiry } = JSON.parse(sessionStorage.getItem(cacheKey)!);
         if (Date.now() < expiry) {
           console.log(`Using cached assignments for course ${courseId}`);
           return data;
         }
-        // Clear expired cache
         sessionStorage.removeItem(cacheKey);
       }
       
@@ -127,10 +120,9 @@ export const CoursesDashboard = () => {
       const assignments = Array.isArray(data) ? data : [];
       console.log(`Received ${assignments.length} assignments for course ${courseId}`);
       
-      // Cache the result in sessionStorage for 5 minutes
       sessionStorage.setItem(cacheKey, JSON.stringify({
         data: assignments,
-        expiry: Date.now() + 5 * 60 * 1000 // 5 minutes
+        expiry: Date.now() + 5 * 60 * 1000
       }));
 
       return assignments;
@@ -147,12 +139,10 @@ export const CoursesDashboard = () => {
     }
   }, [canvasConfig]);
 
-  // Optimized batch fetching of assignments in parallel with concurrency control
   const fetchBatchAssignments = useCallback(async (coursesToFetch: any[]) => {
     console.log(`Starting optimized batch assignments fetch for ${coursesToFetch.length} courses...`);
     const courseAssignmentsMap = new Map();
     
-    // Control concurrency with a smaller batch size for better performance
     const MAX_CONCURRENT = 3;
     const batches = [];
     
@@ -161,7 +151,6 @@ export const CoursesDashboard = () => {
     }
     
     for (const batch of batches) {
-      // Process each batch in parallel
       await Promise.all(batch.map(async course => {
         try {
           const assignments = await fetchCourseAssignments(course.id);
@@ -176,23 +165,19 @@ export const CoursesDashboard = () => {
     return courseAssignmentsMap;
   }, [fetchCourseAssignments]);
 
-  // Main function to fetch courses
   const fetchCourses = useCallback(async (options: { showLoading?: boolean; force?: boolean } = {}) => {
     const { showLoading = true, force = false } = options;
     
-    // Reset error states
     setError(null);
     setErrorDetails(null);
     setErrorType(null);
     
-    // Check if we can use cached data
     if (!force && !showLoading && coursesCache.isValid()) {
       console.log('Using cached courses data');
       setCourses(sortCourses(coursesCache.data!, sortBy));
       return;
     }
     
-    // Set loading state only if this is not a background refresh
     if (showLoading) {
       setLoading(true);
     } else {
@@ -216,7 +201,6 @@ export const CoursesDashboard = () => {
           method: 'GET',
           domain: canvasConfig.domain,
           apiKey: canvasConfig.api_key,
-          // Force refresh if requested
           bypassCache: force
         }
       });
@@ -249,15 +233,12 @@ export const CoursesDashboard = () => {
 
       console.log('Courses data received:', responseData.length, 'courses');
       
-      // Filter to active courses only
       const activeCourses = responseData.filter(course => 
         course.workflow_state === 'available'
       );
       
-      // Fetch assignments for all courses in parallel batches
       const assignmentsMap = await fetchBatchAssignments(activeCourses);
       
-      // Process courses with their assignments
       const processedCourses = activeCourses.map(course => {
         const courseAssignments = assignmentsMap.get(course.id) || [];
         const { totalAssignments, missingAssignments } = processAssignments(courseAssignments);
@@ -275,10 +256,8 @@ export const CoursesDashboard = () => {
 
       console.log('Processed courses with assignments:', processedCourses.length);
       
-      // Update cache
       coursesCache.set(processedCourses);
       
-      // Update state with sorted courses
       setCourses(sortCourses(processedCourses, sortBy));
     } catch (error: any) {
       console.error('Error in fetchCourses:', error);
@@ -300,21 +279,19 @@ export const CoursesDashboard = () => {
     }
   }, [canvasConfig, fetchBatchAssignments, sortBy, toast]);
 
-  // Initial load with loading indicator
   useEffect(() => {
     if (canvasConfig) {
       fetchCourses({ showLoading: true });
     }
   }, [canvasConfig, fetchCourses]);
 
-  // Background refresh every 3 minutes
   useEffect(() => {
     if (!canvasConfig) return;
     
     const refreshInterval = setInterval(() => {
       console.log('Refreshing courses data in background...');
       fetchCourses({ showLoading: false, force: true });
-    }, 3 * 60 * 1000); // 3 minutes
+    }, 3 * 60 * 1000);
     
     return () => clearInterval(refreshInterval);
   }, [canvasConfig, fetchCourses]);
@@ -355,7 +332,6 @@ export const CoursesDashboard = () => {
   };
 
   const handleManualRefresh = () => {
-    // Clear cache and force a refresh
     coursesCache.clear();
     fetchCourses({ showLoading: true, force: true });
     
@@ -445,32 +421,51 @@ export const CoursesDashboard = () => {
   return (
     <>
       <Dialog open={showDisclaimer} onOpenChange={setShowDisclaimer}>
-        <DialogContent className="bg-black/90 border border-white/10 text-white">
+        <DialogContent className="bg-[#1A1F2C] border border-[#9b87f5]/20 text-white rounded-xl shadow-xl shadow-purple-900/10 overflow-hidden">
           <DialogHeader>
-            <DialogTitle className="text-xl font-bold text-[#9b87f5]">⚠️ Alpha Feature Warning</DialogTitle>
-            <DialogDescription>
-              <p className="text-lg font-semibold text-red-400">
+            <DialogTitle className="flex items-center gap-2 text-xl font-bold text-[#9b87f5]">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-amber-400">
+                <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"></path>
+                <line x1="12" y1="9" x2="12" y2="13"></line>
+                <line x1="12" y1="17" x2="12.01" y2="17"></line>
+              </svg>
+              Alpha Feature Warning
+            </DialogTitle>
+            <DialogDescription className="pt-4">
+              <div className="text-lg font-semibold text-red-400 mb-4">
                 This feature is currently in ALPHA testing!
-              </p>
-              <div className="space-y-2 mt-4">
-                <p>Please be aware of the following:</p>
-                <ul className="list-disc pl-5 space-y-1">
-                  <li>The assignment completion feature is experimental and may break unexpectedly</li>
-                  <li>For best results, we recommend using the chat bar above to upload assignment information directly</li>
-                  <li>Some assignments may not be properly processed or may fail to submit</li>
-                  <li>Always review and verify any generated content before submission</li>
-                </ul>
               </div>
-              <p className="font-medium text-[#9b87f5] mt-4">
-                Do you wish to continue anyway?
-              </p>
+              <div className="space-y-4 text-gray-200">
+                <p>Please be aware of the following:</p>
+                <ul className="space-y-2 pl-6">
+                  <li className="flex items-start gap-2">
+                    <span className="inline-block h-1.5 w-1.5 rounded-full bg-amber-400 mt-2"></span>
+                    <span>The assignment completion feature is experimental and may break unexpectedly</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="inline-block h-1.5 w-1.5 rounded-full bg-amber-400 mt-2"></span>
+                    <span>For best results, we recommend using the chat bar above to upload assignment information directly</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="inline-block h-1.5 w-1.5 rounded-full bg-amber-400 mt-2"></span>
+                    <span>Some assignments may not be properly processed or may fail to submit</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="inline-block h-1.5 w-1.5 rounded-full bg-amber-400 mt-2"></span>
+                    <span>Always review and verify any generated content before submission</span>
+                  </li>
+                </ul>
+                <p className="font-medium text-[#9b87f5] mt-2">
+                  Do you wish to continue anyway?
+                </p>
+              </div>
             </DialogDescription>
           </DialogHeader>
-          <div className="flex justify-end space-x-2">
+          <div className="flex justify-end space-x-3 pt-2">
             <Button
               variant="ghost"
               onClick={() => setShowDisclaimer(false)}
-              className="bg-white/10 hover:bg-white/20"
+              className="bg-white/5 hover:bg-white/10 text-gray-200 transition-colors"
             >
               Cancel
             </Button>
@@ -482,7 +477,7 @@ export const CoursesDashboard = () => {
                   console.log("Proceeding with course:", selectedCourse);
                 }
               }}
-              className="bg-[#9b87f5] hover:bg-[#8b5cf6]"
+              className="bg-gradient-to-r from-[#9b87f5] to-[#8b5cf6] hover:opacity-90 text-white border-0"
             >
               I Understand, Continue
             </Button>
