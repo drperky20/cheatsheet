@@ -96,26 +96,25 @@ export const CourseCard = ({ course }: CourseCardProps) => {
                 </div>
               </div>
             </div>
-
-            {/* Hover overlay - ensure this covers the entire card */}
-            {isHovered && (
-              <motion.div 
-                className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-black/80 to-black/95 backdrop-blur-md z-10"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ duration: 0.2 }}
-                style={{ top: 0, left: 0, right: 0, bottom: 0 }}
-              >
-                <Button 
-                  onClick={() => setShowAssignments(true)}
-                  className="bg-gradient-to-r from-[#9b87f5] to-[#8b5cf6] hover:from-[#9b87f5]/90 hover:to-[#8b5cf6]/90 text-white flex items-center gap-2 px-5 py-6 rounded-xl shadow-lg shadow-purple-900/20 transition-all duration-300 hover:scale-105"
-                >
-                  View Assignments
-                  <ArrowRight className="w-4 h-4" />
-                </Button>
-              </motion.div>
-            )}
           </div>
+
+          {/* Hover overlay - using absolute positioning relative to the Card component */}
+          {isHovered && (
+            <motion.div 
+              className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-black/80 to-black/95 backdrop-blur-md z-20"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.2 }}
+            >
+              <Button 
+                onClick={() => setShowAssignments(true)}
+                className="bg-gradient-to-r from-[#9b87f5] to-[#8b5cf6] hover:from-[#9b87f5]/90 hover:to-[#8b5cf6]/90 text-white flex items-center gap-2 px-5 py-6 rounded-xl shadow-lg shadow-purple-900/20 transition-all duration-300 hover:scale-105"
+              >
+                View Assignments
+                <ArrowRight className="w-4 h-4" />
+              </Button>
+            </motion.div>
+          )}
         </Card>
       </motion.div>
 
