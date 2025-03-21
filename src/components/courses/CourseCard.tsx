@@ -61,11 +61,14 @@ export const CourseCard = ({ course }: CourseCardProps) => {
           onMouseEnter={() => setIsHovered(true)}
           onMouseLeave={() => setIsHovered(false)}
         >
+          {/* Background gradient */}
           <div className={`absolute inset-0 bg-gradient-to-br ${getRandomGradient()} opacity-100`} />
           
+          {/* Decorative blurred circles */}
           <div className="absolute top-0 right-0 w-32 h-32 bg-[#9b87f5]/10 rounded-full mix-blend-overlay filter blur-xl -mr-10 -mt-10" />
           <div className="absolute bottom-0 left-0 w-32 h-32 bg-[#D6BCFA]/10 rounded-full mix-blend-overlay filter blur-xl -ml-10 -mb-10" />
           
+          {/* Card content */}
           <div className="relative p-6 space-y-4 flex-1 flex flex-col">
             <div className="flex items-start justify-between">
               <CourseRename 
@@ -94,12 +97,14 @@ export const CourseCard = ({ course }: CourseCardProps) => {
               </div>
             </div>
 
+            {/* Hover overlay - ensure this covers the entire card */}
             {isHovered && (
               <motion.div 
                 className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-black/80 to-black/95 backdrop-blur-md z-10"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ duration: 0.2 }}
+                style={{ top: 0, left: 0, right: 0, bottom: 0 }}
               >
                 <Button 
                   onClick={() => setShowAssignments(true)}
@@ -114,6 +119,7 @@ export const CourseCard = ({ course }: CourseCardProps) => {
         </Card>
       </motion.div>
 
+      {/* Assignments modal */}
       {showAssignments && (
         <motion.div 
           className="fixed inset-0 bg-black/90 backdrop-blur-md z-40 flex items-center justify-center p-4"
@@ -156,6 +162,7 @@ export const CourseCard = ({ course }: CourseCardProps) => {
         </motion.div>
       )}
 
+      {/* Assignment workspace */}
       {selectedAssignment && (
         <AssignmentWorkspace
           assignment={selectedAssignment}
