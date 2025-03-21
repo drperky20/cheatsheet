@@ -30,7 +30,6 @@ serve(async (req) => {
   try {
     let content, type, level, config;
     
-    // Check if we're dealing with multipart form data
     const contentType = req.headers.get('content-type') || '';
     if (contentType.includes('multipart/form-data')) {
       const formData = await req.formData();
@@ -42,7 +41,6 @@ serve(async (req) => {
         filename: file.name 
       };
     } else {
-      // JSON request
       const requestData = await req.json();
       content = requestData.content;
       type = requestData.type;
@@ -52,7 +50,6 @@ serve(async (req) => {
     
     console.log('Received request:', { type, contentPreview: content?.substring(0, 100), config });
 
-    // For 'generate' type, content is optional
     if (!content && type !== 'generate') {
       throw new Error('Content is required');
     }
@@ -64,12 +61,10 @@ serve(async (req) => {
     let systemPrompt = '';
     let enhancedAssignmentDescription = '';
     
-    // If it's a generate request and we have an assignment, first analyze the requirements
     if (type === 'generate' && assignment) {
       try {
         console.log('Preprocessing assignment requirements for better generation...');
         
-        // Create a prompt for analyzing requirements
         const analysisPrompt = `Analyze this assignment description:
         ${assignment.description}
         
@@ -82,7 +77,6 @@ serve(async (req) => {
         
         Return ONLY the structured analysis that can be used as input for content generation.`;
         
-        // Call Gemini API to analyze requirements
         const apiKey = Deno.env.get('GEMINI_API_KEY');
         if (!apiKey) {
           throw new Error('API key for Gemini is not configured');
@@ -120,15 +114,12 @@ serve(async (req) => {
         }
       } catch (error) {
         console.error('Error preprocessing requirements:', error);
-        // Continue with original description if analysis fails
       }
     }
     
-    // Build persona based on quality configuration if available
     if (qualityConfig) {
       console.log('Applying quality configuration:', qualityConfig);
       
-      // Determine student level based on target grade
       let studentLevel = 'average';
       if (qualityConfig.targetGrade === 'A') {
         studentLevel = 'above average';
@@ -136,37 +127,50 @@ serve(async (req) => {
         studentLevel = 'below average';
       }
       
-      // Map confidence level to persona characteristics
       const confidenceDescriptor = qualityConfig.confidenceLevel >= 75 ? 
         "confident and assured" : qualityConfig.confidenceLevel >= 50 ? 
         "somewhat unsure" : "hesitant and uncertain";
       
-      // Build writing flaws section
       const flaws = qualityConfig.selectedFlaws || [];
       let flawsInstructions = '';
       
       if (flaws.length > 0) {
-        flawsInstructions = "\n\nIncorporate these specific writing flaws:\n";
+        flawsInstructions = "\n\nYou MUST incorporate ALL of these specific writing flaws:\n";
         flaws.forEach(flaw => {
           flawsInstructions += `- ${flaw.label}: ${flaw.description}\n`;
         });
+        flawsInstructions += "\nIf no flaws were selected, write with perfect grammar and structure.";
       }
       
-      // Create system prompt based on quality configuration
-      systemPrompt = `You are a ${studentLevel} ${qualityConfig.targetGrade}-level middle school student who is ${confidenceDescriptor} in your writing. When writing, you should:
+      let styleInstructions = '';
+      switch(qualityConfig.writingStyle) {
+        case 'formal':
+          styleInstructions = "Use formal academic language with proper terminology, avoid contractions, slang, or casual expressions. Structure ideas logically with clear transitions.";
+          break;
+        case 'casual':
+          styleInstructions = "Use casual, conversational language with contractions, simpler vocabulary, and a more relaxed tone. Include occasional slang or colloquial expressions where appropriate.";
+          break;
+        case 'mixed':
+          styleInstructions = "Blend formal and casual elements - use some academic terminology but also include conversational phrases and a more approachable tone.";
+          break;
+        default:
+          styleInstructions = "Use a balanced writing style appropriate for a school assignment.";
+      }
+      
+      systemPrompt = `You are a ${studentLevel} ${qualityConfig.targetGrade}-level middle school student who is ${confidenceDescriptor} in your writing. 
 
-        1. Write at a ${qualityConfig.targetGrade}-level student's ability and knowledge level
-        2. Use ${qualityConfig.writingStyle} language and vocabulary appropriate for your grade
-        3. Show a confidence level of ${qualityConfig.confidenceLevel}% in your writing style
-        4. Make mistakes and show limitations typical of a ${qualityConfig.targetGrade}-student${flawsInstructions}
+Writing Style: ${styleInstructions}
 
-        Assignment Details:
-        Title: ${assignment?.name || "Assignment"}
-        Description: ${assignment?.description || ""}
-        Points: ${assignment?.points_possible || "N/A"}
-        Due: ${assignment ? new Date(assignment.due_at).toLocaleDateString() : "N/A"}`;
+Writing Characteristics:
+1. Write at a ${qualityConfig.targetGrade}-level student's ability and knowledge level
+2. Show a confidence level of ${qualityConfig.confidenceLevel}% in your writing style${flawsInstructions}
+
+Assignment Details:
+Title: ${assignment?.name || "Assignment"}
+Description: ${assignment?.description || ""}
+Points: ${assignment?.points_possible || "N/A"}
+Due: ${assignment ? new Date(assignment.due_at).toLocaleDateString() : "N/A"}`;
     } else if (assignment) {
-      // Default system prompt if no quality config is provided
       systemPrompt = `You are a middle school student. When writing, you should:
         1. Use casual, natural language with occasional slang
         2. Make common punctuation and grammar mistakes
@@ -202,15 +206,19 @@ serve(async (req) => {
 
       case 'generate':
         if (qualityConfig) {
-          prompt = `Write a response to this assignment as if you're a real ${qualityConfig.targetGrade}-level middle school student. Follow the persona instructions in the system prompt carefully, including any specified writing flaws and confidence level.
+          prompt = `Write a response to this assignment as if you're a real ${qualityConfig.targetGrade}-level middle school student. Follow the persona instructions in the system prompt carefully.
+
+          IMPORTANT: You MUST incorporate ALL of the writing flaws specified in the system prompt. If specific flaws were selected, make sure they are clearly present in your response.
+          
+          IMPORTANT: You MUST adhere to the specified writing style (${qualityConfig.writingStyle}) as described in the system prompt.
 
           Assignment: ${enhancedAssignmentDescription || assignment?.description || "Write a response"}
 
           Guidelines:
           1. Write a complete response that would be typical for a ${qualityConfig.targetGrade}-level student
-          2. Include ${qualityConfig.confidenceLevel < 50 ? "many" : qualityConfig.confidenceLevel < 75 ? "some" : "occasional"} uncertainty markers if appropriate
+          2. Include ${qualityConfig.confidenceLevel < 50 ? "many" : qualityConfig.confidenceLevel < 75 ? "some" : "few"} uncertainty markers to match the ${qualityConfig.confidenceLevel}% confidence level
           3. Use language appropriate for the specified writing style: ${qualityConfig.writingStyle}
-          4. Include the specific writing flaws identified in the system prompt
+          4. Make sure to include ALL the specific writing flaws identified in the system prompt
           5. Aim for a submission that would likely receive a ${qualityConfig.targetGrade} grade`;
         } else {
           prompt = `Write a response to this assignment as if you're a real middle school student trying to get a B grade. Be natural and informal, make occasional mistakes, and don't be too sophisticated. Use the assignment details as your guide:
@@ -296,14 +304,12 @@ serve(async (req) => {
       console.log('With system prompt:', systemPrompt);
     }
 
-    // Check if GEMINI_API_KEY is available
     const apiKey = Deno.env.get('GEMINI_API_KEY');
     if (!apiKey) {
       console.error('GEMINI_API_KEY is not set in environment variables');
       throw new Error('API key for Gemini is not configured');
     }
 
-    // Updated API endpoint to use the gemini-2.0-flash-lite model
     const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent', {
       method: 'POST',
       headers: {
