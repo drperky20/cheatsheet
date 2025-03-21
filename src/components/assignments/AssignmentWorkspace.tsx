@@ -1,13 +1,15 @@
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Wand2, Save, Send, RotateCcw, FileText } from "lucide-react";
+import { Wand2, Save, Send, RotateCcw, FileText, FileQuestion, FilePen, CheckCircle, Copy } from "lucide-react";
 import { extractGoogleDocLinks, sanitizeHTML } from "@/utils/docProcessor";
 import { AssignmentQualityControls } from "./AssignmentQualityControls";
 import { AssignmentEditor } from "./AssignmentEditor";
 import { AssignmentQualityConfig } from "@/types/assignment";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import pdfMake from "pdfmake/build/pdfmake";
 import "pdfmake/build/vfs_fonts";
 
@@ -39,6 +41,8 @@ export const AssignmentWorkspace = ({ assignment, onClose }: AssignmentWorkspace
     writingStyle: 'mixed',
     confidenceLevel: 75
   });
+  const [activeTab, setActiveTab] = useState("requirements");
+  const [requirementsProcessed, setRequirementsProcessed] = useState(false);
 
   useEffect(() => {
     const links = extractGoogleDocLinks(assignment.description);
@@ -150,6 +154,7 @@ export const AssignmentWorkspace = ({ assignment, onClose }: AssignmentWorkspace
         
         toast.success("Google Doc processed successfully");
       }
+      setRequirementsProcessed(true);
     } catch (error) {
       console.error('Error processing Google Docs:', error);
       toast.error("Failed to process Google Docs");
@@ -158,9 +163,15 @@ export const AssignmentWorkspace = ({ assignment, onClose }: AssignmentWorkspace
     }
   };
 
+  const copyToClipboard = () => {
+    navigator.clipboard.writeText(content)
+      .then(() => toast.success("Content copied to clipboard"))
+      .catch(() => toast.error("Failed to copy content"));
+  };
+
   return (
     <div className="fixed inset-0 bg-black/90 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <Card className="w-full max-w-4xl h-[90vh] glass overflow-hidden flex flex-col">
+      <Card className="w-full max-w-5xl h-[95vh] glass overflow-hidden flex flex-col">
         <div className="p-4 border-b border-white/10 flex items-center justify-between bg-black/40">
           <div>
             <h2 className="text-xl font-semibold text-white">{assignment.name}</h2>
@@ -169,44 +180,125 @@ export const AssignmentWorkspace = ({ assignment, onClose }: AssignmentWorkspace
           <Button variant="ghost" onClick={onClose}>Close</Button>
         </div>
 
-        <div className="flex-1 p-4 space-y-4 overflow-auto">
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-white">Assignment Description</label>
-            <Card className="p-4 bg-black/40 border-white/10">
-              <div 
-                className="prose prose-invert max-w-none"
-                dangerouslySetInnerHTML={{ __html: sanitizeHTML(assignment.description) }} 
-              />
-              
-              {googleDocs.length > 0 && (
-                <div className="mt-4 p-3 bg-blue-500/10 rounded-lg border border-blue-500/20">
-                  <h3 className="text-sm font-medium text-blue-400 mb-2">
-                    Found {googleDocs.length} Google Doc{googleDocs.length > 1 ? 's' : ''}
-                  </h3>
-                  <Button
-                    onClick={processGoogleDocs}
-                    disabled={processingDocs}
-                    className="w-full bg-blue-500/20 hover:bg-blue-500/30"
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col overflow-hidden">
+          <div className="px-4 pt-2 bg-black/30 border-b border-white/10">
+            <TabsList className="bg-black/30 w-full justify-start">
+              <TabsTrigger value="requirements" className="flex items-center gap-2 data-[state=active]:bg-white/10">
+                <FileQuestion className="w-4 h-4" />
+                Requirements
+              </TabsTrigger>
+              <TabsTrigger value="settings" className="flex items-center gap-2 data-[state=active]:bg-white/10">
+                <Wand2 className="w-4 h-4" />
+                AI Settings
+              </TabsTrigger>
+              <TabsTrigger value="editor" className="flex items-center gap-2 data-[state=active]:bg-white/10">
+                <FilePen className="w-4 h-4" />
+                Write
+              </TabsTrigger>
+            </TabsList>
+          </div>
+          
+          <div className="flex-1 overflow-auto">
+            <TabsContent value="requirements" className="p-4 m-0 h-full">
+              <div className="space-y-4 h-full flex flex-col">
+                <Card className="p-4 bg-black/40 border-white/10 flex-1 overflow-auto">
+                  <div 
+                    className="prose prose-invert max-w-none"
+                    dangerouslySetInnerHTML={{ __html: sanitizeHTML(assignment.description) }} 
+                  />
+                </Card>
+                
+                {googleDocs.length > 0 && (
+                  <div className="bg-blue-500/10 rounded-lg border border-blue-500/20 p-4">
+                    <h3 className="text-sm font-medium text-blue-400 mb-2">
+                      Found {googleDocs.length} Google Doc{googleDocs.length > 1 ? 's' : ''}
+                    </h3>
+                    <Button
+                      onClick={processGoogleDocs}
+                      disabled={processingDocs}
+                      className="w-full bg-blue-500/20 hover:bg-blue-500/30"
+                    >
+                      <FileText className="w-4 h-4 mr-2" />
+                      {processingDocs ? "Processing Documents..." : "Process Google Docs"}
+                    </Button>
+                  </div>
+                )}
+                
+                <div className="flex justify-end">
+                  <Button 
+                    onClick={() => setActiveTab("settings")}
+                    className="bg-[#9b87f5] hover:bg-[#8b77e5]"
                   >
-                    <FileText className="w-4 h-4 mr-2" />
-                    {processingDocs ? "Processing Documents..." : "Process Google Docs"}
+                    <CheckCircle className="w-4 h-4 mr-2" />
+                    Next: Configure AI
                   </Button>
                 </div>
-              )}
-            </Card>
+              </div>
+            </TabsContent>
+            
+            <TabsContent value="settings" className="p-4 m-0 h-full">
+              <div className="h-full flex flex-col space-y-4">
+                <AssignmentQualityControls onConfigChange={setQualityConfig} />
+                
+                <div className="flex justify-between mt-auto">
+                  <Button 
+                    onClick={() => setActiveTab("requirements")}
+                    variant="outline"
+                  >
+                    Back to Requirements
+                  </Button>
+                  <Button 
+                    onClick={() => setActiveTab("editor")}
+                    className="bg-[#9b87f5] hover:bg-[#8b77e5]"
+                  >
+                    <CheckCircle className="w-4 h-4 mr-2" />
+                    Next: Write
+                  </Button>
+                </div>
+              </div>
+            </TabsContent>
+            
+            <TabsContent value="editor" className="p-0 m-0 h-full flex flex-col">
+              <div className="p-4 flex-1 overflow-auto">
+                <AssignmentEditor
+                  content={content}
+                  onChange={setContent}
+                  assignment={assignment}
+                  onSave={handleSubmit}
+                  isSubmitting={isSubmitting}
+                  qualityConfig={qualityConfig}
+                />
+              </div>
+              
+              <div className="p-4 border-t border-white/10 bg-black/30 flex justify-between">
+                <div className="flex gap-2">
+                  <Button 
+                    onClick={() => setActiveTab("settings")}
+                    variant="outline"
+                  >
+                    Back to Settings
+                  </Button>
+                  <Button 
+                    onClick={copyToClipboard} 
+                    variant="secondary"
+                    disabled={!content.trim()}
+                  >
+                    <Copy className="w-4 h-4 mr-2" />
+                    Copy
+                  </Button>
+                </div>
+                <Button
+                  onClick={handleSubmit}
+                  disabled={isSubmitting || !content.trim()}
+                  className="bg-[#9b87f5] hover:bg-[#8b77e5]"
+                >
+                  <Send className="w-4 h-4 mr-2" />
+                  {isSubmitting ? "Submitting..." : "Submit to Canvas"}
+                </Button>
+              </div>
+            </TabsContent>
           </div>
-
-          <AssignmentQualityControls onConfigChange={setQualityConfig} />
-
-          <AssignmentEditor
-            content={content}
-            onChange={setContent}
-            assignment={assignment}
-            onSave={handleSubmit}
-            isSubmitting={isSubmitting}
-            qualityConfig={qualityConfig}
-          />
-        </div>
+        </Tabs>
       </Card>
     </div>
   );
