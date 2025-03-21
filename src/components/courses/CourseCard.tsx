@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { BookOpen, Clock, ArrowRight, BarChart, Sparkles } from "lucide-react";
@@ -40,7 +39,6 @@ export const CourseCard = ({ course }: CourseCardProps) => {
       'from-amber-500/30 to-orange-800/30',
       'from-cyan-600/30 to-blue-800/30',
     ];
-    // Use course.id to get a consistent gradient for each course
     const index = parseInt(course.id) % gradients.length;
     return gradients[index];
   };
@@ -61,14 +59,11 @@ export const CourseCard = ({ course }: CourseCardProps) => {
           onMouseEnter={() => setIsHovered(true)}
           onMouseLeave={() => setIsHovered(false)}
         >
-          {/* Background gradient */}
           <div className={`absolute inset-0 bg-gradient-to-br ${getRandomGradient()} opacity-100`} />
           
-          {/* Decorative blurred circles */}
           <div className="absolute top-0 right-0 w-32 h-32 bg-[#9b87f5]/10 rounded-full mix-blend-overlay filter blur-xl -mr-10 -mt-10" />
           <div className="absolute bottom-0 left-0 w-32 h-32 bg-[#D6BCFA]/10 rounded-full mix-blend-overlay filter blur-xl -ml-10 -mb-10" />
           
-          {/* Card content */}
           <div className="relative p-6 space-y-4 flex-1 flex flex-col">
             <div className="flex items-start justify-between">
               <CourseRename 
@@ -98,7 +93,6 @@ export const CourseCard = ({ course }: CourseCardProps) => {
             </div>
           </div>
 
-          {/* Hover overlay - using absolute positioning relative to the Card component */}
           {isHovered && (
             <motion.div 
               className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-black/80 to-black/95 backdrop-blur-md z-20"
@@ -118,10 +112,9 @@ export const CourseCard = ({ course }: CourseCardProps) => {
         </Card>
       </motion.div>
 
-      {/* Assignments modal */}
       {showAssignments && (
         <motion.div 
-          className="fixed inset-0 bg-black/90 backdrop-blur-md z-40 flex items-center justify-center p-4"
+          className="fixed inset-0 bg-black/90 z-40 flex items-center justify-center p-4"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -133,8 +126,8 @@ export const CourseCard = ({ course }: CourseCardProps) => {
             transition={{ duration: 0.3, type: "spring", stiffness: 300, damping: 30 }}
             className="w-full max-w-3xl"
           >
-            <Card className="w-full neo-blur rounded-2xl border-[#9b87f5]/20">
-              <div className="p-4 border-b border-[#9b87f5]/20 flex items-center justify-between bg-gradient-to-r from-black/60 to-[#9b87f5]/10 rounded-t-2xl">
+            <Card className="w-full rounded-2xl border border-[#9b87f5]/20 bg-[#1A1F2C] shadow-xl shadow-purple-900/10 overflow-hidden">
+              <div className="p-4 border-b border-[#9b87f5]/20 flex items-center justify-between bg-gradient-to-r from-[#1A1F2C] to-[#9b87f5]/10 rounded-t-2xl">
                 <div className="flex items-center space-x-3">
                   <div className="bg-[#9b87f5]/20 p-2 rounded-lg">
                     <BarChart className="h-5 w-5 text-[#9b87f5]" />
@@ -143,11 +136,15 @@ export const CourseCard = ({ course }: CourseCardProps) => {
                     {nickname || course.name}
                   </h2>
                 </div>
-                <Button variant="ghost" onClick={() => setShowAssignments(false)} className="rounded-lg hover:bg-white/5">
+                <Button 
+                  variant="ghost" 
+                  onClick={() => setShowAssignments(false)} 
+                  className="rounded-lg hover:bg-white/5 text-gray-300 hover:text-white transition-colors"
+                >
                   Close
                 </Button>
               </div>
-              <div className="p-4">
+              <div className="p-4 bg-gradient-to-br from-black/50 to-[#1A1F2C]/90">
                 <AssignmentsList 
                   courseId={course.id}
                   onStartAssignment={(assignment) => {
@@ -161,7 +158,6 @@ export const CourseCard = ({ course }: CourseCardProps) => {
         </motion.div>
       )}
 
-      {/* Assignment workspace */}
       {selectedAssignment && (
         <AssignmentWorkspace
           assignment={selectedAssignment}
