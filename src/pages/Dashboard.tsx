@@ -2,13 +2,14 @@ import { useState, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { CanvasSetup } from "@/components/canvas/CanvasSetup";
 import { CoursesDashboard } from "@/components/courses/CoursesDashboard";
-import { Settings, LogOut, User, Send, Upload } from "lucide-react";
+import { Settings, LogOut, User, Send, Upload, BookOpen } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useNavigate } from "react-router-dom";
 import { ChatInterface } from "@/components/chat/ChatInterface";
 import { useToast } from "@/hooks/use-toast";
+
 const SUPPORTED_FORMATS = {
   'application/pdf': 'PDF documents',
   'text/plain': 'Text files (.txt)',
@@ -24,6 +25,7 @@ const SUPPORTED_FORMATS = {
   'image/webp': 'WebP images',
   'image/heic': 'HEIC images'
 } as const;
+
 const Dashboard = () => {
   const {
     profile,
@@ -38,6 +40,7 @@ const Dashboard = () => {
   const {
     toast
   } = useToast();
+
   if (!canvasConfig) {
     return <div className="min-h-screen w-full flex flex-col items-center justify-center p-4 relative overflow-hidden bg-black">
         <div className="absolute inset-0">
@@ -54,9 +57,11 @@ const Dashboard = () => {
         </div>
       </div>;
   }
+
   if (showChat) {
     return <ChatInterface onBack={() => setShowChat(false)} initialQuestion={initialQuestion} initialFile={uploadedFile} />;
   }
+
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -74,13 +79,16 @@ const Dashboard = () => {
       description: `${file.name} has been uploaded successfully.`
     });
   };
+
   const handleAskQuestion = (e: React.FormEvent) => {
     e.preventDefault();
     if (initialQuestion.trim() || uploadedFile) {
       setShowChat(true);
     }
   };
+
   const acceptedFileTypes = Object.keys(SUPPORTED_FORMATS).join(',');
+
   return <div className="min-h-screen w-full relative overflow-hidden bg-black">
       <div className="absolute inset-0">
         <div className="absolute inset-0 bg-gradient-to-br from-[#1A1F2C] to-black" />
@@ -91,10 +99,12 @@ const Dashboard = () => {
       <div className="relative z-10 w-full max-w-7xl mx-auto p-4">
         <header className="mb-8 flex justify-between items-center">
           <div className="glass-morphism rounded-xl p-6">
-            <h1 className="text-3xl font-bold bg-gradient-to-br from-white via-white/90 to-[#D6BCFA] bg-clip-text text-transparent">
-              Welcome, {profile?.full_name}
-            </h1>
-            <p className="text-[#E5DEFF] mt-2">Your AI Powered Academic Super Weapon</p>
+            <div className="flex items-center space-x-2">
+              <BookOpen className="h-6 w-6 text-[#9b87f5]" />
+              <h1 className="text-3xl font-bold bg-gradient-to-br from-white via-white/90 to-[#D6BCFA] bg-clip-text text-transparent">
+                CheatSheet
+              </h1>
+            </div>
           </div>
           
           <DropdownMenu>
@@ -164,4 +174,5 @@ const Dashboard = () => {
       </div>
     </div>;
 };
+
 export default Dashboard;
