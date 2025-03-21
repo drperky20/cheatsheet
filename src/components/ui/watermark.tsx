@@ -13,19 +13,23 @@ export const Watermark = () => {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3, delay: 0.5 }}
     >
-      <div className="relative">
-        <div className="absolute inset-0 blur-sm bg-[#9b87f5]/10 rounded-full" />
-        <div 
-          className={cn(
-            "px-3 py-1 rounded-full",
-            "border border-[#9b87f5]/20 shadow-lg",
-            "bg-black/40 backdrop-blur-sm",
-            "text-[#9b87f5] text-sm font-medium"
-          )}
-        >
+      <motion.div
+        className={cn(
+          "px-4 py-1.5 rounded-full",
+          "border border-[#9b87f5]/30 shadow-lg",
+          "bg-gradient-to-r from-[#9b87f5]/20 to-[#8b5cf6]/20",
+          "flex items-center"
+        )}
+        whileHover={{ scale: 1.05 }}
+        transition={{ duration: 0.2 }}
+      >
+        <div className={cn(
+          "text-[#9b87f5] font-medium",
+          "bg-gradient-to-r from-[#9b87f5] to-[#8b5cf6] bg-clip-text text-transparent"
+        )}>
           Alpha
         </div>
-      </div>
+      </motion.div>
     </motion.div>
   );
 };
