@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -205,6 +204,7 @@ export const AssignmentWorkspace = ({ assignment, onClose }: AssignmentWorkspace
             assignment={assignment}
             onSave={handleSubmit}
             isSubmitting={isSubmitting}
+            qualityConfig={qualityConfig}
           />
         </div>
       </Card>

@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 
@@ -59,6 +58,7 @@ serve(async (req) => {
     }
 
     const assignment = config?.assignment as Assignment | undefined;
+    const qualityConfig = config?.qualityConfig;
     
     let prompt = '';
     let systemPrompt = '';
@@ -124,7 +124,49 @@ serve(async (req) => {
       }
     }
     
-    if (assignment) {
+    // Build persona based on quality configuration if available
+    if (qualityConfig) {
+      console.log('Applying quality configuration:', qualityConfig);
+      
+      // Determine student level based on target grade
+      let studentLevel = 'average';
+      if (qualityConfig.targetGrade === 'A') {
+        studentLevel = 'above average';
+      } else if (qualityConfig.targetGrade === 'C') {
+        studentLevel = 'below average';
+      }
+      
+      // Map confidence level to persona characteristics
+      const confidenceDescriptor = qualityConfig.confidenceLevel >= 75 ? 
+        "confident and assured" : qualityConfig.confidenceLevel >= 50 ? 
+        "somewhat unsure" : "hesitant and uncertain";
+      
+      // Build writing flaws section
+      const flaws = qualityConfig.selectedFlaws || [];
+      let flawsInstructions = '';
+      
+      if (flaws.length > 0) {
+        flawsInstructions = "\n\nIncorporate these specific writing flaws:\n";
+        flaws.forEach(flaw => {
+          flawsInstructions += `- ${flaw.label}: ${flaw.description}\n`;
+        });
+      }
+      
+      // Create system prompt based on quality configuration
+      systemPrompt = `You are a ${studentLevel} ${qualityConfig.targetGrade}-level middle school student who is ${confidenceDescriptor} in your writing. When writing, you should:
+
+        1. Write at a ${qualityConfig.targetGrade}-level student's ability and knowledge level
+        2. Use ${qualityConfig.writingStyle} language and vocabulary appropriate for your grade
+        3. Show a confidence level of ${qualityConfig.confidenceLevel}% in your writing style
+        4. Make mistakes and show limitations typical of a ${qualityConfig.targetGrade}-student${flawsInstructions}
+
+        Assignment Details:
+        Title: ${assignment?.name || "Assignment"}
+        Description: ${assignment?.description || ""}
+        Points: ${assignment?.points_possible || "N/A"}
+        Due: ${assignment ? new Date(assignment.due_at).toLocaleDateString() : "N/A"}`;
+    } else if (assignment) {
+      // Default system prompt if no quality config is provided
       systemPrompt = `You are a middle school student. When writing, you should:
         1. Use casual, natural language with occasional slang
         2. Make common punctuation and grammar mistakes
@@ -159,18 +201,31 @@ serve(async (req) => {
         break;
 
       case 'generate':
-        prompt = `Write a response to this assignment as if you're a real middle school student trying to get a B grade. Be natural and informal, make occasional mistakes, and don't be too sophisticated. Use the assignment details as your guide:
+        if (qualityConfig) {
+          prompt = `Write a response to this assignment as if you're a real ${qualityConfig.targetGrade}-level middle school student. Follow the persona instructions in the system prompt carefully, including any specified writing flaws and confidence level.
 
-        Assignment: ${enhancedAssignmentDescription || assignment?.description || "Write a response"}
+          Assignment: ${enhancedAssignmentDescription || assignment?.description || "Write a response"}
 
-        Guidelines:
-        1. Start with a basic introduction
-        2. Use simple examples and explanations
-        3. Include some personal opinions or experiences
-        4. Make a few minor mistakes to seem authentic
-        5. End with a basic conclusion
-        
-        Write a complete response that would be typical for a middle school student.`;
+          Guidelines:
+          1. Write a complete response that would be typical for a ${qualityConfig.targetGrade}-level student
+          2. Include ${qualityConfig.confidenceLevel < 50 ? "many" : qualityConfig.confidenceLevel < 75 ? "some" : "occasional"} uncertainty markers if appropriate
+          3. Use language appropriate for the specified writing style: ${qualityConfig.writingStyle}
+          4. Include the specific writing flaws identified in the system prompt
+          5. Aim for a submission that would likely receive a ${qualityConfig.targetGrade} grade`;
+        } else {
+          prompt = `Write a response to this assignment as if you're a real middle school student trying to get a B grade. Be natural and informal, make occasional mistakes, and don't be too sophisticated. Use the assignment details as your guide:
+
+          Assignment: ${enhancedAssignmentDescription || assignment?.description || "Write a response"}
+
+          Guidelines:
+          1. Start with a basic introduction
+          2. Use simple examples and explanations
+          3. Include some personal opinions or experiences
+          4. Make a few minor mistakes to seem authentic
+          5. End with a basic conclusion
+          
+          Write a complete response that would be typical for a middle school student.`;
+        }
         break;
 
       case 'generate_content':
@@ -237,6 +292,9 @@ serve(async (req) => {
     }
 
     console.log('Sending prompt to Gemini:', prompt);
+    if (systemPrompt) {
+      console.log('With system prompt:', systemPrompt);
+    }
 
     // Check if GEMINI_API_KEY is available
     const apiKey = Deno.env.get('GEMINI_API_KEY');

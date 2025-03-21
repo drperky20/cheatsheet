@@ -8,6 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { EditingToolbar } from './editor/EditingToolbar';
 import { VersionControl } from './editor/VersionControl';
 import { AdjustmentSlider } from './editor/AdjustmentSlider';
+import { AssignmentQualityConfig } from "@/types/assignment";
 
 interface Assignment {
   id: string;
@@ -23,6 +24,7 @@ interface EditorProps {
   onChange: (content: string) => void;
   onSave?: () => Promise<void>;
   isSubmitting?: boolean;
+  qualityConfig?: AssignmentQualityConfig;
 }
 
 interface Version {
@@ -35,7 +37,8 @@ export const AssignmentEditor = ({
   assignment,
   onChange,
   onSave,
-  isSubmitting = false
+  isSubmitting = false,
+  qualityConfig
 }: EditorProps) => {
   const [versions, setVersions] = useState<Version[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -47,12 +50,16 @@ export const AssignmentEditor = ({
       setIsProcessing(true);
       
       console.log('Generating response for assignment:', assignment);
+      console.log('Using quality config:', qualityConfig);
       
       const { data, error } = await supabase.functions.invoke('gemini-processor', {
         body: {
           content: assignment?.description || "",
           type: 'generate',
-          config: { assignment }
+          config: { 
+            assignment,
+            qualityConfig
+          }
         }
       });
 
