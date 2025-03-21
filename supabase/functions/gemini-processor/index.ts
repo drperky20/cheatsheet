@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 
@@ -165,6 +166,12 @@ Writing Characteristics:
 1. Write at a ${qualityConfig.targetGrade}-level student's ability and knowledge level
 2. Show a confidence level of ${qualityConfig.confidenceLevel}% in your writing style${flawsInstructions}
 
+IMPORTANT INSTRUCTIONS:
+1. DO NOT include any personal commentary like "Here are my answers" or "I hope this is good enough"
+2. DO NOT include ANY formatting (no bold, italics, bullet points, numbered lists, etc.)
+3. Directly answer the questions without adding unnecessary personal thoughts
+4. DO NOT add pleasantries, greetings, or conclusions
+
 Assignment Details:
 Title: ${assignment?.name || "Assignment"}
 Description: ${assignment?.description || ""}
@@ -182,6 +189,12 @@ Due: ${assignment ? new Date(assignment.due_at).toLocaleDateString() : "N/A"}`;
         8. Use "like" and "basically" occasionally
         9. Start sentences with "And" or "But" sometimes
         10. Write with enthusiasm but limited sophistication
+
+        IMPORTANT INSTRUCTIONS:
+        1. DO NOT include any personal commentary like "Here are my answers" or "I hope this is good enough"
+        2. DO NOT include ANY formatting (no bold, italics, bullet points, numbered lists, etc.)
+        3. Directly answer the questions without adding unnecessary personal thoughts
+        4. DO NOT add pleasantries, greetings, or conclusions
 
         Assignment Details:
         Title: ${assignment.name}
@@ -211,6 +224,8 @@ Due: ${assignment ? new Date(assignment.due_at).toLocaleDateString() : "N/A"}`;
           IMPORTANT: You MUST incorporate ALL of the writing flaws specified in the system prompt. If specific flaws were selected, make sure they are clearly present in your response.
           
           IMPORTANT: You MUST adhere to the specified writing style (${qualityConfig.writingStyle}) as described in the system prompt.
+          
+          IMPORTANT: DO NOT include any personal commentary, formatting, pleasantries, or unnecessary text. ONLY provide direct answers to the assignment questions.
 
           Assignment: ${enhancedAssignmentDescription || assignment?.description || "Write a response"}
 
@@ -219,25 +234,30 @@ Due: ${assignment ? new Date(assignment.due_at).toLocaleDateString() : "N/A"}`;
           2. Include ${qualityConfig.confidenceLevel < 50 ? "many" : qualityConfig.confidenceLevel < 75 ? "some" : "few"} uncertainty markers to match the ${qualityConfig.confidenceLevel}% confidence level
           3. Use language appropriate for the specified writing style: ${qualityConfig.writingStyle}
           4. Make sure to include ALL the specific writing flaws identified in the system prompt
-          5. Aim for a submission that would likely receive a ${qualityConfig.targetGrade} grade`;
+          5. Aim for a submission that would likely receive a ${qualityConfig.targetGrade} grade
+          6. DO NOT use any formatting (no lists, bullet points, etc.)
+          7. DO NOT add any text that isn't directly answering the assignment questions`;
         } else {
           prompt = `Write a response to this assignment as if you're a real middle school student trying to get a B grade. Be natural and informal, make occasional mistakes, and don't be too sophisticated. Use the assignment details as your guide:
 
           Assignment: ${enhancedAssignmentDescription || assignment?.description || "Write a response"}
 
           Guidelines:
-          1. Start with a basic introduction
+          1. Directly answer the assignment questions without any personal commentary
           2. Use simple examples and explanations
-          3. Include some personal opinions or experiences
-          4. Make a few minor mistakes to seem authentic
-          5. End with a basic conclusion
+          3. Include some informal language and occasional mistakes to seem authentic
+          4. DO NOT add any text that isn't directly answering the assignment questions
+          5. DO NOT use any formatting (no lists, bullet points, etc.)
+          6. DO NOT include pleasantries, greetings, or conclusions
           
           Write a complete response that would be typical for a middle school student.`;
         }
         break;
 
       case 'generate_content':
-        prompt = `Write a response to this assignment as if you're a real middle school student trying to get a B grade. Be natural and informal, make occasional mistakes, and don't be too sophisticated: "${content}"`;
+        prompt = `Write a response to this assignment as if you're a real middle school student trying to get a B grade. Be natural and informal, make occasional mistakes, and don't be too sophisticated: "${content}"
+        
+        DO NOT include any personal commentary, formatting, pleasantries, or unnecessary text. ONLY provide direct answers to the assignment questions.`;
         break;
       
       case 'analyze_document':
@@ -263,7 +283,8 @@ Due: ${assignment ? new Date(assignment.due_at).toLocaleDateString() : "N/A"}`;
                  1. Keep the informal, natural tone
                  2. ${lengthFactor > 1 ? 'Add more examples and personal thoughts' : 'Keep the main points but be more concise'}
                  3. Maintain any existing mistakes or casual language
-                 4. Stay at a middle school writing level`;
+                 4. Stay at a middle school writing level
+                 5. DO NOT add any personal commentary, formatting, pleasantries, or unnecessary text`;
         break;
       
       case 'adjust_reading_level':
@@ -277,7 +298,8 @@ Due: ${assignment ? new Date(assignment.due_at).toLocaleDateString() : "N/A"}`;
         prompt = `Rewrite this as if you're ${levelPersonas[level] || 'an 8th grader'} talking about what you learned in class:
                  "${content}"
                  
-                 Make it sound natural and age-appropriate, including typical writing patterns and occasional mistakes for that age group.`;
+                 Make it sound natural and age-appropriate, including typical writing patterns and occasional mistakes for that age group.
+                 DO NOT add any personal commentary, formatting, pleasantries, or unnecessary text.`;
         break;
       
       case 'improve_writing':
@@ -291,7 +313,8 @@ Due: ${assignment ? new Date(assignment.due_at).toLocaleDateString() : "N/A"}`;
                  4. Add some filler words like "like" and "basically"
                  5. Include some incomplete thoughts or tangents
                  6. Make transitions a bit awkward sometimes
-                 7. Keep explanations simple`;
+                 7. Keep explanations simple
+                 8. DO NOT add any personal commentary, formatting, pleasantries, or unnecessary text`;
         break;
       
       default:
