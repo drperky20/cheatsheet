@@ -7,11 +7,12 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Enhanced cache with longer TTL for assignments
+// Enhanced cache with optimized TTL values
 const cache = new Map();
 const CACHE_TTL = {
-  assignments: 900000, // 15 minutes for assignments
-  default: 300000      // 5 minutes for other endpoints
+  courses: 300000,      // 5 minutes for courses
+  assignments: 900000,  // 15 minutes for assignments
+  default: 120000       // 2 minutes for other endpoints
 };
 
 // Background task flag to track ongoing operations
@@ -41,8 +42,12 @@ serve(async (req) => {
     const url = `https://${CANVAS_DOMAIN}/api/v1${endpoint}`;
     
     // Determine cache TTL based on endpoint type
-    const isAssignmentEndpoint = endpoint.includes('/assignments');
-    const cacheTtl = isAssignmentEndpoint ? CACHE_TTL.assignments : CACHE_TTL.default;
+    let cacheTtl = CACHE_TTL.default;
+    if (endpoint.includes('/assignments')) {
+      cacheTtl = CACHE_TTL.assignments;
+    } else if (endpoint.includes('/courses') && !endpoint.includes('/assignments')) {
+      cacheTtl = CACHE_TTL.courses;
+    }
     
     // Check cache for GET requests if not explicitly bypassing cache
     const cacheKey = `${CANVAS_DOMAIN}:${endpoint}:${CANVAS_API_KEY}`;
@@ -190,10 +195,10 @@ serve(async (req) => {
               data,
               expiry: Date.now() + cacheTtl
             });
-            console.log(`[canvas-proxy] Cached response for: ${url}`);
+            console.log(`[canvas-proxy] Cached response for: ${url} with TTL: ${cacheTtl/1000}s`);
           };
           
-          if (typeof EdgeRuntime !== 'undefined' && EdgeRuntime.waitUntil) {
+          if (typeof EdgeRuntime !== 'undefined') {
             EdgeRuntime.waitUntil(cacheOperation());
           } else {
             // Fallback if waitUntil is not available
@@ -247,4 +252,3 @@ serve(async (req) => {
     );
   }
 });
-

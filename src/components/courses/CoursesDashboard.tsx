@@ -1,5 +1,5 @@
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { CourseCard } from "./CourseCard";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
@@ -39,6 +39,25 @@ interface Course {
 
 type SortOption = "name" | "pending" | "progress";
 
+// Cache mechanism for courses data
+const coursesCache = {
+  data: null as Course[] | null,
+  expiry: 0,
+  ttl: 5 * 60 * 1000, // 5 minutes
+  isValid: function() {
+    return this.data && Date.now() < this.expiry;
+  },
+  set: function(data: Course[]) {
+    this.data = data;
+    this.expiry = Date.now() + this.ttl;
+    console.log('Courses cache set with TTL of 5 minutes');
+  },
+  clear: function() {
+    this.data = null;
+    this.expiry = 0;
+  }
+};
+
 export const CoursesDashboard = () => {
   const [courses, setCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
@@ -49,15 +68,10 @@ export const CoursesDashboard = () => {
   const [showDisclaimer, setShowDisclaimer] = useState(false);
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
   const [hasSeenDisclaimer, setHasSeenDisclaimer] = useState(false);
+  const [isBackgroundRefreshing, setIsBackgroundRefreshing] = useState(false);
   const { toast } = useToast();
   const { canvasConfig } = useAuth();
   const navigate = useNavigate();
-
-  useEffect(() => {
-    if (canvasConfig) {
-      fetchCourses();
-    }
-  }, [canvasConfig]);
 
   // Process assignments to get counts and pending counts
   const processAssignments = (assignments: any[], startDate = new Date('2024-01-01')) => {
@@ -74,131 +88,141 @@ export const CoursesDashboard = () => {
     return { totalAssignments, missingAssignments };
   };
 
-  // Optimized batch fetching of assignments for multiple courses
-  const fetchBatchAssignments = async (coursesToFetch: any[]) => {
-    // Create a Map to store assignments by course id
+  // Fetch assignments for a single course with retries
+  const fetchCourseAssignments = useCallback(async (courseId: string, retryCount = 0): Promise<any[]> => {
+    const maxRetries = 2;
+    const PER_PAGE = 100;
+    
+    try {
+      console.log(`Fetching assignments for course ${courseId}...`);
+      const cacheKey = `course_assignments_${courseId}`;
+      
+      // Check sessionStorage cache first
+      const cachedData = sessionStorage.getItem(cacheKey);
+      if (cachedData) {
+        const { data, expiry } = JSON.parse(cachedData);
+        if (Date.now() < expiry) {
+          console.log(`Using cached assignments for course ${courseId}`);
+          return data;
+        }
+        // Clear expired cache
+        sessionStorage.removeItem(cacheKey);
+      }
+      
+      const { data, error } = await supabase.functions.invoke('canvas-proxy', {
+        body: {
+          endpoint: `/courses/${courseId}/assignments?include[]=submission&per_page=${PER_PAGE}`,
+          method: 'GET',
+          domain: canvasConfig?.domain,
+          apiKey: canvasConfig?.api_key
+        }
+      });
+
+      if (error) throw error;
+
+      if (data.error) {
+        throw new Error(data.details || data.error);
+      }
+
+      const assignments = Array.isArray(data) ? data : [];
+      console.log(`Received ${assignments.length} assignments for course ${courseId}`);
+      
+      // Cache the result in sessionStorage for 5 minutes
+      sessionStorage.setItem(cacheKey, JSON.stringify({
+        data: assignments,
+        expiry: Date.now() + 5 * 60 * 1000 // 5 minutes
+      }));
+
+      return assignments;
+    } catch (error: any) {
+      console.error(`Error fetching assignments for course ${courseId}:`, error);
+      
+      if (retryCount < maxRetries) {
+        console.log(`Retrying fetch for course ${courseId}, attempt ${retryCount + 1}...`);
+        await new Promise(resolve => setTimeout(resolve, 1000 * (retryCount + 1)));
+        return fetchCourseAssignments(courseId, retryCount + 1);
+      }
+      
+      return [];
+    }
+  }, [canvasConfig]);
+
+  // Optimized batch fetching of assignments in parallel with concurrency control
+  const fetchBatchAssignments = useCallback(async (coursesToFetch: any[]) => {
+    console.log(`Starting optimized batch assignments fetch for ${coursesToFetch.length} courses...`);
     const courseAssignmentsMap = new Map();
     
-    // First, try to fetch all assignments in a single batch if not too many courses
-    if (coursesToFetch.length <= 3) {
-      try {
-        // Create promises for all courses
-        const assignmentPromises = coursesToFetch.map(course => 
-          fetchCourseAssignments(course.id)
-            .then(assignments => {
-              courseAssignmentsMap.set(course.id, assignments);
-            })
-            .catch(error => {
-              console.error(`Error fetching assignments for course ${course.id}:`, error);
-              courseAssignmentsMap.set(course.id, []);
-            })
-        );
-        
-        // Execute all promises in parallel
-        await Promise.all(assignmentPromises);
-      } catch (error) {
-        console.error("Error in batch assignment fetching:", error);
-      }
-    } else {
-      // If too many courses, fetch sequentially to avoid overwhelming the API
-      for (const course of coursesToFetch) {
+    // Control concurrency with a smaller batch size for better performance
+    const MAX_CONCURRENT = 3;
+    const batches = [];
+    
+    for (let i = 0; i < coursesToFetch.length; i += MAX_CONCURRENT) {
+      batches.push(coursesToFetch.slice(i, i + MAX_CONCURRENT));
+    }
+    
+    for (const batch of batches) {
+      // Process each batch in parallel
+      await Promise.all(batch.map(async course => {
         try {
           const assignments = await fetchCourseAssignments(course.id);
           courseAssignmentsMap.set(course.id, assignments);
         } catch (error) {
-          console.error(`Error fetching assignments for course ${course.id}:`, error);
+          console.error(`Error in batch fetch for course ${course.id}:`, error);
           courseAssignmentsMap.set(course.id, []);
         }
-      }
+      }));
     }
     
     return courseAssignmentsMap;
-  };
+  }, [fetchCourseAssignments]);
 
-  const fetchCourseAssignments = async (courseId: string) => {
-    let allAssignments: any[] = [];
-    let page = 1;
-    let hasMore = true;
-    const PER_PAGE = 100;
-
-    try {
-      while (hasMore) {
-        console.log(`Fetching assignments page ${page} for course ${courseId}...`);
-        const { data: pageData, error } = await supabase.functions.invoke('canvas-proxy', {
-          body: {
-            endpoint: `/courses/${courseId}/assignments?include[]=submission&page=${page}&per_page=${PER_PAGE}`,
-            method: 'GET',
-            domain: canvasConfig?.domain,
-            apiKey: canvasConfig?.api_key
-          }
-        });
-
-        if (error) throw error;
-
-        if (pageData.error) {
-          throw new Error(pageData.details || pageData.error);
-        }
-
-        const pageAssignments = Array.isArray(pageData) ? pageData : [];
-        console.log(`Received ${pageAssignments.length} assignments on page ${page}`);
-
-        if (pageAssignments.length === 0) {
-          hasMore = false;
-        } else {
-          allAssignments = [...allAssignments, ...pageAssignments];
-          
-          // If we received fewer assignments than the page size, we've reached the end
-          if (pageAssignments.length < PER_PAGE) {
-            hasMore = false;
-          } else {
-            page++;
-          }
-        }
-      }
-
-      return allAssignments;
-    } catch (error) {
-      console.error(`Error fetching assignments for course ${courseId}:`, error);
-      throw error;
-    }
-  };
-
-  const fetchCourses = async () => {
+  // Main function to fetch courses
+  const fetchCourses = useCallback(async (options: { showLoading?: boolean; force?: boolean } = {}) => {
+    const { showLoading = true, force = false } = options;
+    
+    // Reset error states
     setError(null);
     setErrorDetails(null);
     setErrorType(null);
-    setLoading(true);
+    
+    // Check if we can use cached data
+    if (!force && !showLoading && coursesCache.isValid()) {
+      console.log('Using cached courses data');
+      setCourses(sortCourses(coursesCache.data!, sortBy));
+      return;
+    }
+    
+    // Set loading state only if this is not a background refresh
+    if (showLoading) {
+      setLoading(true);
+    } else {
+      setIsBackgroundRefreshing(true);
+    }
     
     try {
       if (!canvasConfig) {
         console.log('No Canvas configuration found');
         setError('Canvas configuration is missing. Please connect your Canvas account.');
-        setLoading(false);
+        if (showLoading) setLoading(false);
+        else setIsBackgroundRefreshing(false);
         return;
       }
 
       console.log('Fetching courses from Canvas...');
-      console.log('Using Canvas domain:', canvasConfig.domain);
       
       const response = await supabase.functions.invoke('canvas-proxy', {
         body: {
           endpoint: '/courses?enrollment_state=active&state[]=available',
           method: 'GET',
           domain: canvasConfig.domain,
-          apiKey: canvasConfig.api_key
+          apiKey: canvasConfig.api_key,
+          // Force refresh if requested
+          bypassCache: force
         }
       });
 
       if (response.error) {
-        console.error('Error fetching courses:', response.error);
-        setError(`Failed to fetch courses: ${response.error}`);
-        setLoading(false);
-        toast({
-          title: "Error fetching courses",
-          description: response.error,
-          variant: "destructive"
-        });
-        return;
+        throw new Error(`Failed to fetch courses: ${response.error}`);
       }
 
       const responseData = response.data;
@@ -208,26 +232,19 @@ export const CoursesDashboard = () => {
         setError(responseData.error);
         setErrorDetails(responseData.details || 'No additional details provided');
         setErrorType(responseData.type || 'api_error');
-        setLoading(false);
         
-        toast({
-          title: "Canvas API Error",
-          description: responseData.details || responseData.error,
-          variant: "destructive"
-        });
+        if (showLoading) {
+          toast({
+            title: "Canvas API Error",
+            description: responseData.details || responseData.error,
+            variant: "destructive"
+          });
+        }
         return;
       }
       
       if (!Array.isArray(responseData)) {
-        console.error('Unexpected courses response:', responseData);
-        setError('Received invalid data from Canvas API');
-        setLoading(false);
-        toast({
-          title: "Error fetching courses",
-          description: "Received invalid data from Canvas API",
-          variant: "destructive"
-        });
-        return;
+        throw new Error('Received invalid data from Canvas API');
       }
 
       console.log('Courses data received:', responseData.length, 'courses');
@@ -237,7 +254,7 @@ export const CoursesDashboard = () => {
         course.workflow_state === 'available'
       );
       
-      // Fetch assignments for all courses in batches
+      // Fetch assignments for all courses in parallel batches
       const assignmentsMap = await fetchBatchAssignments(activeCourses);
       
       // Process courses with their assignments
@@ -257,19 +274,50 @@ export const CoursesDashboard = () => {
       });
 
       console.log('Processed courses with assignments:', processedCourses.length);
+      
+      // Update cache
+      coursesCache.set(processedCourses);
+      
+      // Update state with sorted courses
       setCourses(sortCourses(processedCourses, sortBy));
     } catch (error: any) {
       console.error('Error in fetchCourses:', error);
       setError(error.message || "An unexpected error occurred");
-      toast({
-        title: "Error fetching courses",
-        description: error.message || "Please check your Canvas configuration",
-        variant: "destructive"
-      });
+      
+      if (showLoading) {
+        toast({
+          title: "Error fetching courses",
+          description: error.message || "Please check your Canvas configuration",
+          variant: "destructive"
+        });
+      }
     } finally {
-      setLoading(false);
+      if (showLoading) {
+        setLoading(false);
+      } else {
+        setIsBackgroundRefreshing(false);
+      }
     }
-  };
+  }, [canvasConfig, fetchBatchAssignments, sortBy, toast]);
+
+  // Initial load with loading indicator
+  useEffect(() => {
+    if (canvasConfig) {
+      fetchCourses({ showLoading: true });
+    }
+  }, [canvasConfig, fetchCourses]);
+
+  // Background refresh every 3 minutes
+  useEffect(() => {
+    if (!canvasConfig) return;
+    
+    const refreshInterval = setInterval(() => {
+      console.log('Refreshing courses data in background...');
+      fetchCourses({ showLoading: false, force: true });
+    }, 3 * 60 * 1000); // 3 minutes
+    
+    return () => clearInterval(refreshInterval);
+  }, [canvasConfig, fetchCourses]);
 
   const sortCourses = (coursesToSort: Course[], sortOption: SortOption) => {
     return [...coursesToSort].sort((a, b) => {
@@ -304,6 +352,17 @@ export const CoursesDashboard = () => {
 
   const handleCanvasReconnect = () => {
     navigate("/settings");
+  };
+
+  const handleManualRefresh = () => {
+    // Clear cache and force a refresh
+    coursesCache.clear();
+    fetchCourses({ showLoading: true, force: true });
+    
+    toast({
+      title: "Refreshing Courses",
+      description: "Fetching the latest data from Canvas...",
+    });
   };
 
   if (loading) {
@@ -343,7 +402,7 @@ export const CoursesDashboard = () => {
         
         <div className="flex flex-col gap-3 mt-4">
           <Button 
-            onClick={fetchCourses} 
+            onClick={handleManualRefresh} 
             className="mx-auto flex items-center space-x-2"
           >
             <RefreshCw className="h-4 w-4 mr-2" />
@@ -373,7 +432,7 @@ export const CoursesDashboard = () => {
           We couldn't find any active courses. If you believe this is an error, please check your Canvas configuration.
         </p>
         <Button 
-          onClick={fetchCourses} 
+          onClick={handleManualRefresh} 
           className="mx-auto flex items-center space-x-2"
         >
           <RefreshCw className="h-4 w-4 mr-2" />
@@ -389,11 +448,11 @@ export const CoursesDashboard = () => {
         <DialogContent className="bg-black/90 border border-white/10 text-white">
           <DialogHeader>
             <DialogTitle className="text-xl font-bold text-[#9b87f5]">⚠️ Alpha Feature Warning</DialogTitle>
-            <DialogDescription className="text-white/80 space-y-4">
+            <DialogDescription>
               <p className="text-lg font-semibold text-red-400">
                 This feature is currently in ALPHA testing!
               </p>
-              <div className="space-y-2">
+              <div className="space-y-2 mt-4">
                 <p>Please be aware of the following:</p>
                 <ul className="list-disc pl-5 space-y-1">
                   <li>The assignment completion feature is experimental and may break unexpectedly</li>
@@ -402,7 +461,7 @@ export const CoursesDashboard = () => {
                   <li>Always review and verify any generated content before submission</li>
                 </ul>
               </div>
-              <p className="font-medium text-[#9b87f5]">
+              <p className="font-medium text-[#9b87f5] mt-4">
                 Do you wish to continue anyway?
               </p>
             </DialogDescription>
@@ -439,9 +498,23 @@ export const CoursesDashboard = () => {
           </div>
           <div className="flex items-center space-x-4">
             <div className="flex items-center space-x-2 text-sm text-gray-400">
-              <Clock className="w-4 h-4" />
-              <span>Real-time sync enabled</span>
+              {isBackgroundRefreshing ? (
+                <RefreshCw className="w-4 h-4 animate-spin" />
+              ) : (
+                <Clock className="w-4 h-4" />
+              )}
+              <span>{isBackgroundRefreshing ? 'Refreshing...' : 'Real-time sync enabled'}</span>
             </div>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="flex items-center gap-2"
+              onClick={handleManualRefresh}
+              disabled={loading || isBackgroundRefreshing}
+            >
+              <RefreshCw className={`h-4 w-4 ${isBackgroundRefreshing ? 'animate-spin' : ''}`} />
+              Refresh
+            </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="sm" className="flex items-center gap-2">
