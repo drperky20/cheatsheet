@@ -1,11 +1,12 @@
 
 import { useState } from "react";
 import { Card } from "@/components/ui/card";
-import { BookOpen, Clock, ArrowRight } from "lucide-react";
+import { BookOpen, Clock, ArrowRight, BarChart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CourseRename } from "./CourseRename";
 import { AssignmentsList } from "../assignments/AssignmentsList";
 import { AssignmentWorkspace } from "../assignments/AssignmentWorkspace";
+import { motion } from "framer-motion";
 
 interface CourseCardProps {
   course: {
@@ -39,77 +40,128 @@ export const CourseCard = ({ course }: CourseCardProps) => {
       'from-orange-500/10 to-red-500/10',
       'from-teal-500/10 to-cyan-500/10',
     ];
-    return gradients[Math.floor(Math.random() * gradients.length)];
+    // Use course.id to get a consistent gradient for each course
+    const index = parseInt(course.id) % gradients.length;
+    return gradients[index];
   };
+
+  // Calculate completion percentage
+  const completionPercentage = course.assignments_count > 0 
+    ? Math.round(((course.assignments_count - course.pending_assignments) / course.assignments_count) * 100)
+    : 0;
 
   return (
     <>
-      <Card 
-        className={`group relative overflow-hidden transition-all duration-300 backdrop-blur-lg bg-black/40 
-          border-white/5 hover:border-white/10
-          ${isHovered ? 'transform scale-[1.02]' : ''}`}
-        onMouseEnter={() => setIsHovered(true)}
-        onMouseLeave={() => setIsHovered(false)}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4 }}
       >
-        <div className={`absolute inset-0 bg-gradient-to-br ${getRandomGradient()} opacity-100`} />
-        
-        <div className="relative p-6 space-y-4">
-          <div className="flex items-start justify-between">
-            <CourseRename 
-              courseId={course.id}
-              currentName={course.name}
-              nickname={nickname}
-              onUpdate={setNickname}
-            />
-          </div>
-
-          <div className="flex items-center justify-between text-sm text-gray-400">
-            <div className="flex items-center space-x-1">
-              <BookOpen className="w-4 h-4" />
-              <span>{course.assignments_count} assignments</span>
-            </div>
-            <div className="flex items-center space-x-1">
-              <Clock className="w-4 h-4" />
-              <span>{course.pending_assignments} missing</span>
-            </div>
-          </div>
-
-          {isHovered && (
-            <div className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-sm transition-opacity duration-200">
-              <Button 
-                onClick={() => setShowAssignments(true)}
-                className="bg-white/10 hover:bg-white/20 text-white flex items-center gap-2"
-              >
-                View Assignments
-                <ArrowRight className="w-4 h-4" />
-              </Button>
-            </div>
-          )}
-        </div>
-      </Card>
-
-      {showAssignments && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-40 flex items-center justify-center p-4">
-          <Card className="w-full max-w-2xl glass">
-            <div className="p-4 border-b border-white/10 flex items-center justify-between">
-              <h2 className="text-xl font-semibold">
-                {nickname || course.name} - Assignments
-              </h2>
-              <Button variant="ghost" onClick={() => setShowAssignments(false)}>
-                Close
-              </Button>
-            </div>
-            <div className="p-4">
-              <AssignmentsList 
+        <Card 
+          className={`group relative overflow-hidden transition-all duration-300 backdrop-blur-lg bg-black/40 
+            border-white/5 hover:border-[#9b87f5]/20`}
+          onMouseEnter={() => setIsHovered(true)}
+          onMouseLeave={() => setIsHovered(false)}
+        >
+          <div className={`absolute inset-0 bg-gradient-to-br ${getRandomGradient()} opacity-100`} />
+          
+          <div className="relative p-6 space-y-4">
+            <div className="flex items-start justify-between">
+              <CourseRename 
                 courseId={course.id}
-                onStartAssignment={(assignment) => {
-                  setSelectedAssignment(assignment);
-                  setShowAssignments(false);
-                }}
+                currentName={course.name}
+                nickname={nickname}
+                onUpdate={setNickname}
               />
             </div>
-          </Card>
-        </div>
+
+            <div className="flex items-center justify-between">
+              <div className="space-y-3 w-full">
+                <div className="flex items-center justify-between text-sm text-gray-400">
+                  <div className="flex items-center space-x-1">
+                    <BookOpen className="w-4 h-4" />
+                    <span>{course.assignments_count} assignments</span>
+                  </div>
+                  <div className="flex items-center space-x-1">
+                    <Clock className="w-4 h-4" />
+                    <span>{course.pending_assignments} missing</span>
+                  </div>
+                </div>
+                
+                <div className="w-full bg-black/20 rounded-full h-2 overflow-hidden">
+                  <motion.div 
+                    className="bg-[#9b87f5]/80 h-full rounded-full"
+                    initial={{ width: 0 }}
+                    animate={{ width: `${completionPercentage}%` }}
+                    transition={{ duration: 1, delay: 0.5 }}
+                  />
+                </div>
+                
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-gray-400">Progress</span>
+                  <span className="text-[#9b87f5]">{completionPercentage}%</span>
+                </div>
+              </div>
+            </div>
+
+            {isHovered && (
+              <motion.div 
+                className="absolute inset-0 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.2 }}
+              >
+                <Button 
+                  onClick={() => setShowAssignments(true)}
+                  className="bg-[#9b87f5]/20 hover:bg-[#9b87f5]/40 text-[#9b87f5] flex items-center gap-2"
+                >
+                  View Assignments
+                  <ArrowRight className="w-4 h-4" />
+                </Button>
+              </motion.div>
+            )}
+          </div>
+        </Card>
+      </motion.div>
+
+      {showAssignments && (
+        <motion.div 
+          className="fixed inset-0 bg-black/80 backdrop-blur-sm z-40 flex items-center justify-center p-4"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+        >
+          <motion.div
+            initial={{ scale: 0.95, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.95, opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="w-full max-w-2xl"
+          >
+            <Card className="w-full glass">
+              <div className="p-4 border-b border-white/10 flex items-center justify-between bg-black/40">
+                <div className="flex items-center space-x-2">
+                  <BarChart className="h-5 w-5 text-[#9b87f5]" />
+                  <h2 className="text-xl font-semibold">
+                    {nickname || course.name}
+                  </h2>
+                </div>
+                <Button variant="ghost" onClick={() => setShowAssignments(false)}>
+                  Close
+                </Button>
+              </div>
+              <div className="p-4">
+                <AssignmentsList 
+                  courseId={course.id}
+                  onStartAssignment={(assignment) => {
+                    setSelectedAssignment(assignment);
+                    setShowAssignments(false);
+                  }}
+                />
+              </div>
+            </Card>
+          </motion.div>
+        </motion.div>
       )}
 
       {selectedAssignment && (
