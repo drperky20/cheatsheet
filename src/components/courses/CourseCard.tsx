@@ -45,10 +45,21 @@ export const CourseCard = ({ course }: CourseCardProps) => {
     return gradients[index];
   };
 
-  // Calculate completion percentage
-  const completionPercentage = course.assignments_count > 0 
-    ? Math.round(((course.assignments_count - course.pending_assignments) / course.assignments_count) * 100)
-    : 0;
+  // Get grade color based on score
+  const getGradeColor = (score?: number) => {
+    if (!score && score !== 0) return "text-gray-400";
+    if (score >= 90) return "text-green-400";
+    if (score >= 80) return "text-blue-400";
+    if (score >= 70) return "text-yellow-400";
+    if (score >= 60) return "text-orange-400";
+    return "text-red-400";
+  };
+
+  // Get grade width for progress bar
+  const getGradeWidth = (score?: number) => {
+    if (!score && score !== 0) return "0%";
+    return `${Math.min(100, Math.max(0, score))}%`;
+  };
 
   return (
     <>
@@ -90,16 +101,21 @@ export const CourseCard = ({ course }: CourseCardProps) => {
                 
                 <div className="w-full bg-black/20 rounded-full h-2 overflow-hidden">
                   <motion.div 
-                    className="bg-[#9b87f5]/80 h-full rounded-full"
+                    className={`h-full rounded-full ${course.final_score !== undefined ? 'bg-[#9b87f5]/80' : 'bg-gray-500/50'}`}
                     initial={{ width: 0 }}
-                    animate={{ width: `${completionPercentage}%` }}
+                    animate={{ width: getGradeWidth(course.final_score) }}
                     transition={{ duration: 1, delay: 0.5 }}
                   />
                 </div>
                 
                 <div className="flex items-center justify-between text-xs">
-                  <span className="text-gray-400">Progress</span>
-                  <span className="text-[#9b87f5]">{completionPercentage}%</span>
+                  <span className="text-gray-400">Grade</span>
+                  <span className={getGradeColor(course.final_score)}>
+                    {course.final_grade || course.final_score !== undefined 
+                      ? `${course.final_grade || ''}${course.final_grade && course.final_score !== undefined ? ' • ' : ''}${course.final_score !== undefined ? `${course.final_score}%` : ''}`
+                      : 'No grade yet'
+                    }
+                  </span>
                 </div>
               </div>
             </div>

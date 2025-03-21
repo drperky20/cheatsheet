@@ -30,6 +30,8 @@ interface Course {
   course_code: string;
   assignments_count: number;
   pending_assignments: number;
+  final_grade?: string;
+  final_score?: number;
   term?: {
     name: string;
     start_at: string;
@@ -37,7 +39,7 @@ interface Course {
   };
 }
 
-type SortOption = "name" | "pending" | "progress";
+type SortOption = "name" | "pending" | "progress" | "grade";
 
 // Cache mechanism for courses data
 const coursesCache = {
@@ -87,6 +89,67 @@ export const CoursesDashboard = () => {
 
     return { totalAssignments, missingAssignments };
   };
+
+  // Fetch grades for a course
+  const fetchCourseGrades = useCallback(async (courseId: string, retryCount = 0): Promise<any> => {
+    const maxRetries = 2;
+    
+    try {
+      console.log(`Fetching grades for course ${courseId}...`);
+      const cacheKey = `course_grades_${courseId}`;
+      
+      // Check sessionStorage cache first
+      const cachedData = sessionStorage.getItem(cacheKey);
+      if (cachedData) {
+        const { data, expiry } = JSON.parse(cachedData);
+        if (Date.now() < expiry) {
+          console.log(`Using cached grades for course ${courseId}`);
+          return data;
+        }
+        // Clear expired cache
+        sessionStorage.removeItem(cacheKey);
+      }
+      
+      const { data, error } = await supabase.functions.invoke('canvas-proxy', {
+        body: {
+          endpoint: `/courses/${courseId}/enrollments?enrollment_state=active&include[]=grades`,
+          method: 'GET',
+          domain: canvasConfig?.domain,
+          apiKey: canvasConfig?.api_key
+        }
+      });
+
+      if (error) throw error;
+
+      if (data.error) {
+        throw new Error(data.details || data.error);
+      }
+
+      const enrollments = Array.isArray(data) ? data : [];
+      console.log(`Received ${enrollments.length} enrollments with grades for course ${courseId}`);
+      
+      // Find the user's own enrollment (should only be one for the current user)
+      const userEnrollment = enrollments.find(e => e.type === 'student');
+      
+      // Cache the result in sessionStorage for 10 minutes
+      sessionStorage.setItem(cacheKey, JSON.stringify({
+        data: userEnrollment?.grades || {},
+        expiry: Date.now() + 10 * 60 * 1000 // 10 minutes
+      }));
+
+      return userEnrollment?.grades || {};
+    } catch (error: any) {
+      console.error(`Error fetching grades for course ${courseId}:`, error);
+      
+      if (retryCount < maxRetries) {
+        console.log(`Retrying fetch for course ${courseId} grades, attempt ${retryCount + 1}...`);
+        await new Promise(resolve => setTimeout(resolve, 1000 * (retryCount + 1)));
+        return fetchCourseGrades(courseId, retryCount + 1);
+      }
+      
+      return {};
+    }
+  }, [canvasConfig]);
 
   // Fetch assignments for a single course with retries
   const fetchCourseAssignments = useCallback(async (courseId: string, retryCount = 0): Promise<any[]> => {
@@ -176,6 +239,35 @@ export const CoursesDashboard = () => {
     return courseAssignmentsMap;
   }, [fetchCourseAssignments]);
 
+  // Batch fetch grades for all courses
+  const fetchBatchGrades = useCallback(async (coursesToFetch: any[]) => {
+    console.log(`Starting batch grades fetch for ${coursesToFetch.length} courses...`);
+    const courseGradesMap = new Map();
+    
+    // Control concurrency with a smaller batch size for better performance
+    const MAX_CONCURRENT = 3;
+    const batches = [];
+    
+    for (let i = 0; i < coursesToFetch.length; i += MAX_CONCURRENT) {
+      batches.push(coursesToFetch.slice(i, i + MAX_CONCURRENT));
+    }
+    
+    for (const batch of batches) {
+      // Process each batch in parallel
+      await Promise.all(batch.map(async course => {
+        try {
+          const grades = await fetchCourseGrades(course.id);
+          courseGradesMap.set(course.id, grades);
+        } catch (error) {
+          console.error(`Error in batch fetch for course ${course.id} grades:`, error);
+          courseGradesMap.set(course.id, {});
+        }
+      }));
+    }
+    
+    return courseGradesMap;
+  }, [fetchCourseGrades]);
+
   // Main function to fetch courses
   const fetchCourses = useCallback(async (options: { showLoading?: boolean; force?: boolean } = {}) => {
     const { showLoading = true, force = false } = options;
@@ -257,10 +349,16 @@ export const CoursesDashboard = () => {
       // Fetch assignments for all courses in parallel batches
       const assignmentsMap = await fetchBatchAssignments(activeCourses);
       
-      // Process courses with their assignments
+      // Fetch grades for all courses in parallel batches
+      const gradesMap = await fetchBatchGrades(activeCourses);
+      
+      // Process courses with their assignments and grades
       const processedCourses = activeCourses.map(course => {
         const courseAssignments = assignmentsMap.get(course.id) || [];
         const { totalAssignments, missingAssignments } = processAssignments(courseAssignments);
+        
+        // Get grades data for this course
+        const gradesData = gradesMap.get(course.id) || {};
         
         return {
           id: course.id,
@@ -268,12 +366,15 @@ export const CoursesDashboard = () => {
           course_code: course.course_code || course.name,
           assignments_count: totalAssignments,
           pending_assignments: missingAssignments,
+          final_grade: gradesData.current_grade || gradesData.final_grade,
+          final_score: gradesData.current_score !== undefined ? Number(gradesData.current_score) : 
+                      (gradesData.final_score !== undefined ? Number(gradesData.final_score) : undefined),
           term: course.term,
           nickname: undefined
         } as Course;
       });
 
-      console.log('Processed courses with assignments:', processedCourses.length);
+      console.log('Processed courses with assignments and grades:', processedCourses.length);
       
       // Update cache
       coursesCache.set(processedCourses);
@@ -298,7 +399,7 @@ export const CoursesDashboard = () => {
         setIsBackgroundRefreshing(false);
       }
     }
-  }, [canvasConfig, fetchBatchAssignments, sortBy, toast]);
+  }, [canvasConfig, fetchBatchAssignments, fetchBatchGrades, sortBy, toast]);
 
   // Initial load with loading indicator
   useEffect(() => {
@@ -330,6 +431,10 @@ export const CoursesDashboard = () => {
           const progressA = (a.assignments_count - a.pending_assignments) / Math.max(a.assignments_count, 1);
           const progressB = (b.assignments_count - b.pending_assignments) / Math.max(b.assignments_count, 1);
           return progressB - progressA;
+        case "grade":
+          const scoreA = a.final_score ?? -1;
+          const scoreB = b.final_score ?? -1;
+          return scoreB - scoreA;
         default:
           return 0;
       }
@@ -528,6 +633,9 @@ export const CoursesDashboard = () => {
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => handleSort("pending")}>
                   Sort by Missing
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleSort("grade")}>
+                  Sort by Grade
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => handleSort("progress")}>
                   Sort by Progress
