@@ -184,8 +184,8 @@ serve(async (req) => {
       throw new Error('API key for Gemini is not configured');
     }
 
-    // Updated API endpoint to use the correct model name
-    const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent', {
+    // Updated API endpoint to use the gemini-2.0-flash-lite model
+    const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
