@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -56,10 +57,11 @@ export const AssignmentsList = ({ courseId, onStartAssignment }: AssignmentsList
         console.log(`Fetching assignments page ${page}...`);
         const { data: pageData, error } = await supabase.functions.invoke('canvas-proxy', {
           body: {
-            endpoint: `/courses/${courseId}/assignments?page=${page}&per_page=${PER_PAGE}`,
+            endpoint: `/courses/${courseId}/assignments?include[]=submission&page=${page}&per_page=${PER_PAGE}`,
             method: 'GET',
             domain: canvasConfig.domain,
-            apiKey: canvasConfig.api_key
+            apiKey: canvasConfig.api_key,
+            // We don't bypass cache by default, so results will be cached
           }
         });
 
@@ -88,7 +90,7 @@ export const AssignmentsList = ({ courseId, onStartAssignment }: AssignmentsList
         }
       }
 
-      // Filter and sort assignments - Changed sorting to newest to oldest
+      // Filter and sort assignments
       const filteredAssignments = allAssignments
         .filter(assignment => 
           assignment && 
@@ -99,8 +101,7 @@ export const AssignmentsList = ({ courseId, onStartAssignment }: AssignmentsList
           if (!a.due_at && !b.due_at) return 0;
           if (!a.due_at) return 1;
           if (!b.due_at) return -1;
-          // Changed sorting direction to show newest first (b - a instead of a - b)
-          return new Date(b.due_at).getTime() - new Date(a.due_at).getTime();
+          return new Date(a.due_at).getTime() - new Date(b.due_at).getTime();
         });
 
       console.log(`Total assignments after filtering: ${filteredAssignments.length}`);

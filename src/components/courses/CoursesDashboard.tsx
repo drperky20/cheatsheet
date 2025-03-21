@@ -59,7 +59,63 @@ export const CoursesDashboard = () => {
     }
   }, [canvasConfig]);
 
-  const fetchAllAssignments = async (courseId: string) => {
+  // Process assignments to get counts and pending counts
+  const processAssignments = (assignments: any[], startDate = new Date('2024-01-01')) => {
+    const totalAssignments = assignments.length;
+    const missingAssignments = assignments.filter(a => {
+      const dueDate = a.due_at ? new Date(a.due_at) : null;
+      if (!dueDate || dueDate < startDate) return false;
+      const hasSubmission = a.submission && typeof a.submission.score === 'number';
+      const isZeroScore = hasSubmission && a.submission.score === 0;
+      const hasPointsPossible = a.points_possible > 0;
+      return hasPointsPossible && isZeroScore;
+    }).length;
+
+    return { totalAssignments, missingAssignments };
+  };
+
+  // Optimized batch fetching of assignments for multiple courses
+  const fetchBatchAssignments = async (coursesToFetch: any[]) => {
+    // Create a Map to store assignments by course id
+    const courseAssignmentsMap = new Map();
+    
+    // First, try to fetch all assignments in a single batch if not too many courses
+    if (coursesToFetch.length <= 3) {
+      try {
+        // Create promises for all courses
+        const assignmentPromises = coursesToFetch.map(course => 
+          fetchCourseAssignments(course.id)
+            .then(assignments => {
+              courseAssignmentsMap.set(course.id, assignments);
+            })
+            .catch(error => {
+              console.error(`Error fetching assignments for course ${course.id}:`, error);
+              courseAssignmentsMap.set(course.id, []);
+            })
+        );
+        
+        // Execute all promises in parallel
+        await Promise.all(assignmentPromises);
+      } catch (error) {
+        console.error("Error in batch assignment fetching:", error);
+      }
+    } else {
+      // If too many courses, fetch sequentially to avoid overwhelming the API
+      for (const course of coursesToFetch) {
+        try {
+          const assignments = await fetchCourseAssignments(course.id);
+          courseAssignmentsMap.set(course.id, assignments);
+        } catch (error) {
+          console.error(`Error fetching assignments for course ${course.id}:`, error);
+          courseAssignmentsMap.set(course.id, []);
+        }
+      }
+    }
+    
+    return courseAssignmentsMap;
+  };
+
+  const fetchCourseAssignments = async (courseId: string) => {
     let allAssignments: any[] = [];
     let page = 1;
     let hasMore = true;
@@ -176,41 +232,32 @@ export const CoursesDashboard = () => {
 
       console.log('Courses data received:', responseData.length, 'courses');
       
-      const coursesWithAssignments = await Promise.all(
-        responseData.map(async (course) => {
-          try {
-            const assignments = await fetchAllAssignments(course.id);
-            
-            const startDate = new Date('2024-01-01');
-            const totalAssignments = assignments.length;
-            const missingAssignments = assignments.filter(a => {
-              const dueDate = a.due_at ? new Date(a.due_at) : null;
-              if (!dueDate || dueDate < startDate) return false;
-              const hasSubmission = a.submission && typeof a.submission.score === 'number';
-              const isZeroScore = hasSubmission && a.submission.score === 0;
-              const hasPointsPossible = a.points_possible > 0;
-              return hasPointsPossible && isZeroScore;
-            }).length;
-
-            return {
-              id: course.id,
-              name: course.name,
-              course_code: course.course_code || course.name,
-              assignments_count: totalAssignments,
-              pending_assignments: missingAssignments,
-              term: course.term,
-              nickname: undefined
-            } as Course;
-          } catch (error) {
-            console.error(`Error processing course ${course.id}:`, error);
-            return null;
-          }
-        })
+      // Filter to active courses only
+      const activeCourses = responseData.filter(course => 
+        course.workflow_state === 'available'
       );
+      
+      // Fetch assignments for all courses in batches
+      const assignmentsMap = await fetchBatchAssignments(activeCourses);
+      
+      // Process courses with their assignments
+      const processedCourses = activeCourses.map(course => {
+        const courseAssignments = assignmentsMap.get(course.id) || [];
+        const { totalAssignments, missingAssignments } = processAssignments(courseAssignments);
+        
+        return {
+          id: course.id,
+          name: course.name,
+          course_code: course.course_code || course.name,
+          assignments_count: totalAssignments,
+          pending_assignments: missingAssignments,
+          term: course.term,
+          nickname: undefined
+        } as Course;
+      });
 
-      const validCourses = coursesWithAssignments.filter((course): course is Course => course !== null);
-      console.log('Processed courses with assignments:', validCourses.length);
-      setCourses(sortCourses(validCourses, sortBy));
+      console.log('Processed courses with assignments:', processedCourses.length);
+      setCourses(sortCourses(processedCourses, sortBy));
     } catch (error: any) {
       console.error('Error in fetchCourses:', error);
       setError(error.message || "An unexpected error occurred");

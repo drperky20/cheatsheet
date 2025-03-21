@@ -7,6 +7,10 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Simple in-memory cache with expiration
+const cache = new Map();
+const CACHE_TTL = 300000; // 5 minutes in milliseconds
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -14,7 +18,7 @@ serve(async (req) => {
   }
 
   try {
-    const { endpoint, method, formData, domain, apiKey } = await req.json();
+    const { endpoint, method, formData, domain, apiKey, bypassCache } = await req.json();
 
     if (!endpoint) {
       throw new Error('Endpoint is required');
@@ -29,6 +33,27 @@ serve(async (req) => {
 
     // Construct the full Canvas API URL
     const url = `https://${CANVAS_DOMAIN}/api/v1${endpoint}`;
+    
+    // Check cache for GET requests if not explicitly bypassing cache
+    const cacheKey = `${CANVAS_DOMAIN}:${endpoint}:${CANVAS_API_KEY}`;
+    if (method === 'GET' || !method) {
+      if (!bypassCache && cache.has(cacheKey)) {
+        const cachedData = cache.get(cacheKey);
+        if (Date.now() < cachedData.expiry) {
+          console.log(`[canvas-proxy] Cache hit for: ${url}`);
+          return new Response(
+            JSON.stringify(cachedData.data),
+            {
+              headers: { ...corsHeaders, 'Content-Type': 'application/json', 'X-Cache': 'HIT' },
+              status: 200,
+            }
+          );
+        } else {
+          // Cache expired, remove it
+          cache.delete(cacheKey);
+        }
+      }
+    }
     
     const headers = {
       'Authorization': `Bearer ${CANVAS_API_KEY}`,
@@ -110,6 +135,15 @@ serve(async (req) => {
       try {
         data = JSON.parse(responseText);
         console.log(`[canvas-proxy] Successfully retrieved data from Canvas API`);
+        
+        // Cache successful GET responses
+        if ((method === 'GET' || !method) && data) {
+          cache.set(cacheKey, {
+            data,
+            expiry: Date.now() + CACHE_TTL
+          });
+          console.log(`[canvas-proxy] Cached response for: ${url}`);
+        }
       } catch (e) {
         console.error(`[canvas-proxy] Failed to parse response as JSON: ${e.message}`);
         data = { raw: responseText };
@@ -118,7 +152,7 @@ serve(async (req) => {
       return new Response(
         JSON.stringify(data),
         {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          headers: { ...corsHeaders, 'Content-Type': 'application/json', 'X-Cache': 'MISS' },
           status: 200,
         }
       );
