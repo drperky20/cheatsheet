@@ -9,7 +9,6 @@ import { Input } from "@/components/ui/input";
 import { useNavigate } from "react-router-dom";
 import { ChatInterface } from "@/components/chat/ChatInterface";
 import { useToast } from "@/hooks/use-toast";
-import { Watermark } from "@/components/ui/watermark";
 
 const SUPPORTED_FORMATS = {
   'application/pdf': 'PDF documents',
@@ -91,7 +90,6 @@ const Dashboard = () => {
   const acceptedFileTypes = Object.keys(SUPPORTED_FORMATS).join(',');
 
   return <div className="min-h-screen w-full relative overflow-hidden bg-black">
-      <Watermark />
       <div className="absolute inset-0">
         <div className="absolute inset-0 bg-gradient-to-br from-[#1A1F2C] to-black" />
         <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-[#9b87f5]/20 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-float" />
