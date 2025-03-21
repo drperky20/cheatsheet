@@ -7,9 +7,15 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Simple in-memory cache with expiration
+// Enhanced cache with longer TTL for assignments
 const cache = new Map();
-const CACHE_TTL = 300000; // 5 minutes in milliseconds
+const CACHE_TTL = {
+  assignments: 900000, // 15 minutes for assignments
+  default: 300000      // 5 minutes for other endpoints
+};
+
+// Background task flag to track ongoing operations
+const ongoingTasks = new Set();
 
 serve(async (req) => {
   // Handle CORS preflight requests
@@ -34,10 +40,14 @@ serve(async (req) => {
     // Construct the full Canvas API URL
     const url = `https://${CANVAS_DOMAIN}/api/v1${endpoint}`;
     
+    // Determine cache TTL based on endpoint type
+    const isAssignmentEndpoint = endpoint.includes('/assignments');
+    const cacheTtl = isAssignmentEndpoint ? CACHE_TTL.assignments : CACHE_TTL.default;
+    
     // Check cache for GET requests if not explicitly bypassing cache
     const cacheKey = `${CANVAS_DOMAIN}:${endpoint}:${CANVAS_API_KEY}`;
-    if (method === 'GET' || !method) {
-      if (!bypassCache && cache.has(cacheKey)) {
+    if ((method === 'GET' || !method) && !bypassCache) {
+      if (cache.has(cacheKey)) {
         const cachedData = cache.get(cacheKey);
         if (Date.now() < cachedData.expiry) {
           console.log(`[canvas-proxy] Cache hit for: ${url}`);
@@ -53,6 +63,25 @@ serve(async (req) => {
           cache.delete(cacheKey);
         }
       }
+      
+      // Check if there's an ongoing request for this endpoint
+      if (ongoingTasks.has(cacheKey)) {
+        // Wait a bit and check cache again (another request might have populated it)
+        await new Promise(resolve => setTimeout(resolve, 500));
+        if (cache.has(cacheKey)) {
+          const cachedData = cache.get(cacheKey);
+          if (Date.now() < cachedData.expiry) {
+            console.log(`[canvas-proxy] Cache hit after waiting for: ${url}`);
+            return new Response(
+              JSON.stringify(cachedData.data),
+              {
+                headers: { ...corsHeaders, 'Content-Type': 'application/json', 'X-Cache': 'HIT-AFTER-WAIT' },
+                status: 200,
+              }
+            );
+          }
+        }
+      }
     }
     
     const headers = {
@@ -61,6 +90,11 @@ serve(async (req) => {
     };
 
     console.log(`[canvas-proxy] Making ${method || 'GET'} request to: ${url}`);
+    
+    // Mark this request as ongoing
+    if ((method === 'GET' || !method)) {
+      ongoingTasks.add(cacheKey);
+    }
     
     let body;
     if (formData) {
@@ -78,13 +112,25 @@ serve(async (req) => {
     }
 
     try {
-      const response = await fetch(url, {
+      const fetchPromise = fetch(url, {
         method: method || 'GET',
         headers,
         body,
       });
-
+      
+      // Set up a timeout for slow requests
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Request timeout')), 20000);
+      });
+      
+      // Race between the fetch and the timeout
+      const response = await Promise.race([fetchPromise, timeoutPromise]) as Response;
       const responseText = await response.text();
+      
+      // Remove from ongoing tasks
+      if ((method === 'GET' || !method)) {
+        ongoingTasks.delete(cacheKey);
+      }
       
       if (!response.ok) {
         console.error(`[canvas-proxy] Canvas API error: ${response.status} ${response.statusText}`);
@@ -138,11 +184,21 @@ serve(async (req) => {
         
         // Cache successful GET responses
         if ((method === 'GET' || !method) && data) {
-          cache.set(cacheKey, {
-            data,
-            expiry: Date.now() + CACHE_TTL
-          });
-          console.log(`[canvas-proxy] Cached response for: ${url}`);
+          // Use background task for caching to speed up response
+          const cacheOperation = async () => {
+            cache.set(cacheKey, {
+              data,
+              expiry: Date.now() + cacheTtl
+            });
+            console.log(`[canvas-proxy] Cached response for: ${url}`);
+          };
+          
+          if (typeof EdgeRuntime !== 'undefined' && EdgeRuntime.waitUntil) {
+            EdgeRuntime.waitUntil(cacheOperation());
+          } else {
+            // Fallback if waitUntil is not available
+            cacheOperation();
+          }
         }
       } catch (e) {
         console.error(`[canvas-proxy] Failed to parse response as JSON: ${e.message}`);
@@ -157,6 +213,11 @@ serve(async (req) => {
         }
       );
     } catch (fetchError) {
+      // Remove from ongoing tasks on error
+      if ((method === 'GET' || !method)) {
+        ongoingTasks.delete(cacheKey);
+      }
+      
       console.error(`[canvas-proxy] Fetch error:`, fetchError);
       return new Response(
         JSON.stringify({ 
@@ -186,3 +247,4 @@ serve(async (req) => {
     );
   }
 });
+
