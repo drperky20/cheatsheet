@@ -62,6 +62,67 @@ serve(async (req) => {
     
     let prompt = '';
     let systemPrompt = '';
+    let enhancedAssignmentDescription = '';
+    
+    // If it's a generate request and we have an assignment, first analyze the requirements
+    if (type === 'generate' && assignment) {
+      try {
+        console.log('Preprocessing assignment requirements for better generation...');
+        
+        // Create a prompt for analyzing requirements
+        const analysisPrompt = `Analyze this assignment description:
+        ${assignment.description}
+        
+        Extract and structure the following key details:
+        1. Core requirements (what needs to be done)
+        2. Format/structure requirements
+        3. Word count or length expectations
+        4. Key topics or points to address
+        5. Grading criteria, if mentioned
+        
+        Return ONLY the structured analysis that can be used as input for content generation.`;
+        
+        // Call Gemini API to analyze requirements
+        const apiKey = Deno.env.get('GEMINI_API_KEY');
+        if (!apiKey) {
+          throw new Error('API key for Gemini is not configured');
+        }
+        
+        const analysisResponse = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-goog-api-key': apiKey,
+          },
+          body: JSON.stringify({
+            contents: [{
+              parts: [{
+                text: analysisPrompt
+              }]
+            }],
+            generationConfig: {
+              temperature: 0.4,
+              topK: 32,
+              topP: 0.95,
+              maxOutputTokens: 1024,
+            }
+          })
+        });
+        
+        if (!analysisResponse.ok) {
+          console.warn('Failed to analyze requirements, proceeding with original description');
+        } else {
+          const analysisData = await analysisResponse.json();
+          if (analysisData.candidates?.[0]?.content?.parts?.[0]?.text) {
+            enhancedAssignmentDescription = analysisData.candidates[0].content.parts[0].text;
+            console.log('Successfully pre-processed assignment requirements');
+          }
+        }
+      } catch (error) {
+        console.error('Error preprocessing requirements:', error);
+        // Continue with original description if analysis fails
+      }
+    }
     
     if (assignment) {
       systemPrompt = `You are a middle school student. When writing, you should:
@@ -100,7 +161,7 @@ serve(async (req) => {
       case 'generate':
         prompt = `Write a response to this assignment as if you're a real middle school student trying to get a B grade. Be natural and informal, make occasional mistakes, and don't be too sophisticated. Use the assignment details as your guide:
 
-        Assignment: ${assignment?.description || "Write a response"}
+        Assignment: ${enhancedAssignmentDescription || assignment?.description || "Write a response"}
 
         Guidelines:
         1. Start with a basic introduction
