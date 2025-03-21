@@ -45,11 +45,6 @@ export const CourseCard = ({ course }: CourseCardProps) => {
     return gradients[index];
   };
 
-  // Calculate completion percentage
-  const completionPercentage = course.assignments_count > 0 
-    ? Math.round(((course.assignments_count - course.pending_assignments) / course.assignments_count) * 100)
-    : 0;
-
   return (
     <>
       <motion.div
@@ -86,20 +81,6 @@ export const CourseCard = ({ course }: CourseCardProps) => {
                     <Clock className="w-4 h-4" />
                     <span>{course.pending_assignments} missing</span>
                   </div>
-                </div>
-                
-                <div className="w-full bg-black/20 rounded-full h-2 overflow-hidden">
-                  <motion.div 
-                    className="bg-[#9b87f5]/80 h-full rounded-full"
-                    initial={{ width: 0 }}
-                    animate={{ width: `${completionPercentage}%` }}
-                    transition={{ duration: 1, delay: 0.5 }}
-                  />
-                </div>
-                
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-gray-400">Progress</span>
-                  <span className="text-[#9b87f5]">{completionPercentage}%</span>
                 </div>
               </div>
             </div>
