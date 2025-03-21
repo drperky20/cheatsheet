@@ -3,7 +3,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { Send, Wand2 } from "lucide-react";
+import { Send } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { EditingToolbar } from './editor/EditingToolbar';
 import { VersionControl } from './editor/VersionControl';
@@ -192,60 +192,69 @@ export const AssignmentEditor = ({
   };
 
   return (
-    <div className="w-full h-full flex flex-col">
-      <Card className="glass-morphism flex-1 flex flex-col">
-        <div className="p-4 border-b border-white/10 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Button 
-              onClick={handleGenerate} 
-              disabled={isProcessing} 
-              className="bg-[#9b87f5] hover:bg-[#8b77e5] flex items-center gap-2"
-            >
-              <Wand2 className="w-4 h-4" />
-              {isProcessing ? "Generating..." : "Generate Response"}
-            </Button>
-            
-            <span className="text-sm text-white/60">
-              {content.length} characters
-            </span>
-          </div>
-
-          <VersionControl
-            content={content}
-            versions={versions}
-            onVersionChange={onChange}
-            onVersionSave={setVersions}
-          />
-        </div>
-
-        <div className="relative p-4 flex-1 flex flex-col">
-          <Textarea
-            value={content}
-            onChange={(e) => onChange(e.target.value)}
-            className="min-h-[400px] flex-1 neo-blur text-white/90 placeholder-white/50 font-mono resize-none"
-            placeholder="Start writing or generate a response..."
-          />
-
-          <EditingToolbar
-            onStyleClick={handleStyleChange}
-            onLengthClick={handleLengthAdjust}
-            onImproveClick={handleImproveClick}
-            onFormatClick={formatText}
-            onGradeClick={handleGradeClick}
-            onGenerate={handleGenerate}
-            isProcessing={isProcessing}
-          />
-
-          {activeSlider && (
-            <AdjustmentSlider
-              type={activeSlider}
-              value={sliderValue}
-              onChange={handleSliderChange}
-              onClose={() => setActiveSlider(null)}
-            />
+    <Card className="glass-morphism">
+      <div className="flex items-center justify-between p-4 border-b border-white/10">
+        <div className="space-y-1">
+          {assignment && (
+            <>
+              <h3 className="text-lg font-semibold text-gradient">{assignment.name}</h3>
+              <p className="text-sm text-white/60">
+                Due {new Date(assignment.due_at).toLocaleDateString()} • 
+                {assignment.points_possible} points
+              </p>
+            </>
           )}
         </div>
-      </Card>
-    </div>
+
+        <VersionControl
+          content={content}
+          versions={versions}
+          onVersionChange={onChange}
+          onVersionSave={setVersions}
+        />
+      </div>
+
+      <div className="relative p-4">
+        <Textarea
+          value={content}
+          onChange={(e) => onChange(e.target.value)}
+          className="min-h-[400px] neo-blur text-white/90 placeholder-white/50 font-mono resize-none"
+          placeholder="Start writing or generate a response..."
+        />
+
+        <EditingToolbar
+          onStyleClick={handleStyleChange}
+          onLengthClick={handleLengthAdjust}
+          onImproveClick={handleImproveClick}
+          onFormatClick={formatText}
+          onGradeClick={handleGradeClick}
+          onGenerate={handleGenerate}
+          isProcessing={isProcessing}
+        />
+
+        {activeSlider && (
+          <AdjustmentSlider
+            type={activeSlider}
+            value={sliderValue}
+            onChange={handleSliderChange}
+            onClose={() => setActiveSlider(null)}
+          />
+        )}
+
+        <div className="flex justify-end items-center gap-4 mt-4">
+          <span className="text-sm text-white/60">
+            {content.length} characters
+          </span>
+          <Button
+            onClick={onSave}
+            disabled={isSubmitting || !content.trim()}
+            className="bg-[#9b87f5] hover:bg-[#8b77e5]"
+          >
+            <Send className="w-4 h-4 mr-2" />
+            {isSubmitting ? "Submitting..." : "Submit to Canvas"}
+          </Button>
+        </div>
+      </div>
+    </Card>
   );
 };
