@@ -12,7 +12,8 @@ import {
   ArrowUpDown,
   Sparkles,
   PencilRuler,
-  Wand2
+  Wand2,
+  Loader2
 } from "lucide-react";
 
 interface EditingToolbarProps {
@@ -23,6 +24,7 @@ interface EditingToolbarProps {
   onGradeClick: () => void;
   onGenerate?: () => void;
   isSliderVisible?: boolean;
+  isProcessing?: boolean;
 }
 
 export const EditingToolbar = ({
@@ -32,7 +34,8 @@ export const EditingToolbar = ({
   onFormatClick,
   onGradeClick,
   onGenerate,
-  isSliderVisible
+  isSliderVisible,
+  isProcessing = false
 }: EditingToolbarProps) => {
   if (isSliderVisible) return null;
 
@@ -47,9 +50,14 @@ export const EditingToolbar = ({
                   variant="ghost" 
                   size="icon"
                   onClick={onGenerate}
+                  disabled={isProcessing}
                   className="text-[#9b87f5] hover:text-[#8b77e5] hover:bg-white/5"
                 >
-                  <Wand2 className="h-5 w-5" />
+                  {isProcessing ? (
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                  ) : (
+                    <Wand2 className="h-5 w-5" />
+                  )}
                 </Button>
               </TooltipTrigger>
               <TooltipContent side="left" className="neo-blur">
@@ -64,6 +72,7 @@ export const EditingToolbar = ({
                 variant="ghost" 
                 size="icon"
                 onClick={onGradeClick}
+                disabled={isProcessing}
                 className="text-white/70 hover:text-[#9b87f5] hover:bg-white/5"
               >
                 <GraduationCap className="h-5 w-5" />
@@ -80,6 +89,7 @@ export const EditingToolbar = ({
                 variant="ghost" 
                 size="icon"
                 onClick={onStyleClick}
+                disabled={isProcessing}
                 className="text-white/70 hover:text-[#9b87f5] hover:bg-white/5"
               >
                 <BookOpen className="h-5 w-5" />
@@ -96,6 +106,7 @@ export const EditingToolbar = ({
                 variant="ghost" 
                 size="icon"
                 onClick={onLengthClick}
+                disabled={isProcessing}
                 className="text-white/70 hover:text-[#9b87f5] hover:bg-white/5"
               >
                 <ArrowUpDown className="h-5 w-5" />
@@ -112,6 +123,7 @@ export const EditingToolbar = ({
                 variant="ghost" 
                 size="icon"
                 onClick={onImproveClick}
+                disabled={isProcessing}
                 className="text-white/70 hover:text-[#9b87f5] hover:bg-white/5"
               >
                 <Sparkles className="h-5 w-5" />
@@ -128,6 +140,7 @@ export const EditingToolbar = ({
                 variant="ghost" 
                 size="icon"
                 onClick={onFormatClick}
+                disabled={isProcessing}
                 className="text-white/70 hover:text-[#9b87f5] hover:bg-white/5"
               >
                 <PencilRuler className="h-5 w-5" />

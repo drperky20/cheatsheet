@@ -45,6 +45,9 @@ export const AssignmentEditor = ({
   const handleGenerate = async () => {
     try {
       setIsProcessing(true);
+      
+      console.log('Generating response for assignment:', assignment);
+      
       const { data, error } = await supabase.functions.invoke('gemini-processor', {
         body: {
           content: assignment?.description || "",
@@ -53,12 +56,21 @@ export const AssignmentEditor = ({
         }
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Generation error from API:', error);
+        throw error;
+      }
+      
+      if (!data || !data.result) {
+        console.error('Invalid response data:', data);
+        throw new Error('Invalid response from AI service');
+      }
+      
       onChange(data.result);
       toast.success("Response generated successfully!");
     } catch (error) {
       console.error('Generation error:', error);
-      toast.error("Failed to generate response");
+      toast.error("Failed to generate response: " + (error.message || "Unknown error"));
     } finally {
       setIsProcessing(false);
     }
@@ -210,6 +222,7 @@ export const AssignmentEditor = ({
           onFormatClick={formatText}
           onGradeClick={handleGradeClick}
           onGenerate={handleGenerate}
+          isProcessing={isProcessing}
         />
 
         {activeSlider && (

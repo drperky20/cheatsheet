@@ -29,8 +29,29 @@ serve(async (req) => {
   }
 
   try {
-    const { content, type, level, config } = await req.json();
-    console.log('Received request:', { type, content, config });
+    let content, type, level, config;
+    
+    // Check if we're dealing with multipart form data
+    const contentType = req.headers.get('content-type') || '';
+    if (contentType.includes('multipart/form-data')) {
+      const formData = await req.formData();
+      const file = formData.get('file') as File;
+      content = await file.text();
+      type = 'analyze_document';
+      config = { 
+        question: formData.get('question') || '',
+        filename: file.name 
+      };
+    } else {
+      // JSON request
+      const requestData = await req.json();
+      content = requestData.content;
+      type = requestData.type;
+      level = requestData.level;
+      config = requestData.config;
+    }
+    
+    console.log('Received request:', { type, contentPreview: content?.substring(0, 100), config });
 
     // For 'generate' type, content is optional
     if (!content && type !== 'generate') {
@@ -86,11 +107,26 @@ serve(async (req) => {
         2. Use simple examples and explanations
         3. Include some personal opinions or experiences
         4. Make a few minor mistakes to seem authentic
-        5. End with a basic conclusion`;
+        5. End with a basic conclusion
+        
+        Write a complete response that would be typical for a middle school student.`;
         break;
 
       case 'generate_content':
         prompt = `Write a response to this assignment as if you're a real middle school student trying to get a B grade. Be natural and informal, make occasional mistakes, and don't be too sophisticated: "${content}"`;
+        break;
+      
+      case 'analyze_document':
+        prompt = `You're a helpful AI assistant for a middle school student. Analyze this document and provide helpful insights:
+        
+        Document: "${content}"
+        ${config.question ? `Student's question: ${config.question}` : ''}
+        
+        Provide a comprehensive but simple analysis that a middle school student would understand. Include:
+        1. Main topics and key points
+        2. Simplified explanations of any complex concepts
+        3. Important things to remember
+        4. How this information might be used in an assignment`;
         break;
       
       case 'adjust_text':
@@ -111,9 +147,10 @@ serve(async (req) => {
           'elementary': 'a 5th grader',
           'middle_school': 'an 8th grader',
           'high_school': 'an 11th grader',
-          'college': 'a college sophomore'
+          'college': 'a college sophomore',
+          'kindergarten': 'a kindergartener',
         };
-        prompt = `Rewrite this as if you're ${levelPersonas[level]} talking about what you learned in class:
+        prompt = `Rewrite this as if you're ${levelPersonas[level] || 'an 8th grader'} talking about what you learned in class:
                  "${content}"
                  
                  Make it sound natural and age-appropriate, including typical writing patterns and occasional mistakes for that age group.`;
