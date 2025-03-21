@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -232,7 +231,15 @@ export const AssignmentsList = ({ courseId, onStartAssignment }: AssignmentsList
 
   const filteredAssignments = assignments.filter(assignment =>
     assignment.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  )
+  // Sort assignments from newest to oldest based on due dates
+  .sort((a, b) => {
+    if (!a.due_at && !b.due_at) return 0;
+    if (!a.due_at) return 1;
+    if (!b.due_at) return -1;
+    // Reverse the sorting order to show newest first
+    return new Date(b.due_at).getTime() - new Date(a.due_at).getTime();
+  });
 
   if (loading) {
     return (
